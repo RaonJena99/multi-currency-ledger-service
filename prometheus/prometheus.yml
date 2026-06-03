@@ -1,0 +1,13 @@
+# prometheus/prometheus.yml
+global:
+  scrape_interval: 15s # 15초마다 메트릭 수집
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "multi-currency-ledger-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["host.docker.internal:8080"]

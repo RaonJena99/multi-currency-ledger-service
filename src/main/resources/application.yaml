@@ -8,7 +8,7 @@ spring:
       port: 6379
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/ledger_db
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/ledger_db
     username: ${DB_USER:ledger_admin}
     password: ${DB_PASSWORD:ledger_password}
     driver-class-name: org.postgresql.Driver
@@ -26,6 +26,20 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:
