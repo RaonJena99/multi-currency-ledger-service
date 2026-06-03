@@ -1,3 +1,4 @@
+//build.gradle
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.6'
@@ -18,34 +19,53 @@ repositories {
 }
 
 dependencies {
-    // Dependencies for main source set
+    // 공통 및 웹 애플리케이션 계층
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     
-    // Dependencies for Database & Migrations
+    // 데이터베이스 및 마이그레이션 도구
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.flywaydb:flyway-database-postgresql'
     
-    // Dependencies for Lombok
+    // 보일러플레이트 코드 제거 (Lombok)
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-    // Dependencies for Redis
+    // 인메모리 데이터 저장소 및 캐싱 (Redis)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
-    // Dependencies for test source set
+    // 대규모 데이터 배치 처리 (Spring Batch)
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+
+    // 비동기 이벤트 기반 통신 (Kafka)
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // 외부 API 연동 복원력 및 장애 격리 (Resilience4j)
+    implementation platform('org.springframework.cloud:spring-cloud-dependencies:2025.1.1')
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
+
+    // 시스템 관측성 및 텔레메트리 파이프라인 (Actuator & Prometheus)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+
+    // 핵심 테스트 프레임워크
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // 테스트 격리를 위한 인프라 컨테이너 (Testcontainers)
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    
     testImplementation platform('org.testcontainers:testcontainers-bom:1.21.4')
-    
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:kafka'
+
+    // 이벤트 브로커 통합 테스트 (Kafka Test)
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
     
+    // 테스트 환경 보일러플레이트 제거 (Lombok)
     testCompileOnly 'org.projectlombok:lombok'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
