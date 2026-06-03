@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: multi-currency-ledger-test
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 1000
+    show-sql: true
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    clean-disabled: false
+
+logging:
+  level:
+    root: info
+    com.github.raonjena99: debug
