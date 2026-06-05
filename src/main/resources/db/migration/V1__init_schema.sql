@@ -12,8 +12,8 @@ CREATE TABLE account_balances (
     asset_code VARCHAR(20) NOT NULL,
     balance DECIMAL(36, 18) NOT NULL DEFAULT 0,
     version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
     FOREIGN KEY (account_id) REFERENCES accounts(id),
     UNIQUE (account_id, asset_code)
 );
