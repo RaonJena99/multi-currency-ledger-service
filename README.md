@@ -1,4 +1,4 @@
-# 🏦 다중 자산 포트폴리오 불변 원장 시스템 (Multi-Asset Ledger System)
+# 다중 자산 포트폴리오 불변 원장 시스템 (Multi-Asset Ledger System)
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0.6-brightgreen?logo=springboot&logoColor=white)
@@ -10,7 +10,7 @@
 
 ---
 
-## 🏛️ 핵심 기반 아키텍처 (Core Architecture)
+## 핵심 기반 아키텍처 (Core Architecture)
 
 핵심 뱅킹 시스템이 갖추어야 할 철저한 기본기를 충실히 반영하여 설계되었습니다.
 
@@ -21,12 +21,12 @@
 
 ---
 
-## 🚀 시스템 진화 로드맵: 현재 달성 단계
+## 시스템 진화 로드맵: 현재 달성 단계
 
 본 플랫폼은 단순한 법정 화폐 입출금을 넘어 글로벌 금융 기관 수준의 다중 자산 포트폴리오를 취급하기 위해 고도화 로드맵을 밟고 있습니다.  
 **현재 아키텍처는 아래의 제1단계 구축을 완료한 상태입니다.**
 
-### 📍 [Phase 1] 다중 자산 포트폴리오 모델링과 손익 산출 아키텍처
+### [Phase 1] 다중 자산 포트폴리오 모델링과 손익 산출 아키텍처
 
 주식, 채권, 암호화폐, 외환 등 다양한 자산 클래스를 하나의 원장에서 수용할 수 있도록 원장 스키마와 손익 산출 파이프라인을 근본적으로 재설계하였습니다.
 
@@ -50,7 +50,7 @@
 
 ---
 
-## 📂 프로젝트 구조 (Project Structure)
+## 프로젝트 구조 (Project Structure)
 
 ```text
 multi-currency-ledger-service/
