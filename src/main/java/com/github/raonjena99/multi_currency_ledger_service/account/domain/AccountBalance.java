@@ -1,12 +1,15 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.domain;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.UUID;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity;
+import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,6 +20,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 계좌별 특정 자산의 실시간 보유 수량과 투자 원가(평균 단가)를 추적하는 도메인 엔티티
+ */
 
 @Entity
 @Table(name = "account_balances")
@@ -34,43 +40,73 @@ public class AccountBalance extends BaseEntity{
     @Column(name = "asset_code", nullable = false, length = 20)
     private String assetCode;
 
-    @Column(nullable = false, precision = 36, scale = 18)
-    private BigDecimal balance;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "balance", nullable = false, precision = 36, scale = 18)),
+        @AttributeOverride(name = "assetType", column = @Column(name = "asset_type", nullable = false, length = 20))
+    })
+    private Money balance;
 
-    @Column(name = "average_unit_price", nullable = false, precision = 36, scale = 18)
-    private BigDecimal averageUnitPrice;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "average_unit_price", nullable = false, precision = 36, scale = 18)),
+        @AttributeOverride(name = "assetType", column = @Column(name = "average_unit_price_asset_type", nullable = false, length = 20))
+    })
+    private Money averageUnitPrice;
 
     @Version
-    private Long version;
+    private Long version = 0L;
+
+    public AccountBalance(UUID accountId, String assetCode, AssetType assetType) {
+        this.accountId = accountId;
+        this.assetCode = assetCode;
+        this.balance = Money.zero(assetType);
+        this.averageUnitPrice = Money.zero(AssetType.FIAT);
+    }
 
     // 매수
-    public void addBalance(BigDecimal quantity, BigDecimal unitPrice){
-        if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Quantity must be positive");
+    public void addBalance(Money quantityToAdd, Money unitPrice) {
+        // 유효성 검증
+        if (quantityToAdd == null || quantityToAdd.isNegative() || quantityToAdd.isZero()) {
+            throw new IllegalArgumentException("Quantity must be positive and non-null");
+        }
+        // 환율/단가 정보가 없는 경우 방어
+        if (unitPrice == null || unitPrice.isNegative()) {
+            throw new IllegalArgumentException("Unit price must be non-negative");
         }
 
-        BigDecimal totalCurrentValue = this.balance.multiply(this.averageUnitPrice);
-        BigDecimal newAdditionValue = quantity.multiply(unitPrice);
+        // 기존 총 가치 = 현재 수량 * 현재 평균단가
+        Money totalCurrentValue = this.averageUnitPrice.multiply(this.balance.getAmount());
+        
+        // 신규 매입 가치 = 추가 수량 * 신규 단가
+        Money newAdditionValue = unitPrice.multiply(quantityToAdd.getAmount());
 
-        this.balance = this.balance.add(quantity);
+        // 수량 업데이트
+        this.balance = this.balance.add(quantityToAdd);
 
         // 새로운 평균 단가 = (기존 총 가치 + 신규 매입 가치) / 총 수량
-        this.averageUnitPrice = totalCurrentValue.add(newAdditionValue)
-                .divide(this.balance, 18, RoundingMode.HALF_UP);
+        Money newTotalValue = totalCurrentValue.add(newAdditionValue);
+        
+        // Money 객체의 divide 가 AssetType 에 맞게 HALF_EVEN 으로 안전하게 처리함
+        this.averageUnitPrice = newTotalValue.divide(this.balance.getAmount());
     }
 
     // 매도
-    public BigDecimal subtractBalance(BigDecimal quantity) {
-        if (quantity.compareTo(BigDecimal.ZERO) <= 0 || this.balance.compareTo(quantity) < 0) {
-            throw new IllegalArgumentException("Invalid quantity or insufficient balance");
+    public Money subtractBalance(Money quantityToSubtract) {
+        if (quantityToSubtract.isNegative() || quantityToSubtract.isZero()) {
+            throw new IllegalArgumentException("Invalid quantity to subtract");
+        }
+        
+        if (this.balance.compareTo(quantityToSubtract) < 0) {
+            throw new IllegalArgumentException("Insufficient balance");
         }
 
-        this.balance = this.balance.subtract(quantity);
+        this.balance = this.balance.subtract(quantityToSubtract);
 
         // 전량 매도 시 평균 단가 초기화
-        if (this.balance.compareTo(BigDecimal.ZERO) == 0) {
-            BigDecimal lastAveragePrice = this.averageUnitPrice;
-            this.averageUnitPrice = BigDecimal.ZERO;
+        if (this.balance.isZero()) {
+            Money lastAveragePrice = this.averageUnitPrice;
+            this.averageUnitPrice = Money.zero(this.averageUnitPrice.getAssetType());
             return lastAveragePrice;
         }
 
