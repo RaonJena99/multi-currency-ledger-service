@@ -1,46 +1,58 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.assertThatCode;
+@DisplayName("도메인 단위 테스트: Transaction (복식부기 대차평균 정합성 검증)")
+class TransactionTest {
 
-public class TransactionTest {
     @Test
-    @DisplayName("차변과 대변의 합이 정확히 일치하면 검증을 통과한다")
-    void verifyDoubleEntry_success() {
-        Transaction tx = new Transaction(UUID.randomUUID(), "TRADE", "Valid Trade");
+    @DisplayName("차변과 대변의 기준 화폐(Fiat) 환산 가치가 완벽히 일치하면 onPersist 검증을 통과한다.")
+    void onPersist_success_when_balanced() {
+        // given
+        Transaction transaction = new Transaction(UUID.randomUUID(), "BUY", "Buy 2 BTC");
         UUID accountId = UUID.randomUUID();
 
-        // 차변(DEBIT): BTC 1개 매수 @ 50,000$ (Amount: 50,000)
-        tx.addBuyEntry(accountId, "BTC", AssetType.CRYPTO, BigDecimal.ONE, BigDecimal.valueOf(50000), BigDecimal.ONE);
+        // 차변: BTC 2개 유입 (단가 50,000 -> 총 가치 100,000)
+        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO), 
+                                Money.of("50000", AssetType.FIAT), BigDecimal.ONE);
         
-        // 대변(CREDIT): USD 50,000 매도 (Amount: 50,000)
-        tx.addSellEntry(accountId, "USD", AssetType.FIAT, BigDecimal.valueOf(50000), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE);
+        // 대변: USD 100,000 유출 (총 가치 100,000)
+        transaction.addSellEntry(accountId, "USD", Money.of("100000", AssetType.FIAT), 
+                                Money.of("1", AssetType.FIAT), BigDecimal.ONE, Money.of("1", AssetType.FIAT));
 
-        assertThatCode(tx::verifyDoubleEntry).doesNotThrowAnyException();
+        // when & then (예외가 발생하지 않으면 성공)
+        transaction.onPersist(); 
+        assertThat(transaction.getEntries()).hasSize(2);
     }
 
     @Test
-    @DisplayName("차변과 대변의 합이 불일치하면 IllegalStateException 예외가 발생한다")
-    void verifyDoubleEntry_fails_when_unbalanced() {
-        Transaction tx = new Transaction(UUID.randomUUID(), "TRADE", "Invalid Trade");
+    @DisplayName("차변과 대변의 Fiat 환산 가치가 단 1이라도 불일치하면 IllegalStateException 예외가 발생한다.")
+    void onPersist_fails_when_unbalanced() {
+        // given
+        Transaction transaction = new Transaction(UUID.randomUUID(), "BUY", "Unbalanced Trade");
         UUID accountId = UUID.randomUUID();
 
-        // 차변: 50,000$
-        tx.addBuyEntry(accountId, "BTC", AssetType.CRYPTO, BigDecimal.ONE, BigDecimal.valueOf(50000), BigDecimal.ONE);
+        // 차변: 총 가치 100,000
+        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO), 
+                                Money.of("50000", AssetType.FIAT), BigDecimal.ONE);
         
-        // 대변: 49,000$ (대차 불일치)
-        tx.addSellEntry(accountId, "USD", AssetType.FIAT, BigDecimal.valueOf(49000), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE);
+        // 대변: 총 가치 90,000 (10,000 부족)
+        transaction.addSellEntry(accountId, "USD", Money.of("90000", AssetType.FIAT), 
+                                Money.of("1", AssetType.FIAT), BigDecimal.ONE, Money.of("1", AssetType.FIAT));
 
-        assertThatThrownBy(tx::verifyDoubleEntry)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Debits and Credits must balance");
+        // when & then
+        assertThatThrownBy(transaction::onPersist)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Double-entry accounting error");
     }
 }
