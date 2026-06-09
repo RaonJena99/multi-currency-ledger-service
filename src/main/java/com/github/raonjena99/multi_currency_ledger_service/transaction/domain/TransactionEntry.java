@@ -3,10 +3,14 @@ package com.github.raonjena99.multi_currency_ledger_service.transaction.domain;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
 
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -45,79 +49,78 @@ public class TransactionEntry {
     @Column(name = "asset_code", nullable = false, length = 20)
     private String assetCode;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "asset_type", nullable = false, length = 20)
-    private AssetType assetType;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "quantity", nullable = false, precision = 36, scale = 18)),
+        @AttributeOverride(name = "assetType", column = @Column(name = "quantity_asset_type", nullable = false, length = 20))
+    })
+    private Money quantity;
 
-    @Column(nullable = false, precision = 36, scale = 18)
-    private BigDecimal quantity;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "unit_price", nullable = false, precision = 36, scale = 18)),
+        @AttributeOverride(name = "assetType", column = @Column(name = "unit_price_asset_type", nullable = false, length = 20))
+    })
+    private Money unitPrice;
 
-    @Column(name = "unit_price", nullable = false, precision = 36, scale = 18)
-    private BigDecimal unitPrice;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "amount", nullable = false, precision = 36, scale = 18)),
+        @AttributeOverride(name = "assetType", column = @Column(name = "amount_asset_type", nullable = false, length = 20))
+    })
+    private Money amount;
 
-    @Column(name = "realized_pnl", precision = 36, scale = 18)
-    private BigDecimal realizedPnl;
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "amount", column = @Column(name = "realized_pnl", precision = 36, scale = 18)),
+        @AttributeOverride(name = "assetType", column = @Column(name = "realized_pnl_asset_type", length = 20)) // NOT NULL 제외 (V2 스키마 참고)
+    })
+    private Money realizedPnl;
 
     @Column(name = "exchange_rate", precision = 19, scale = 6)
     private BigDecimal exchangeRate;
 
-    @Column(nullable = false, precision = 36, scale = 18)
-    private BigDecimal amount;
-
-    // 패키지 프라이빗: 외부에서 직접 생성하지 못하고 Transaction 을 통해서만 생성되도록 제어
-    private TransactionEntry(Transaction transaction, UUID accountId, EntryType entryType, String assetCode, AssetType assetType, 
-                    BigDecimal quantity, BigDecimal unitPrice, BigDecimal exchangeRate) {
+    private TransactionEntry(Transaction transaction, UUID accountId, EntryType entryType, String assetCode, 
+                    Money quantity, Money unitPrice, BigDecimal exchangeRate, Money realizedPnl) {
         this.transaction = transaction;
         this.accountId = accountId;
         this.entryType = entryType;
         this.assetCode = assetCode;
-        this.assetType = assetType;
-
-        // 정밀도 조정
-        this.quantity = assetType.normalize(quantity);
-
-        // 기준 통화(FIAT) 기준으로 처리
-        this.unitPrice = AssetType.FIAT.normalize(unitPrice);
+        
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
         this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
         
-        // 기준 통화 환산액 계산
-        BigDecimal calculatedAmount = this.quantity.multiply(this.unitPrice).multiply(this.exchangeRate);
-        this.amount = AssetType.FIAT.normalize(calculatedAmount);
+        Money valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
+        Money finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
+                                    
+        this.amount = Money.of(finalCalculatedValue.getAmount().toPlainString(), AssetType.FIAT);
+        this.realizedPnl = realizedPnl;
     }
 
-    // 매수 분개장 생성
     public static TransactionEntry createBuyEntry(
-            Transaction transaction, UUID accountId, String assetCode, AssetType assetType, 
-            BigDecimal buyQuantity, BigDecimal buyPrice, BigDecimal exchangeRate) {
+            Transaction transaction, UUID accountId, String assetCode, 
+            Money buyQuantity, Money buyPrice, BigDecimal exchangeRate) {
         
-        // 차변(DEBIT)에 기록
-        TransactionEntry entry = new TransactionEntry(
-                transaction, accountId, EntryType.DEBIT, assetCode, assetType, 
-                buyQuantity, buyPrice, exchangeRate
+        return new TransactionEntry(
+                transaction, accountId, EntryType.DEBIT, assetCode, 
+                buyQuantity, buyPrice, exchangeRate, 
+                Money.zero(AssetType.FIAT) // NULL 방어용 초기화
         );
-        
-        // 매수 시점에는 실현 손익이 발생하지 않음
-        entry.realizedPnl = BigDecimal.ZERO;
-        
-        return entry;
     }
 
-    // 매도 분개장 생성
     public static TransactionEntry createSellEntry(
-            Transaction transaction, UUID accountId, String assetCode, AssetType assetType, 
-            BigDecimal sellQuantity, BigDecimal sellPrice, BigDecimal exchangeRate, BigDecimal averageCost) {
+            Transaction transaction, UUID accountId, String assetCode, 
+            Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost) {
         
-        // 대변(CREDIT)에 기록
-        TransactionEntry entry = new TransactionEntry(
-                transaction, accountId, EntryType.CREDIT, assetCode, assetType, 
-                sellQuantity, sellPrice, exchangeRate
+        Money pnl = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount());
+        
+        return new TransactionEntry(
+                transaction, accountId, EntryType.CREDIT, assetCode, 
+                sellQuantity, 
+                averageCost,
+                exchangeRate, 
+                pnl
         );
-        
-        BigDecimal pnl = sellPrice.subtract(averageCost).multiply(sellQuantity);
-        
-        // 실현 손익 정밀도 조정
-        entry.realizedPnl = AssetType.FIAT.normalize(pnl);
-        
-        return entry;
     }
 }
