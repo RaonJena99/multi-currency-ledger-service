@@ -79,13 +79,11 @@
 
 ![System Components](docs/architecture/components.svg)
 
-### 2. Bounded Context: Account (계좌 모듈)
+### 2. Bounded Context
 
-![Account Module](docs/architecture/module-account.svg)
-
-### 3. Bounded Context: Transaction (원장 모듈)
-
-![Transaction Module](docs/architecture/module-transaction.svg)
+| Account (계좌 모듈)                                     | Transaction (원장 모듈)                                         |
+| :------------------------------------------------------ | :-------------------------------------------------------------- |
+| ![Account Module](docs/architecture/module-account.svg) | ![Transaction Module](docs/architecture/module-transaction.svg) |
 
 ---
 
