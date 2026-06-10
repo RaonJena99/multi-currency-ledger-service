@@ -1,0 +1,27 @@
+@startuml
+title <size:24>Common</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+System_Boundary("MultiCurrencyLedgerServiceApplication_boundary", "MultiCurrencyLedgerServiceApplication", $tags="") {
+  Container_Boundary("MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication_boundary", "MultiCurrencyLedgerServiceApplication", $tags="") {
+    Component(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "Common", $techn="Module", $descr="", $tags="", $link="")
+  }
+
+}
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml
