@@ -67,6 +67,14 @@ dependencies {
     // 테스트 환경 보일러플레이트 제거 (Lombok)
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // 소스코드를 MSA처럼 쪼개서 유지 (Spring Modulith)
+    implementation platform('org.springframework.modulith:spring-modulith-bom:2.0.3')
+    implementation 'org.springframework.modulith:spring-modulith-starter-core'
+
+    // test 시 시각적 문서(Diagram)로 자동 생성
+    testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+    testImplementation 'org.springframework.modulith:spring-modulith-docs'
 }
 
 tasks.named('test') {

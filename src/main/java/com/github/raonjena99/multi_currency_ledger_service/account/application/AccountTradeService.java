@@ -12,7 +12,6 @@ import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountBalanceRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
-import com.github.raonjena99.multi_currency_ledger_service.transaction.application.port.ExchangeRateProvider;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AccountTradeService {
     private final AccountBalanceRepository accountBalanceRepository;
-    private final ExchangeRateProvider exchangeRateProvider;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String FIAT_CODE = "KRW";

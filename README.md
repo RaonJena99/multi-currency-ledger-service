@@ -71,6 +71,24 @@
 
 ---
 
+## 📊 System Architecture (Living Documentation)
+
+> 본 아키텍처 다이어그램은 코드가 변경됨에 따라 CI/CD 파이프라인에 의해 자동으로 최신화됩니다.
+
+### 1. 시스템 전체 컴포넌트
+
+![System Components](docs/architecture/components.svg)
+
+### 2. Bounded Context: Account (계좌 모듈)
+
+![Account Module](docs/architecture/module-account.svg)
+
+### 3. Bounded Context: Transaction (원장 모듈)
+
+![Transaction Module](docs/architecture/module-transaction.svg)
+
+---
+
 ## 프로젝트 구조 (Project Structure)
 
 ```text
