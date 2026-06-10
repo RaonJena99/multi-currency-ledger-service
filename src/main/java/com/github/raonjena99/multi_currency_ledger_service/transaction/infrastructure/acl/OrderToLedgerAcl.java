@@ -7,7 +7,9 @@ import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxEvent;
+import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxMessageEvent;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository;
+import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
 
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class OrderToLedgerAcl {
 
     private final OutboxRepository outboxRepository;
     private final JsonMapper jsonMapper;
+    private final LedgerService ledgerService;
 
     @EventListener 
     public void persistOutboxEvent(TradeExecutedEvent externalEvent) {
@@ -54,6 +57,19 @@ public class OrderToLedgerAcl {
         } catch (Exception e) {
             log.error("Failed to translate/serialize TradeExecutedEvent", e);
             throw new RuntimeException("Outbox serialization error", e);
+        }
+    }
+
+    @EventListener
+    public void handleOutboxRelay(OutboxMessageEvent msg) {
+        try {
+            if ("LedgerRecordingCommand".equals(msg.eventType())) {
+                LedgerRecordingCommand command = jsonMapper.readValue(msg.payload(), LedgerRecordingCommand.class);
+                ledgerService.recordDoubleEntry(command);
+            }
+        } catch (Exception e) {
+            log.error("Failed to process relayed outbox message", e);
+            throw new RuntimeException("Outbox relay processing error", e); // 워커가 실패를 감지하도록 예외 전파
         }
     }
 }

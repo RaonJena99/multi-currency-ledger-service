@@ -1,0 +1,53 @@
+name: Update Living Documentation
+
+# Action 시작 시점
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  generate-and-commit-diagrams:
+    runs-on: ubuntu-latest
+
+    # 쓰기 권한 부여
+    permissions:
+      contents: write
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # 원본 브랜치를 체크아웃하여 그곳에 커밋을 추가
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: 2. Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "gradle"
+
+      - name: 3. Run Architecture Tests & Generate PUML
+        # 아키텍처 추출 테스트만 빠르게 실행
+        run: ./gradlew test --tests "*LedgerArchitectureTest*"
+
+      - name: 4. Render PUML to SVG using Docker
+        # 공식 PlantUML 도커 이미지를 띄워 puml 파일을 svg 벡터 이미지로 변환
+        run: |
+          mkdir -p docs/architecture
+          # docker를 이용해 고해상도 svg로 렌더링
+          docker run --rm -v ${{ github.workspace }}:/app plantuml/plantuml -tsvg "/app/build/spring-modulith-docs/*.puml"
+          # 렌더링된 파일들을 우리가 관리할 docs/architecture 폴더로 복사
+          cp build/spring-modulith-docs/*.svg docs/architecture/ || true
+          cp build/spring-modulith-docs/*.puml docs/architecture/ || true
+
+      - name: 5. Auto Commit and Push
+        # 변경된 파일이 있다면 자동으로 커밋을 만들어 푸시
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: Auto-update architecture diagrams [skip ci]"
+          file_pattern: "docs/architecture/*"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
