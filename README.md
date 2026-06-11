@@ -5,7 +5,8 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-blue?logo=postgresql&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-Build-02303A?logo=gradle&logoColor=white)
 
-본 프로젝트는 도메인 주도 설계(DDD)와 복식부기 모델을 기반으로 구축된 **엔터프라이즈급 불변 원장 코어 뱅킹 플랫폼**입니다.  
+본 프로젝트는 도메인 주도 설계(DDD)와 복식부기 모델을 기반으로 구축된 **엔터프라이즈급 불변 원장 코어 뱅킹 플랫폼**입니다.
+
 과거 메모리 기반의 단일 통화 원장 시스템을 발전시켜, 완벽한 대차평균의 정합성을 보장하면서도 현대 금융 환경에 맞춘 아키텍처를 적용하고 있습니다.
 
 ---
@@ -17,14 +18,15 @@
 - **불변 객체 모델링 :** 금융 시스템의 부동소수점 오차 및 이종 통화 간 연산 오류를 원천적으로 방지하기 위해 정밀도 제어 로직을 반영한 `Money` VO(Value Object) 기반의 불변 설계를 적용했습니다.
 - **견고한 동시성 제어 :** 데이터베이스 제약조건과 애플리케이션 레벨의 낙관적 락(Optimistic Lock, `@Version`)을 혼합하여 트랜잭션 동시성을 안전하게 제어하고 갱신 손실(Lost Update)을 방지합니다.
 - **독립적 감사 로그 및 비동기 원장 동기화 :** 트랜잭셔널 아웃박스(Transactional Outbox) 패턴을 적용하여 비즈니스 거래 처리와 원장 기록의 생명주기를 물리적으로 분리하고 시스템 간 최종 정합성(Eventual Consistency)을 보장합니다.
-- **기능 기반 패키징 :** 응집도를 높이고 도메인 간 결합도를 낮추기 위해 컨텍스트(Account, Transaction, Common) 단위의 기능 기반 패키지 구조를 채택했습니다.
+- **CQRS 및 기능 기반 패키징 :** 응집도를 높이고 도메인 간 결합도를 낮추기 위해 컨텍스트(Account, Transaction, Portfolio, Common) 단위의 기능 기반 패키지 구조를 채택했습니다.
 
 ---
 
 ## 시스템 진화 로드맵: 현재 달성 단계
 
-본 플랫폼은 단순한 법정 화폐 입출금을 넘어 글로벌 금융 기관 수준의 다중 자산 포트폴리오를 취급하기 위해 고도화 로드맵을 밟고 있습니다.  
-**현재 아키텍처는 아래의 제2단계 구축까지 완료한 상태입니다.**
+본 플랫폼은 단순한 법정 화폐 입출금을 넘어 글로벌 금융 기관 수준의 다중 자산 포트폴리오를 취급하기 위해 고도화 로드맵을 밟고 있습니다.
+
+**현재 아키텍처는 아래의 제3단계 구축까지 완료한 상태입니다.**
 
 ### [Phase 1] 다중 자산 포트폴리오 모델링과 손익 산출 아키텍처
 
@@ -40,13 +42,12 @@
 
 #### 2. 실현 손익 및 미실현 손익 수학적 모델링 (P&L Mathematical Modeling)
 
-사용자 보유 자산의 정확한 가치 평가를 위해, 엄격한 금융 회계 기준에 따라 손익을 실현/미실현으로 분리하여 관리하고 있습니다.  
-원장 시스템은 단순 잔액뿐만 아니라 개별 트랜잭션 단위의 이동 평균 단가를 병행 추적합니다.
+사용자 보유 자산의 정확한 가치 평가를 위해, 엄격한 금융 회계 기준에 따라 손익을 실현/미실현으로 분리하여 관리하고 있습니다.
 
-| 손익 분류                            | 산출 시점 및 조건                            | 계산 로직                                  | 시스템 아키텍처 적용 방식                                                |
-| :----------------------------------- | :------------------------------------------- | :----------------------------------------- | :----------------------------------------------------------------------- |
-| **미실현 손익<br/>(Unrealized P&L)** | 실시간 또는 장 마감 시점의 시장 가격 반영    | `(현재 시장 가격 × 보유 수량) - 비용 기준` | 읽기 전용 뷰(Materialized View)에서 동적으로 계산하여 인메모리 캐싱 처리 |
-| **실현 손익<br/>(Realized P&L)**     | 자산의 부분 또는 전량 매도 및 결제 발생 시점 | `(매도 가격 - 평균 매입 단가) × 매도 수량` | 매도 트랜잭션 발생 시 복식부기 원장에 명시적 분개로 영구 기록            |
+| 손익 분류                       | 산출 시점 및 조건                            | 계산 로직                                  | 시스템 아키텍처 적용 방식                                                |
+| ------------------------------- | -------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
+| **미실현 손익(Unrealized P&L)** | 실시간 또는 장 마감 시점의 시장 가격 반영    | `(현재 시장 가격 × 보유 수량) - 비용 기준` | 읽기 전용 뷰(Materialized View)에서 동적으로 계산하여 인메모리 캐싱 처리 |
+| **실현 손익(Realized P&L)**     | 자산의 부분 또는 전량 매도 및 결제 발생 시점 | `(매도 가격 - 평균 매입 단가) × 매도 수량` | 매도 트랜잭션 발생 시 복식부기 원장에 명시적 분개로 영구 기록            |
 
 ---
 
@@ -61,13 +62,24 @@
 
 #### 2. 부패 방지 계층(ACL, Anti-Corruption Layer) 도입을 통한 도메인 격리
 
-- 계좌 컨텍스트의 도메인 모델이나 상류 이벤트 포맷이 원장 도메인 내부까지 침투하여 전염시키지 않도록 중간에 `OrderToLedgerAcl` 매핑 계층을 배치했습니다.
-- 수신된 도메인 이벤트를 분석하여 하류 원장 내부 규격에 최적화된 `LedgerRecordingCommand`로 명시적 번역을 수행합니다.
+- 수신된 도메인 이벤트를 분석하여 하류 원장 내부 규격에 최적화된 `LedgerRecordingCommand`로 명시적 번역을 수행하여 모듈 간 전염을 방지합니다.
 
-#### 3. Money VO 도입 및 수량·단가 검증식 고도화
+---
 
-- 가치 연산 시 부동소수점 오차율을 제로화하기 위해 모든 연산 단위를 `Money` 값 객체(Value Object) 체계로 전환하고 내부에서 자산 타입별 반올림 모드(`RoundingMode.HALF_EVEN`)를 강제합니다.
-- `@PrePersist` 및 DB 내 `CHECK (amount = quantity * unit_price * exchange_rate)` 와 같은 이중 검증 구조를 통해 대차 불일치 및 가치 연산 미스매치 데이터를 원천 차단합니다.
+### [Phase 3] 월차 원장 패턴(Monthly Ledger) 및 CQRS 기반 포트폴리오 읽기 최적화
+
+무한히 누적되는 단일 원장의 구조적 한계(스냅샷 역설)를 극복하고, 대규모 트래픽 환경에서 실시간 포트폴리오 조회 성능을 극대화하기 위해 **쓰기(Write)와 읽기(Read) 아키텍처를 완전히 분리**했습니다.
+
+#### 1. 시간 파티셔닝 기반 월차 원장 패턴 (Monthly Ledger Pattern)
+
+- **생명주기 단절 및 자동 이월(Rollover):** 기존 단일 장부(`AccountBalance`)를 폐기하고, 월 단위(YYYY-MM)로 생명주기가 단절되는 `MonthlyAccountLedger`를 도입했습니다. 월이 변경되면 이전 달의 잔액과 평단가를 바탕으로 당월 장부를 자동 이월 생성합니다.
+- **고도화된 트랜잭션 락 제어:** `MonthlyLedgerResolver`를 도입하여, 장부 최초 생성(INSERT) 시에만 `REQUIRES_NEW` 트랜잭션을 열어 다중 스레드 환경의 유니크 제약조건 충돌을 방어합니다. 비즈니스 로직에는 순수 영속화된(Managed) 객체만 반환하여 완벽한 더티 체킹(Dirty Checking)과 낙관적 락을 보장합니다.
+
+#### 2. CQRS 및 구체화된 뷰(Materialized View)를 통한 조회 격리
+
+- **조회 전용 바운디드 컨텍스트 (`Portfolio` 모듈):** 원장 기록 책임과 자산 평가(조회) 책임을 물리적으로 분리했습니다.
+- **Lock-Free 비동기 투영(Projection):** 트랜잭션이 성공적으로 커밋된 직후(`AFTER_COMMIT`), 백그라운드 스레드(`@Async`)에서 `PortfolioViewRefresher`가 RDBMS의 `CONCURRENTLY` 옵션을 사용하여 뷰를 갱신합니다. 쓰기와 읽기의 DB 락(Lock) 경합이 원천 차단됩니다.
+- **O(1) 포트폴리오 API 서빙:** 복잡한 실시간 환율 및 손익 계산(조인 연산)은 구체화된 뷰에서 처리하고, `PortfolioQueryService`와 `PortfolioController`는 DTO 스냅샷만 즉시 읽어 클라이언트에게 O(1) 수준의 속도로 응답합니다.
 
 ---
 
@@ -96,46 +108,40 @@ multi-currency-ledger-service/
 │   │   ├── java/com/.../multi_currency_ledger_service/
 │   │   │   ├── MultiCurrencyLedgerServiceApplication.java # 애플리케이션 진입점 (@EnableAsync, @EnableScheduling 추가)
 │   │   │   │
-│   │   │   ├── common/                                    # 공통 도메인 및 설정을 위한 인프라 (횡단 관심사)
-│   │   │   │   ├── config/JpaAuditingConfig.java          # JPA Auditing 시간 정의 제공자 설정
+│   │   │   ├── common/                                    # 공통 도메인 및 인프라 (횡단 관심사)
 │   │   │   │   ├── domain/Money.java                      # [핵심] 금액·수량 계산 및 자산타입 스케일 제어 VO
-│   │   │   │   ├── domain/BaseEntity.java                 # 공통 생성일자 감사 엔티티
-│   │   │   │   ├── exception/GlobalExceptionHandler.java  # 낙관적 락 충돌 및 도메인 규칙 전역 예외 처리기
-│   │   │   │   ├── model/                                 # 공통 Enum (AssetType, EntryType)
-│   │   │   │   └── outbox/                                # Transactional Outbox 엔티티, 저장소 및 워커
+│   │   │   │   ├── outbox/                                # Transactional Outbox 엔티티, 저장소 및 워커
+│   │   │   │   └── exception/GlobalExceptionHandler.java  # 낙관적 락 충돌 및 도메인 규칙 전역 예외 처리기
 │   │   │   │
-│   │   │   ├── account/                                   # [계좌 컨텍스트] 자산 잔고 및 코어 매매 비즈니스
-│   │   │   │   ├── application/AccountTradeService.java   # 자산 매수/매도 트랜잭션 유스케이스 처리 서비스
-│   │   │   │   ├── domain/Account.java                    # 계좌 마스터 도메인 엔티티
-│   │   │   │   ├── domain/AccountBalance.java             # 계좌별 자산 수량 및 이동평균단가 관리 (낙관적 락 적용)
+│   │   │   ├── account/                                   # [Write Model] 월차 원장 및 코어 매매 비즈니스
+│   │   │   │   ├── application/AccountTradeService.java   # 자산 매수/매도 트랜잭션 처리 (순수 더티 체킹 활용)
+│   │   │   │   ├── application/MonthlyLedgerResolver.java # 장부 생성/이월 및 동시성 락 충돌 우회 제어기
+│   │   │   │   ├── domain/MonthlyAccountLedger.java       # 시간 단위(월차)로 분할된 원장 엔티티 (AccountBalance 대체)
 │   │   │   │   └── domain/event/TradeExecutedEvent.java   # 주문 체결 완료 알림 도메인 이벤트
 │   │   │   │
-│   │   │   └── transaction/                               # [원장 컨텍스트] 복식부기 원장 관리
+│   │   │   ├── portfolio/                                 # [Read Model] CQRS 기반 포트폴리오 집계 및 조회 (신설)
+│   │   │   │   ├── presentation/PortfolioController.java  # O(1) 성능의 클라이언트 서빙 REST API
+│   │   │   │   ├── application/PortfolioQueryService.java # 구체화된 뷰 조회 및 총자산/손익(DTO) 스냅샷 집계
+│   │   │   │   ├── application/PortfolioViewRefresher.java# 트랜잭션 커밋 직후 백그라운드 뷰 갱신 리스너 (@Async)
+│   │   │   │   └── domain/CurrentPortfolio.java           # DB Materialized View와 매핑되는 Immutable 조회 엔티티
+│   │   │   │
+│   │   │   └── transaction/                               # [복식부기 컨텍스트] 대차평균 원장 관리
 │   │   │       ├── application/LedgerService.java         # 복식부기 자동 분개 처리 및 멱등성 보장 서비스
 │   │   │       ├── domain/Transaction.java                # 트랜잭션 애그리거트 루트 (대차평균 정합성 사전 검증)
-│   │   │       ├── domain/TransactionEntry.java           # 개별 차변/대변 분개 항목 엔티티 (Money VO 임베디드)
-│   │   │       └── infrastructure/
-│   │   │           ├── acl/OrderToLedgerAcl.java          # 상류 이벤트를 가로채 원장 커맨드로 번역하는 방어 계층
-│   │   │           └── adapter/DummyExchangeRateAdapter.java # 외부 환율 시스템 연동 연동 인터페이스 구현체
+│   │   │       └── infrastructure/acl/OrderToLedgerAcl.java # 상류 이벤트를 가로채 원장 커맨드로 번역하는 방어 계층
 │   │   │
 │   │   └── resources/
-│   │       ├── application.yaml                           # 다중 환경 인프라 및 로깅 프로파일 설정
-│   │       └── db/migration/                              # Flyway 버전별 마이그레이션 스키마 관리
-│   │           ├── V1__init_schema.sql                    # 초기 원장 테이블 및 인덱스 배치
-│   │           ├── V1_1__add_unique_constraint.sql        # 계좌-자산 고유 복합 제약조건 추가
-│   │           ├── V2__add_pnl_and_average_cost.sql       # 평균매입단가 및 실현손익 스키마 구조 확장
-│   │           ├── V3__create_portfolio_view.sql          # 실시간 미실현 손익 조회를 위한 기본 뷰 생성
-│   │           ├── V4__add_asset_types.sql                # 자산/금액별 명시적 통화 타입 스키마 마이그레이션
-│   │           ├── V5__normalize_market_data.sql          # 다통화 지원 시장 데이터 구조 정규화 및 수식 체크 제약 추가
-│   │           └── V6__create_outbox_events.sql           # 아웃박스 적재 테이블 및 조회용 부분 인덱스 신설
+│   │       └── db/migration/                              # Flyway 스키마 마이그레이션 이력
+│   │           ├── V1 ~ V6...                             # 초기화, 아웃박스, 다통화 정규화 스키마
+│   │           ├── V7__create_monthly_ledger.sql          # 월차 원장 테이블(monthly_account_ledgers) 생성 및 복합 유니크 제약
+│   │           └── V8__create_portfolio_view.sql          # 실시간 손익 계산이 포함된 CQRS 구체화된 뷰 스크립트 추가
 │   │
-│   └── test/                                              # 테스트 레이어 (인프라 격리 및 도메인 검증)
+│   └── test/                                              # 엔터프라이즈 환경 테스트 스위트
 │       └── java/com/.../
-│           ├── IntegrationTestSupport.java                # Testcontainers 활용 Postgres/Redis 컨테이너 기동 지원 추상 클래스
-│           ├── account/application/AccountTradeConcurrencyTest.java # 비동기 동시 매매 요청 시 낙관적 락 충돌 검증 테스트
-│           ├── account/application/AccountTradeServiceTest.java     # 매매 비즈니스 흐름 및 이벤트 발행 연동 통합 테스트
-│           ├── account/domain/AccountBalanceTest.java     # 물타기 시 평단가 재계산 및 매도 시 평단가 유지 단위 테스트
-│           ├── common/outbox/OutboxRepositoryTest.java    # 아웃박스 이벤트 적재 및 영속화 레이어 테스트
-│           ├── transaction/application/LedgerServiceTest.java     # 원장 복식부기 분개 기록 및 중복 요청 멱등성 테스트
-│           └── transaction/infrastructure/acl/OrderToLedgerAclTest.java # ACL 레이어 이벤트 감지 및 커맨드 변환 테스트
+│           ├── IntegrationTestSupport.java                # Testcontainers 활용 통합 테스트 기반
+│           ├── account/application/AccountTradeConcurrencyTest.java # TransactionTemplate을 활용한 롤오버/데드락 락 충돌 검증
+│           ├── account/domain/MonthlyAccountLedgerTest.java         # 당월 이월(Rollover) 로직 검증 단위 테스트
+│           ├── portfolio/application/PortfolioQueryServiceTest.java # Reflection/Mock 기반 CQRS 집계 로직 테스트
+│           └── portfolio/application/PortfolioViewRefresherTest.java# AFTER_COMMIT 비동기 갱신 쿼리 호출 검증
+
 ```
