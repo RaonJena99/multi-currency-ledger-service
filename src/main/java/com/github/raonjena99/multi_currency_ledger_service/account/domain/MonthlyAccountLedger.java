@@ -15,21 +15,23 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * 계좌별 특정 자산의 실시간 보유 수량과 투자 원가(평균 단가)를 추적하는 도메인 엔티티
- */
-
 @Entity
-@Table(name = "account_balances")
+@Table(
+    name = "monthly_account_ledgers",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"account_id", "asset_code", "ledger_month"})
+    }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AccountBalance extends BaseEntity{
-
+public class MonthlyAccountLedger extends BaseEntity{
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -39,6 +41,10 @@ public class AccountBalance extends BaseEntity{
 
     @Column(name = "asset_code", nullable = false, length = 20)
     private String assetCode;
+
+    // 원장의 귀속 월
+    @Column(name = "ledger_month", nullable = false, length = 7)
+    private String ledgerMonth;
 
     @Embedded
     @AttributeOverrides({
@@ -54,14 +60,33 @@ public class AccountBalance extends BaseEntity{
     })
     private Money averageUnitPrice;
 
+    // 이전 월의 마감 잔액
+    @Column(name = "carried_forward", nullable = false)
+    private boolean carriedForward = false;
+
     @Version
     private Long version = 0L;
 
-    public AccountBalance(UUID accountId, String assetCode, AssetType assetType) {
+    // 최초 매수
+    public MonthlyAccountLedger(UUID accountId, String assetCode, AssetType assetType, String ledgerMonth) {
         this.accountId = accountId;
         this.assetCode = assetCode;
+        this.ledgerMonth = ledgerMonth;
         this.balance = Money.zero(assetType);
         this.averageUnitPrice = Money.zero(AssetType.FIAT);
+        this.carriedForward = false;
+    }
+
+    // 이전 달 장부 -> 당월 장부
+    public static MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger prev, String currentMonth) {
+        MonthlyAccountLedger ledger = new MonthlyAccountLedger();
+        ledger.accountId = prev.getAccountId();
+        ledger.assetCode = prev.getAssetCode();
+        ledger.ledgerMonth = currentMonth;
+        ledger.balance = prev.getBalance();
+        ledger.averageUnitPrice = prev.getAverageUnitPrice();
+        ledger.carriedForward = true;
+        return ledger;
     }
 
     // 매수
@@ -112,5 +137,4 @@ public class AccountBalance extends BaseEntity{
 
         return this.averageUnitPrice;
     }
-
 }
