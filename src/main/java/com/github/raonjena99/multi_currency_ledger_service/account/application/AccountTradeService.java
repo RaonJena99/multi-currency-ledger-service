@@ -1,30 +1,27 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.github.raonjena99.multi_currency_ledger_service.account.domain.AccountBalance;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
-import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountBalanceRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-
-/**
- * 오직 AccountBalance 애그리거트만 수정 
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AccountTradeService {
-    private final AccountBalanceRepository accountBalanceRepository;
+    
+    private final MonthlyLedgerResolver ledgerResolver; 
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String FIAT_CODE = "KRW";
@@ -34,14 +31,16 @@ public class AccountTradeService {
                         Money buyQuantity, Money unitPrice) {
         
         BigDecimal exchangeRate = BigDecimal.ONE;
+        OffsetDateTime transactedAt = OffsetDateTime.now();
 
-        AccountBalance targetAssetBalance = getOrCreateBalance(accountId, targetAssetCode, targetAssetType);
-        AccountBalance fiatBalance = getOrCreateBalance(accountId, FIAT_CODE, AssetType.FIAT);
+        MonthlyAccountLedger targetAssetLedger = ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, transactedAt);
+        MonthlyAccountLedger fiatLedger = ledgerResolver.resolveOrInitializeLedger(accountId, FIAT_CODE, AssetType.FIAT, transactedAt);
 
         Money requiredFiatAmount = unitPrice.multiply(buyQuantity.getAmount()); 
 
-        fiatBalance.subtractBalance(requiredFiatAmount);
-        targetAssetBalance.addBalance(buyQuantity, unitPrice);
+        // Version 낙관적 락 작동
+        fiatLedger.subtractBalance(requiredFiatAmount);
+        targetAssetLedger.addBalance(buyQuantity, unitPrice);
 
         UUID tradeId = UUID.randomUUID();
 
@@ -51,7 +50,7 @@ public class AccountTradeService {
         );
         eventPublisher.publishEvent(event);
         
-        log.info("Account balance updated for BUY. TradeID: {}", tradeId);
+        log.info("Monthly Ledger updated for BUY. TradeID: {}", tradeId);
         return tradeId;
     }
 
@@ -60,16 +59,17 @@ public class AccountTradeService {
                         Money sellQuantity, Money sellUnitPrice) {
         
         BigDecimal exchangeRate = BigDecimal.ONE;
+        OffsetDateTime transactedAt = OffsetDateTime.now();
         
-        AccountBalance targetAssetBalance = getOrCreateBalance(accountId, targetAssetCode, targetAssetType);
-        AccountBalance fiatBalance = getOrCreateBalance(accountId, FIAT_CODE, AssetType.FIAT);
+        MonthlyAccountLedger targetAssetLedger = ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, transactedAt);
+        MonthlyAccountLedger fiatLedger = ledgerResolver.resolveOrInitializeLedger(accountId, FIAT_CODE, AssetType.FIAT, transactedAt);
 
-        Money averageCost = targetAssetBalance.subtractBalance(sellQuantity);
+        Money averageCost = targetAssetLedger.subtractBalance(sellQuantity);
         Money earnedFiatAmount = Money.of(
             sellUnitPrice.multiply(sellQuantity.getAmount()).getAmount().toPlainString(),
             AssetType.FIAT
         );
-        fiatBalance.addBalance(earnedFiatAmount, Money.of("1", AssetType.FIAT));
+        fiatLedger.addBalance(earnedFiatAmount, Money.of("1", AssetType.FIAT));
 
         UUID tradeId = UUID.randomUUID();
 
@@ -79,17 +79,7 @@ public class AccountTradeService {
         );
         eventPublisher.publishEvent(event);
         
-        log.info("Account balance updated for SELL. TradeID: {}", tradeId);
+        log.info("Monthly Ledger updated for SELL. TradeID: {}", tradeId);
         return tradeId;
     }
-
-    private AccountBalance getOrCreateBalance(UUID accountId, String assetCode, AssetType assetType) {
-        return accountBalanceRepository.findByAccountIdAndAssetCode(accountId, assetCode)
-                .orElseGet(() -> {
-                    AccountBalance newBalance = new AccountBalance(accountId, assetCode, assetType);
-                    return accountBalanceRepository.save(newBalance);
-                });
-    }
-
-    
 }
