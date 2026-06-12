@@ -72,12 +72,10 @@
 
 ### 1. 비즈니스 로직 토폴로지 (Service & Domain)
 
-`AccountTradeService`, `LedgerService` 등 애플리케이션 서비스 계층이 내부 도메인 객체들을 어떻게 오케스트레이션 하는지 보여줍니다.
 ![Business Rule](docs/architecture/jig/business-rule-relation.svg)
 
 ### 2. 패키지 의존성 및 컴포넌트 구조
 
-도메인 간의 물리적 참조 방향을 나타내며, 순환 참조 여부를 시각적으로 확인할 수 있습니다.
 ![Package Relation](docs/architecture/jig/package-relation-depth5.svg)
 
 ---
