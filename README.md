@@ -64,12 +64,6 @@
 | :--------------------------------------------------------------- | :----------------------------------------------------------------------- | :------------------------------------------------------------------- |
 | ![Account Module](docs/architecture/modulith/module-account.svg) | ![Transaction Module](docs/architecture/modulith/module-transaction.svg) | ![Portfolio Module](docs/architecture/modulith/module-portfolio.svg) |
 
-```plantuml
-@startuml
-A -> B: Hello
-@enduml
-```
-
 <details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>
 
 ```plantuml
