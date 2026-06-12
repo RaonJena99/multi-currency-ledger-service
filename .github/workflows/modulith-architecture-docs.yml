@@ -52,6 +52,6 @@ jobs:
 
           git add -f docs/architecture/modulith/
 
-          git diff --quiet && git diff --staged --quiet || git commit -m "docs: 🤖 [Auto] Spring Modulith 아키텍처 다이어그램 업데이트"
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: [Auto] Spring Modulith 아키텍처 다이어그램 업데이트"
 
           git push origin HEAD:${{ github.ref_name }}
