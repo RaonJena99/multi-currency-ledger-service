@@ -2,17 +2,20 @@ name: Modulith Architecture Documentation
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: ["main"]
+    paths:
+      - "src/main/java/**"
+      - "build.gradle"
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   generate-and-commit-diagrams:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
     steps:
       - name: 1. Repository 다운로드
         uses: actions/checkout@v4
@@ -26,20 +29,28 @@ jobs:
           distribution: "temurin"
           cache: "gradle"
 
-      - name: 3. PUML 생성
-        run: ./gradlew test --tests "*LedgerArchitectureTest*"
+      - name: 3. 실행 권한 부여 및 PUML 추출
+        run: |
+          chmod +x gradlew
+          ./gradlew test --tests "*LedgerArchitectureTest*" --stacktrace
 
-      - name: 4. PUML -> SVG 렌더링 (Docker 사용)
+      - name: 4. PUML -> SVG 렌더링 (Docker) 및 파일 이동
         run: |
           mkdir -p docs/architecture/modulith
+
           docker run --rm -v ${{ github.workspace }}:/app plantuml/plantuml -tsvg "/app/build/spring-modulith-docs/*.puml"
+
+          shopt -s nullglob
           cp build/spring-modulith-docs/*.svg docs/architecture/modulith/ || true
           cp build/spring-modulith-docs/*.puml docs/architecture/modulith/ || true
 
-      - name: 5. Auto Commit and Push
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "docs: Auto-update modulith architecture diagrams"
-          file_pattern: "docs/architecture/*"
-          commit_user_name: "github-actions[bot]"
-          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+      - name: 5. 변경된 다이어그램 자동 커밋 및 푸시 (Native Git)
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git add -f docs/architecture/modulith/
+
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: 🤖 [Auto] Spring Modulith 아키텍처 다이어그램 업데이트"
+
+          git push origin HEAD:${{ github.ref_name }}
