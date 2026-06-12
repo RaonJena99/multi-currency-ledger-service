@@ -1,0 +1,52 @@
+name: JIG Architecture Documentation
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "src/main/java/**"
+      - "build.gradle"
+
+permissions:
+  contents: write
+
+jobs:
+  generate-jig-diagrams:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Repository 다운로드
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: 2. Java 21 환경 세팅
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "gradle"
+
+      - name: 3. Graphviz 설치
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
+      - name: 4. 실행 권한 부여 및 프로젝트 빌드
+        run: |
+          chmod +x gradlew
+          ./gradlew clean compileJava
+
+      - name: 5. JIG 아키텍처 다이어그램 추출
+        run: ./gradlew jigReports
+
+      - name: 6. 생성된 다이어그램을 문서 디렉토리로 이동
+        run: |
+          mkdir -p docs/architecture/jig
+          cp build/jig/*.svg docs/architecture/jig/
+
+      - name: 7. 변경된 다이어그램 자동 커밋 및 푸시
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs/architecture/jig/
+
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: Auto-update JIG architecture diagrams"
+          git push
