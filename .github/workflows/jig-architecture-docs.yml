@@ -55,6 +55,6 @@ jobs:
 
           git add -f docs/architecture/jig/
 
-          git diff --quiet && git diff --staged --quiet || git commit -m "docs: 🤖 [Auto] JIG 아키텍처 다이어그램 및 리포트 업데이트"
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: [Auto] JIG 아키텍처 다이어그램 및 리포트 업데이트"
 
           git push origin HEAD:${{ github.ref_name }}
