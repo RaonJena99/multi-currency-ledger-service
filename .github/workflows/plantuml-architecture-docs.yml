@@ -1,7 +1,7 @@
-name: Update Architecture Diagram on PR
+name: Plantuml Architecture Diagram
 
 on:
-  pull_request:
+  push:
     branches: ["main"]
     paths:
       - "src/main/java/**"
@@ -11,56 +11,54 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   update-diagram:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: 1. Repository 다운로드
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.head_ref || github.ref_name }}
 
-      - name: Set up JDK 21
+      - name: 2. Java 21 환경 세팅
         uses: actions/setup-java@v4
         with:
           java-version: "21"
-          distribution: "corretto"
+          distribution: "temurin"
+          cache: "gradle"
 
-      - name: Grant execute permission for gradlew
+      - name: 3. 실행 권한 부여
         run: chmod +x gradlew
 
-      - name: 1. Generate Architecture (.puml)
+      - name: 4. Architecture 생성 (.puml)
         run: ./gradlew generateClassDiagrams
 
-      - name: 2. Inject .puml content into README.md (Cross-Platform Regex)
+      - name: 2. .puml 내용을 README.md에 삽입
         run: |
           python3 -c '
           import re
 
-          # 1. 파일 읽기
           with open("README.md", "r", encoding="utf-8") as f:
               readme = f.read()
               
           with open("docs/architecture/plantuml/full-architecture.puml", "r", encoding="utf-8") as f:
               puml = f.read()
               
-          # 2. 주입할 블록 생성
           puml_block = f"\n<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n\`\`\`plantuml\n{puml}\`\`\`\n</details>\n"
 
-          # 3. 정규식으로 마커 사이 영역을 완벽하게 치환
-          # DOTALL 옵션을 사용해 줄바꿈이 있어도 마커 사이 전체를 한 덩어리로 인식함
           pattern = r"<!-- START_PUML -->.*?<!-- END_PUML -->"
           new_readme = re.sub(pattern, puml_block, readme, flags=re.DOTALL)
 
-          # 4. 파일 덮어쓰기
           with open("README.md", "w", encoding="utf-8") as f:
               f.write(new_readme)
           '
 
-      - name: 3. Commit and Push Changes
+      - name: 3. Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "docs: Plantuml 아키텍처 다이어그램 업데이트"
-          branch: ${{ github.event.pull_request.head.ref }}
           file_pattern: "README.md"
