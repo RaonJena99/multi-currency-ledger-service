@@ -6,9 +6,13 @@ on:
     paths:
       - "src/main/java/**"
       - "build.gradle"
+      - "jig.properties"
 
 permissions:
   contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   generate-jig-diagrams:
@@ -29,24 +33,24 @@ jobs:
       - name: 3. Graphviz 설치
         run: sudo apt-get update && sudo apt-get install -y graphviz
 
-      - name: 4. 실행 권한 부여 및 프로젝트 빌드
+      - name: 4. 프로젝트 빌드 및 JIG 아키텍처 다이어그램 추출
         run: |
           chmod +x gradlew
-          ./gradlew clean compileJava
+          ./gradlew clean classes jigReports --stacktrace
 
-      - name: 5. JIG 아키텍처 다이어그램 추출
-        run: ./gradlew jigReports
-
-      - name: 6. 생성된 다이어그램을 문서 디렉토리로 이동
+      - name: 5. 생성된 다이어그램을 문서 디렉토리로 이동
         run: |
           mkdir -p docs/architecture/jig
-          cp build/jig/*.svg docs/architecture/jig/
+          shopt -s nullglob
+          cp build/jig/*.svg docs/architecture/jig/ || echo "No SVG files generated."
 
-      - name: 7. 변경된 다이어그램 자동 커밋 및 푸시
+      - name: 6. 변경된 다이어그램 자동 커밋 및 푸시
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add docs/architecture/jig/
 
-          git diff --quiet && git diff --staged --quiet || git commit -m "docs: Auto-update JIG architecture diagrams"
-          git push
+          git add -f docs/architecture/jig/
+
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: [Auto] JIG 아키텍처 다이어그램 업데이트"
+
+          git push origin HEAD:${{ github.ref_name }}
