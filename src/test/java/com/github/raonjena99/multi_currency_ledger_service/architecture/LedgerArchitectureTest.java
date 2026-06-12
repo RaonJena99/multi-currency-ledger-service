@@ -10,7 +10,7 @@ import com.github.raonjena99.multi_currency_ledger_service.MultiCurrencyLedgerSe
 @DisplayName("아키텍처 자동 검증 및 문서화 테스트")
 class LedgerArchitectureTest {
 
-    // 애플리케이션의 패키지 구조를 분석하여 모듈(Bounded Context)을 식별
+    // 모듈(Bounded Context) 식별
     ApplicationModules modules = ApplicationModules.of(MultiCurrencyLedgerServiceApplication.class);
 
     @Test
