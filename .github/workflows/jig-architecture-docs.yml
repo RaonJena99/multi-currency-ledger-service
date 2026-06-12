@@ -7,6 +7,7 @@ on:
       - "src/main/java/**"
       - "build.gradle"
       - "jig.properties"
+      - ".github/workflows/**"
 
 permissions:
   contents: write
