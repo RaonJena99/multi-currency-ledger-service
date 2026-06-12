@@ -60,9 +60,25 @@
 
 ### 2. Bounded Context
 
-| Account (계좌 모듈)                                     | Transaction (원장 모듈)                                         | Portfolio (자산 모듈)                                       |
-| :------------------------------------------------------ | :-------------------------------------------------------------- | :---------------------------------------------------------- |
-| ![Account Module](docs/architecture/module-account.svg) | ![Transaction Module](docs/architecture/module-transaction.svg) | ![Portfolio Module](docs/architecture/module-portfolio.svg) |
+| Account (계좌 모듈)                                              | Transaction (원장 모듈)                                                  | Portfolio (자산 모듈)                                                |
+| :--------------------------------------------------------------- | :----------------------------------------------------------------------- | :------------------------------------------------------------------- |
+| ![Account Module](docs/architecture/modulith/module-account.svg) | ![Transaction Module](docs/architecture/modulith/module-transaction.svg) | ![Portfolio Module](docs/architecture/modulith/module-portfolio.svg) |
+
+---
+
+## 📊 System Architecture & Topology
+
+> 본 다이어그램은 CI/CD 파이프라인에 의해 실제 코드(Java Bytecode)로부터 자동 추출된 Living Documentation입니다.
+
+### 1. 비즈니스 로직 토폴로지 (Service & Domain)
+
+`AccountTradeService`, `LedgerService` 등 애플리케이션 서비스 계층이 내부 도메인 객체들을 어떻게 오케스트레이션 하는지 보여줍니다.
+![Business Rule](docs/architecture/jig/business-rule-relation.svg)
+
+### 2. 패키지 의존성 및 컴포넌트 구조
+
+도메인 간의 물리적 참조 방향을 나타내며, 순환 참조 여부를 시각적으로 확인할 수 있습니다.
+![Package Relation](docs/architecture/jig/package-relation-depth5.svg)
 
 ---
 
