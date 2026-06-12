@@ -47,11 +47,23 @@ jobs:
               
           with open("docs/architecture/plantuml/full-architecture.puml", "r", encoding="utf-8") as f:
               puml = f.read()
-              
-          puml_block = f"\n<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n```plantuml\n{puml}```\n</details>\n"
+
+          mermaid = re.sub(r"@startuml.*", "", puml)
+          mermaid = re.sub(r"@enduml.*", "", mermaid)
+
+          mermaid = re.sub(r"-\[hidden\]->", "-->", mermaid)
+          mermaid = re.sub(r"-\[.*\]->", "-->", mermaid)
+
+          mermaid = re.sub(r"interface\s+(\w+)", r"class \1", mermaid)
+          mermaid = re.sub(r"enum\s+(\w+)", r"class \1", mermaid)
+
+          mermaid_block = f"\n<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n```mermaid\ngraph TD\n{mermaid.strip()}\n```\n</details>\n"
 
           pattern = r"<!-- START_PUML -->.*?<!-- END_PUML -->"
-          new_readme = re.sub(pattern, puml_block, readme, flags=re.DOTALL)
+          if not re.search(pattern, readme, flags=re.DOTALL):
+              pattern = r"<!-- START_MERMAID -->.*?<!-- END_MERMAID -->"
+              
+          new_readme = re.sub(pattern, mermaid_block, readme, flags=re.DOTALL)
 
           with open("README.md", "w", encoding="utf-8") as f:
               f.write(new_readme)
