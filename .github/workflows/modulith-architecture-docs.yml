@@ -6,6 +6,7 @@ on:
     paths:
       - "src/main/java/**"
       - "build.gradle"
+      - ".github/workflows/**"
 
 permissions:
   contents: write
