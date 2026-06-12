@@ -1,0 +1,234 @@
+# 🏦 다중 자산 포트폴리오 불변 원장 시스템 <br>(Multi-Asset Ledger System)
+<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>
+
+```plantuml
+```
+</details>
+<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>
+
+```plantuml
+@startuml FullArchitecture
+!pragma useIntermediatePackages false
+
+class "MultiCurrencyLedgerServiceApplication" as com.github.raonjena99.multi_currency_ledger_service.MultiCurrencyLedgerServiceApplication {
+  +void init()
+  + {static}void main(String[])
+}
+class "AccountTradeService" as com.github.raonjena99.multi_currency_ledger_service.account.application.AccountTradeService {
+  +UUID buyAsset(UUID, String, AssetType, Money, Money)
+  +UUID sellAsset(UUID, String, AssetType, Money, Money)
+}
+class "MonthlyLedgerResolver" as com.github.raonjena99.multi_currency_ledger_service.account.application.MonthlyLedgerResolver {
+  +MonthlyAccountLedger resolveOrInitializeLedger(UUID, String, AssetType, OffsetDateTime)
+  +void initializeInNewTransaction(UUID, String, AssetType, String)
+}
+entity "Account" as com.github.raonjena99.multi_currency_ledger_service.account.domain.Account {
+  +UUID getId()
+  +String getOwnerName()
+  +String getStatus()
+}
+entity "MonthlyAccountLedger" as com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger {
+  + {static}MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger, String)
+  +void addBalance(Money, Money)
+  +Money subtractBalance(Money)
+  +Long getId()
+  +UUID getAccountId()
+  +String getAssetCode()
+  +String getLedgerMonth()
+  +Money getBalance()
+  +Money getAverageUnitPrice()
+  +boolean isCarriedForward()
+  +Long getVersion()
+}
+class "TradeExecutedEvent" as com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent {
+  +UUID tradeId()
+  +UUID accountId()
+  +String assetCode()
+  +String assetType()
+  +String fiatCode()
+  +String tradeType()
+  +BigDecimal quantity()
+  +BigDecimal unitPrice()
+  +BigDecimal exchangeRate()
+  +BigDecimal averageCost()
+}
+interface "AccountRepository" as com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository {
+}
+interface "MonthlyAccountLedgerRepository" as com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository {
+  + {abstract}Optional<MonthlyAccountLedger> findByAccountIdAndAssetCodeAndLedgerMonth(UUID, String, String)
+  + {abstract}Optional<MonthlyAccountLedger> findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
+}
+class "JpaAuditingConfig" as com.github.raonjena99.multi_currency_ledger_service.common.config.JpaAuditingConfig {
+  +DateTimeProvider offsetDateTimeProvider()
+}
+abstract class "BaseEntity" as com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity {
+  +OffsetDateTime getCreatedAt()
+}
+class "Money" as com.github.raonjena99.multi_currency_ledger_service.common.domain.Money {
+  + {static}Money of(String, AssetType)
+  + {static}Money zero(AssetType)
+  +Money add(Money)
+  +Money subtract(Money)
+  +Money multiply(BigDecimal)
+  +Money divide(BigDecimal)
+  +Money negate()
+  +boolean isNegative()
+  +boolean isZero()
+  +int compareTo(Money)
+  +BigDecimal getAmount()
+  +AssetType getAssetType()
+}
+class "ErrorResponse" as com.github.raonjena99.multi_currency_ledger_service.common.exception.ErrorResponse {
+  +String code()
+  +String message()
+}
+class "GlobalExceptionHandler" as com.github.raonjena99.multi_currency_ledger_service.common.exception.GlobalExceptionHandler {
+  +ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException)
+  +ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(OptimisticLockingFailureException)
+  +ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException)
+}
+enum "AssetType" as com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType {
+  FIAT
+  STOCK
+  CRYPTO
+  __
+  +BigDecimal normalize(BigDecimal)
+}
+enum "EntryType" as com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType {
+  DEBIT
+  CREDIT
+}
+entity "OutboxEvent" as com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxEvent {
+  __
+  +void markAsProcessed()
+  +void recordFailure(String)
+  +Long getId()
+  +String getAggregateType()
+  +String getAggregateId()
+  +String getEventType()
+  +String getPayload()
+  +LocalDateTime getCreatedAt()
+  +boolean isProcessed()
+  +int getRetryCount()
+  +String getErrorMessage()
+  +boolean isDeadLetter()
+}
+class "OutboxMessageEvent" as com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxMessageEvent {
+  +String eventType()
+  +String payload()
+}
+class "OutboxRelayWorker" as com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRelayWorker {
+  +void relayOutboxEvents()
+}
+interface "OutboxRepository" as com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository {
+  + {abstract}List<OutboxEvent> findUnprocessedEvents(Pageable)
+  + {abstract}List<OutboxEvent> findTop100ByProcessedFalseOrderByCreatedAtAsc()
+}
+class "PortfolioQueryService" as com.github.raonjena99.multi_currency_ledger_service.portfolio.application.PortfolioQueryService {
+  +PortfolioSummaryResponse getPortfolioSummary(UUID)
+}
+class "PortfolioViewRefresher" as com.github.raonjena99.multi_currency_ledger_service.portfolio.application.PortfolioViewRefresher {
+  +void handleTradeExecuted(TradeExecutedEvent)
+}
+class "PortfolioSummaryResponse" as com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse {
+  +UUID accountId()
+  +BigDecimal totalAssetValue()
+  +BigDecimal totalUnrealizedPnl()
+  +List<AssetDetailDto> assets()
+}
+class "PortfolioSummaryResponse$AssetDetailDto" as com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse$AssetDetailDto {
+  +String assetCode()
+  +BigDecimal quantity()
+  +BigDecimal avgUnitPrice()
+  +BigDecimal currentMarketPrice()
+  +BigDecimal totalValue()
+  +BigDecimal unrealizedPnl()
+}
+entity "CurrentPortfolio" as com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio {
+  +String getId()
+  +UUID getAccountId()
+  +String getAssetCode()
+  +BigDecimal getTotalQuantity()
+  +BigDecimal getAvgUnitPrice()
+  +BigDecimal getCurrentMarketPrice()
+  +BigDecimal getUnrealizedPnl()
+  +String getLastUpdatedMonth()
+}
+interface "PortfolioQueryRepository" as com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository {
+  + {abstract}List<CurrentPortfolio> findAllByAccountId(UUID)
+}
+class "PortfolioController" as com.github.raonjena99.multi_currency_ledger_service.portfolio.presentation.PortfolioController {
+  +ResponseEntity<PortfolioSummaryResponse> getPortfolioSummary(UUID)
+}
+class "LedgerService" as com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService {
+  +void recordDoubleEntry(LedgerRecordingCommand)
+}
+class "LedgerRecordingCommand" as com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand {
+  +UUID referenceTradeId()
+  +UUID accountId()
+  +String assetCode()
+  +String fiatCode()
+  +String tradeType()
+  +Money quantity()
+  +Money unitPrice()
+  +BigDecimal exchangeRate()
+  +Money averageCost()
+}
+interface "ExchangeRateProvider" as com.github.raonjena99.multi_currency_ledger_service.transaction.application.port.ExchangeRateProvider {
+  + {abstract}BigDecimal getExchangeRate(String, String)
+}
+entity "Transaction" as com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction {
+  +void addBuyEntry(UUID, String, Money, Money, BigDecimal)
+  +void addSellEntry(UUID, String, Money, Money, BigDecimal, Money)
+  +boolean isNew()
+  +UUID getId()
+  +String getTransactionType()
+  +String getDescription()
+  +OffsetDateTime getTransactedAt()
+  +List<TransactionEntry> getEntries()
+}
+entity "TransactionEntry" as com.github.raonjena99.multi_currency_ledger_service.transaction.domain.TransactionEntry {
+  + {static}TransactionEntry createBuyEntry(Transaction, UUID, String, Money, Money, BigDecimal)
+  + {static}TransactionEntry createSellEntry(Transaction, UUID, String, Money, Money, BigDecimal, Money)
+  +Long getId()
+  +Transaction getTransaction()
+  +UUID getAccountId()
+  +EntryType getEntryType()
+  +String getAssetCode()
+  +Money getQuantity()
+  +Money getUnitPrice()
+  +Money getAmount()
+  +Money getRealizedPnl()
+  +BigDecimal getExchangeRate()
+}
+interface "TransactionRepository" as com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.TransactionRepository {
+  + {abstract}Optional<Transaction> findWithEntriesById(UUID)
+}
+class "OrderToLedgerAcl" as com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.acl.OrderToLedgerAcl {
+  +void persistOutboxEvent(TradeExecutedEvent)
+  +void handleOutboxRelay(OutboxMessageEvent)
+}
+class "DummyExchangeRateAdapter" as com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.adapter.DummyExchangeRateAdapter {
+  +BigDecimal getExchangeRate(String, String)
+}
+com.github.raonjena99.multi_currency_ledger_service.account.application.AccountTradeService --> com.github.raonjena99.multi_currency_ledger_service.account.application.MonthlyLedgerResolver
+com.github.raonjena99.multi_currency_ledger_service.account.application.MonthlyLedgerResolver --> com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository
+com.github.raonjena99.multi_currency_ledger_service.account.domain.Account -u-|> com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity
+com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger -u-|> com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity
+com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger --> com.github.raonjena99.multi_currency_ledger_service.common.domain.Money
+com.github.raonjena99.multi_currency_ledger_service.common.domain.Money --> com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType
+com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRelayWorker --> com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository
+com.github.raonjena99.multi_currency_ledger_service.portfolio.application.PortfolioQueryService --> com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository
+com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse --> com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse$AssetDetailDto
+com.github.raonjena99.multi_currency_ledger_service.portfolio.presentation.PortfolioController --> com.github.raonjena99.multi_currency_ledger_service.portfolio.application.PortfolioQueryService
+com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService --> com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.TransactionRepository
+com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand --> com.github.raonjena99.multi_currency_ledger_service.common.domain.Money
+com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction "0..1" o--o "0..*" com.github.raonjena99.multi_currency_ledger_service.transaction.domain.TransactionEntry
+com.github.raonjena99.multi_currency_ledger_service.transaction.domain.TransactionEntry --> com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType
+com.github.raonjena99.multi_currency_ledger_service.transaction.domain.TransactionEntry --> com.github.raonjena99.multi_currency_ledger_service.common.domain.Money
+com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.acl.OrderToLedgerAcl --> com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService
+com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.acl.OrderToLedgerAcl --> com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository
+com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.adapter.DummyExchangeRateAdapter .u.|> com.github.raonjena99.multi_currency_ledger_service.transaction.application.port.ExchangeRateProvider
+@enduml
+```
+</details>
