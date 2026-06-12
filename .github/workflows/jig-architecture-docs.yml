@@ -39,11 +39,14 @@ jobs:
           chmod +x gradlew
           ./gradlew clean classes jigReports --stacktrace
 
-      - name: 5. 생성된 다이어그램을 문서 디렉토리로 이동
+      - name: 5. 생성된 다이어그램 디버깅 및 문서 디렉토리로 이동
         run: |
+          echo "=== JIG가 생성한 산출물 목록 확인 ==="
+          find build/jig -type f || echo "JIG 디렉토리가 비어 있습니다."
+
           mkdir -p docs/architecture/jig
-          shopt -s nullglob
-          cp build/jig/*.svg docs/architecture/jig/ || echo "No SVG files generated."
+
+          cp -R build/jig/* docs/architecture/jig/ || echo "복사할 파일이 없습니다."
 
       - name: 6. 변경된 다이어그램 자동 커밋 및 푸시
         run: |
@@ -52,6 +55,6 @@ jobs:
 
           git add -f docs/architecture/jig/
 
-          git diff --quiet && git diff --staged --quiet || git commit -m "docs: [Auto] JIG 아키텍처 다이어그램 업데이트"
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: 🤖 [Auto] JIG 아키텍처 다이어그램 및 리포트 업데이트"
 
           git push origin HEAD:${{ github.ref_name }}
