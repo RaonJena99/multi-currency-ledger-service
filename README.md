@@ -52,7 +52,7 @@
 
 ## 📊 System Architecture
 
-> 코드가 변경됨에 따라 CI/CD 파이프라인에 의해 자동으로 최신화되는 Living Documentation입니다.
+> 본 다이어그램은 CI/CD 파이프라인에 의해 실제 코드로부터 자동 추출된 Living Documentation입니다.
 
 ### 1. 시스템 컴포넌트
 
@@ -68,7 +68,7 @@
 
 ## 📊 System Architecture & Topology
 
-> 본 다이어그램은 CI/CD 파이프라인에 의해 실제 코드(Java Bytecode)로부터 자동 추출된 Living Documentation입니다.
+> 본 다이어그램은 CI/CD 파이프라인에 의해 실제 코드로부터 자동 추출된 Living Documentation입니다.
 
 ### 1. 비즈니스 로직 토폴로지 (Service & Domain)
 
