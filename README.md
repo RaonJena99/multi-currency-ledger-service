@@ -60,9 +60,9 @@
 
 ### 2. Bounded Context
 
-| Account (계좌 모듈)                                     | Transaction (원장 모듈)                                         |
-| :------------------------------------------------------ | :-------------------------------------------------------------- |
-| ![Account Module](docs/architecture/module-account.svg) | ![Transaction Module](docs/architecture/module-transaction.svg) |
+| Account (계좌 모듈)                                     | Transaction (원장 모듈)                                         | Portfolio (자산 모듈)                                       |
+| :------------------------------------------------------ | :-------------------------------------------------------------- | :---------------------------------------------------------- |
+| ![Account Module](docs/architecture/module-account.svg) | ![Transaction Module](docs/architecture/module-transaction.svg) | ![Portfolio Module](docs/architecture/module-portfolio.svg) |
 
 ---
 
