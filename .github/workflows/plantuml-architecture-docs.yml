@@ -48,7 +48,7 @@ jobs:
           with open("docs/architecture/plantuml/full-architecture.puml", "r", encoding="utf-8") as f:
               puml = f.read()
               
-          puml_block = f"\n<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n\`\`\`plantuml\n{puml}\`\`\`\n</details>\n"
+          puml_block = f"\n<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n```plantuml\n{puml}```\n</details>\n"
 
           pattern = r"<!-- START_PUML -->.*?<!-- END_PUML -->"
           new_readme = re.sub(pattern, puml_block, readme, flags=re.DOTALL)
