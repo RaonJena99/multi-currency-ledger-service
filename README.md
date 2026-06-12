@@ -66,20 +66,6 @@
 
 ---
 
-## 📊 System Architecture & Topology
-
-> 본 다이어그램은 CI/CD 파이프라인에 의해 실제 코드로부터 자동 추출된 Living Documentation입니다.
-
-### 1. 비즈니스 로직 토폴로지 (Service & Domain)
-
-![Business Rule](docs/architecture/jig/business-rule-relation.svg)
-
-### 2. 패키지 의존성 및 컴포넌트 구조
-
-![Package Relation](docs/architecture/jig/package-relation-depth5.svg)
-
----
-
 ## 📂 프로젝트 구조 (Project Structure)
 
 <details>
