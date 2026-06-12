@@ -56,7 +56,7 @@
 
 ### 1. 시스템 컴포넌트
 
-![System Components](docs/architecture/components.svg)
+![System Components](docs/architecture/modulith/components.svg)
 
 ### 2. Bounded Context
 
