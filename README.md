@@ -66,6 +66,240 @@
 
 ### 3. Class Diagram
 
+<details data-auto-diagram="true"><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>
+
+```mermaid
+classDiagram
+  class MultiCurrencyLedgerServiceApplication {
+    +void init()
+    + void main(String[])
+  }
+  class AccountTradeService {
+    +UUID buyAsset(UUID, String, AssetType, Money, Money)
+    +UUID sellAsset(UUID, String, AssetType, Money, Money)
+  }
+  class MonthlyLedgerResolver {
+    +MonthlyAccountLedger resolveOrInitializeLedger(UUID, String, AssetType, OffsetDateTime)
+    +void initializeInNewTransaction(UUID, String, AssetType, String)
+  }
+  class Account {
+    +UUID getId()
+    +String getOwnerName()
+    +String getStatus()
+  }
+  class MonthlyAccountLedger {
+    + MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger, String)
+    +void addBalance(Money, Money)
+    +Money subtractBalance(Money)
+    +Long getId()
+    +UUID getAccountId()
+    +String getAssetCode()
+    +String getLedgerMonth()
+    +Money getBalance()
+    +Money getAverageUnitPrice()
+    +boolean isCarriedForward()
+    +Long getVersion()
+  }
+  class TradeExecutedEvent {
+    +UUID tradeId()
+    +UUID accountId()
+    +String assetCode()
+    +String assetType()
+    +String fiatCode()
+    +String tradeType()
+    +BigDecimal quantity()
+    +BigDecimal unitPrice()
+    +BigDecimal exchangeRate()
+    +BigDecimal averageCost()
+  }
+  class AccountRepository {
+    <<Interface>>
+  }
+  class MonthlyAccountLedgerRepository {
+    <<Interface>>
+    + Optional~MonthlyAccountLedger~ findByAccountIdAndAssetCodeAndLedgerMonth(UUID, String, String)
+    + Optional~MonthlyAccountLedger~ findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
+  }
+  class JpaAuditingConfig {
+    +DateTimeProvider offsetDateTimeProvider()
+  }
+  class BaseEntity {
+    <<Abstract>>
+    +OffsetDateTime getCreatedAt()
+  }
+  class Money {
+    + Money of(String, AssetType)
+    + Money zero(AssetType)
+    +Money add(Money)
+    +Money subtract(Money)
+    +Money multiply(BigDecimal)
+    +Money divide(BigDecimal)
+    +Money negate()
+    +boolean isNegative()
+    +boolean isZero()
+    +int compareTo(Money)
+    +BigDecimal getAmount()
+    +AssetType getAssetType()
+  }
+  class ErrorResponse {
+    +String code()
+    +String message()
+  }
+  class GlobalExceptionHandler {
+    +ResponseEntity~ErrorResponse~ handleIllegalArgument(IllegalArgumentException)
+    +ResponseEntity~ErrorResponse~ handleOptimisticLockingFailure(OptimisticLockingFailureException)
+    +ResponseEntity~ErrorResponse~ handleIllegalState(IllegalStateException)
+  }
+  class AssetType {
+    <<Enumeration>>
+    FIAT
+    STOCK
+    CRYPTO
+    +BigDecimal normalize(BigDecimal)
+  }
+  class EntryType {
+    <<Enumeration>>
+    DEBIT
+    CREDIT
+  }
+  class OutboxEvent {
+    +void markAsProcessed()
+    +void recordFailure(String)
+    +Long getId()
+    +String getAggregateType()
+    +String getAggregateId()
+    +String getEventType()
+    +String getPayload()
+    +LocalDateTime getCreatedAt()
+    +boolean isProcessed()
+    +int getRetryCount()
+    +String getErrorMessage()
+    +boolean isDeadLetter()
+  }
+  class OutboxMessageEvent {
+    +String eventType()
+    +String payload()
+  }
+  class OutboxRelayWorker {
+    +void relayOutboxEvents()
+  }
+  class OutboxRepository {
+    <<Interface>>
+    + List~OutboxEvent~ findUnprocessedEvents(Pageable)
+    + List~OutboxEvent~ findTop100ByProcessedFalseOrderByCreatedAtAsc()
+  }
+  class PortfolioQueryService {
+    +PortfolioSummaryResponse getPortfolioSummary(UUID)
+  }
+  class PortfolioViewRefresher {
+    +void handleTradeExecuted(TradeExecutedEvent)
+  }
+  class PortfolioSummaryResponse {
+    +UUID accountId()
+    +BigDecimal totalAssetValue()
+    +BigDecimal totalUnrealizedPnl()
+    +List~AssetDetailDto~ assets()
+  }
+  class PortfolioSummaryResponse_AssetDetailDto {
+    +String assetCode()
+    +BigDecimal quantity()
+    +BigDecimal avgUnitPrice()
+    +BigDecimal currentMarketPrice()
+    +BigDecimal totalValue()
+    +BigDecimal unrealizedPnl()
+  }
+  class CurrentPortfolio {
+    +String getId()
+    +UUID getAccountId()
+    +String getAssetCode()
+    +BigDecimal getTotalQuantity()
+    +BigDecimal getAvgUnitPrice()
+    +BigDecimal getCurrentMarketPrice()
+    +BigDecimal getUnrealizedPnl()
+    +String getLastUpdatedMonth()
+  }
+  class PortfolioQueryRepository {
+    <<Interface>>
+    + List~CurrentPortfolio~ findAllByAccountId(UUID)
+  }
+  class PortfolioController {
+    +ResponseEntity~PortfolioSummaryResponse~ getPortfolioSummary(UUID)
+  }
+  class LedgerService {
+    +void recordDoubleEntry(LedgerRecordingCommand)
+  }
+  class LedgerRecordingCommand {
+    +UUID referenceTradeId()
+    +UUID accountId()
+    +String assetCode()
+    +String fiatCode()
+    +String tradeType()
+    +Money quantity()
+    +Money unitPrice()
+    +BigDecimal exchangeRate()
+    +Money averageCost()
+  }
+  class ExchangeRateProvider {
+    <<Interface>>
+    + BigDecimal getExchangeRate(String, String)
+  }
+  class Transaction {
+    +void addBuyEntry(UUID, String, Money, Money, BigDecimal)
+    +void addSellEntry(UUID, String, Money, Money, BigDecimal, Money)
+    +boolean isNew()
+    +UUID getId()
+    +String getTransactionType()
+    +String getDescription()
+    +OffsetDateTime getTransactedAt()
+    +List~TransactionEntry~ getEntries()
+  }
+  class TransactionEntry {
+    + TransactionEntry createBuyEntry(Transaction, UUID, String, Money, Money, BigDecimal)
+    + TransactionEntry createSellEntry(Transaction, UUID, String, Money, Money, BigDecimal, Money)
+    +Long getId()
+    +Transaction getTransaction()
+    +UUID getAccountId()
+    +EntryType getEntryType()
+    +String getAssetCode()
+    +Money getQuantity()
+    +Money getUnitPrice()
+    +Money getAmount()
+    +Money getRealizedPnl()
+    +BigDecimal getExchangeRate()
+  }
+  class TransactionRepository {
+    <<Interface>>
+    + Optional~Transaction~ findWithEntriesById(UUID)
+  }
+  class OrderToLedgerAcl {
+    +void persistOutboxEvent(TradeExecutedEvent)
+    +void handleOutboxRelay(OutboxMessageEvent)
+  }
+  class DummyExchangeRateAdapter {
+    +BigDecimal getExchangeRate(String, String)
+  }
+  AccountTradeService --> MonthlyLedgerResolver
+  MonthlyLedgerResolver --> MonthlyAccountLedgerRepository
+  Account --|> BaseEntity
+  MonthlyAccountLedger --|> BaseEntity
+  MonthlyAccountLedger --> Money
+  Money --> AssetType
+  OutboxRelayWorker --> OutboxRepository
+  PortfolioQueryService --> PortfolioQueryRepository
+  PortfolioSummaryResponse --> PortfolioSummaryResponse_AssetDetailDto
+  PortfolioController --> PortfolioQueryService
+  LedgerService --> TransactionRepository
+  LedgerRecordingCommand --> Money
+  Transaction "0..1" o-- "0..*" TransactionEntry
+  TransactionEntry --> EntryType
+  TransactionEntry --> Money
+  OrderToLedgerAcl --> LedgerService
+  OrderToLedgerAcl --> OutboxRepository
+  DummyExchangeRateAdapter ..|> ExchangeRateProvider
+```
+</details>
+
+
 ---
 
 ## 📂 프로젝트 구조 (Project Structure)
