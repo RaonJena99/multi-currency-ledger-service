@@ -66,7 +66,7 @@
 
 ### 3. Class Diagram
 
-<details data-auto-diagram="true"><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>
+<details data-auto-diagram="true"><summary><b>[전체 클래스 다이어그램 보기]</b></summary>
 
 ```mermaid
 classDiagram
