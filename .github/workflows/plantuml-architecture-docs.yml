@@ -37,39 +37,81 @@ jobs:
       - name: 4. Architecture 생성 (.puml)
         run: ./gradlew generateClassDiagrams
 
-      - name: 2. .puml 내용을 README.md에 삽입
+      - name: 5. PlantUML -> Mermaid & README에 반영
         run: |
           python3 -c '
           import re
 
-          with open("README.md", "r", encoding="utf-8") as f:
-              readme = f.read()
-              
           with open("docs/architecture/plantuml/full-architecture.puml", "r", encoding="utf-8") as f:
               puml = f.read()
 
-          mermaid = re.sub(r"@startuml.*", "", puml)
-          mermaid = re.sub(r"@enduml.*", "", mermaid)
+          class_map = {}
+          mermaid_lines = ["classDiagram"]
+          in_class = False
 
-          mermaid = re.sub(r"-\[hidden\]->", "-->", mermaid)
-          mermaid = re.sub(r"-\[.*\]->", "-->", mermaid)
+          for match in re.finditer(r"(?:class|entity|interface|enum|abstract class)\s+\"([^\"]+)\"\s+as\s+([^\s{]+)", puml):
+              class_map[match.group(2)] = match.group(1).replace("$", "_")
 
-          mermaid = re.sub(r"interface\s+(\w+)", r"class \1", mermaid)
-          mermaid = re.sub(r"enum\s+(\w+)", r"class \1", mermaid)
-
-          mermaid_block = f"\n<details><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n```mermaid\ngraph TD\n{mermaid.strip()}\n```\n</details>\n"
-
-          pattern = r"<!-- START_PUML -->.*?<!-- END_PUML -->"
-          if not re.search(pattern, readme, flags=re.DOTALL):
-              pattern = r"<!-- START_MERMAID -->.*?<!-- END_MERMAID -->"
+          for line in puml.split("\n"):
+              line = line.strip()
+              if not line or line.startswith("@") or line.startswith("!"): continue
               
-          new_readme = re.sub(pattern, mermaid_block, readme, flags=re.DOTALL)
+              match = re.match(r"(class|entity|interface|enum|abstract class)\s+\"[^\"]+\"\s+as\s+([^\s{]+)\s*\{", line)
+              if match:
+                  type_kw = match.group(1)
+                  simple_name = class_map[match.group(2)]
+                  mermaid_lines.append(f"  class {simple_name} {{")
+                  if type_kw == "interface": mermaid_lines.append("    <<Interface>>")
+                  elif type_kw == "enum": mermaid_lines.append("    <<Enumeration>>")
+                  elif type_kw == "abstract class": mermaid_lines.append("    <<Abstract>>")
+                  in_class = True
+                  continue
+              
+              if in_class and line == "}":
+                  mermaid_lines.append("  }")
+                  in_class = False
+                  continue
+              
+              if in_class:
+                  if line == "__": continue
+                  b_line = line.replace("<", "~").replace(">", "~")
+                  b_line = b_line.replace("{static}", "").replace("{abstract}", "").strip()
+                  mermaid_lines.append(f"    {b_line}")
+                  continue
+              
+              if "-->" in line or "-|>" in line or ".|>" in line or "o--o" in line or "*--*" in line or "--" in line:
+                  rel = line
+                  for f_name in sorted(class_map.keys(), key=len, reverse=True):
+                      if f_name in rel: rel = rel.replace(f_name, class_map[f_name])
+                  rel = re.sub(r"-[a-zA-Z]+-\|>", "--|>", rel)
+                  rel = re.sub(r"\.[a-zA-Z]+\.\|>", "..|>", rel)
+                  rel = re.sub(r"-[a-zA-Z]+->", "-->", rel)
+                  rel = rel.replace("o--o", "o--").replace("*--*", "*--")
+                  mermaid_lines.append("  " + rel)
 
-          with open("README.md", "w", encoding="utf-8") as f:
-              f.write(new_readme)
+          mermaid_code = "\n".join(mermaid_lines)
+          mermaid_block = f"\n<details data-auto-diagram=\"true\"><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n```mermaid\n{mermaid_code}\n```\n</details>\n"
+
+          with open("README.md", "r", encoding="utf-8") as f:
+              readme = f.read()
+
+          target_heading = "### 3. Class Diagram"
+
+          if target_heading in readme:
+              if "<details data-auto-diagram=\"true\">" in readme:
+                  new_readme = re.sub(r"\n<details data-auto-diagram=\"true\">.*?</details>\n", mermaid_block, readme, flags=re.DOTALL)
+              else:
+                  parts = readme.split(target_heading)
+                  new_readme = parts[0] + target_heading + "\n" + mermaid_block + parts[1]
+                  
+              with open("README.md", "w", encoding="utf-8") as f:
+                  f.write(new_readme)
+              print("성공: '### 3. Class Diagram' 아래에 다이어그램을 주입했습니다.")
+          else:
+              print(f"에러: README.md 에서 '{target_heading}' 을 찾을 수 없습니다.")
           '
 
-      - name: 3. Commit & Push
+      - name: 6. Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "docs: Plantuml 아키텍처 다이어그램 업데이트"
