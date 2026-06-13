@@ -1,4 +1,4 @@
-name: Plantuml Architecture Diagram
+name: Architecture Documentation Pipeline
 
 on:
   push:
@@ -15,9 +15,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  update-diagram:
+  update-architecture:
     runs-on: ubuntu-latest
-
     steps:
       - name: 1. Repository 다운로드
         uses: actions/checkout@v4
@@ -34,13 +33,27 @@ jobs:
       - name: 3. 실행 권한 부여
         run: chmod +x gradlew
 
-      - name: 4. Architecture 생성 (.puml)
+      - name: 4. Spring Modulith 아키텍처 추출 (.puml)
+        run: ./gradlew test --tests "*LedgerArchitectureTest*" --stacktrace
+
+      - name: 5. 전체 클래스 다이어그램 추출 (.puml)
         run: ./gradlew generateClassDiagrams
 
-      - name: 5. PlantUML -> Mermaid & README에 반영
+      - name: 6. PUML -> SVG 렌더링 (Docker 권한 이슈 해결)
+        run: |
+          mkdir -p docs/architecture/modulith
+
+          docker run --rm --user $(id -u):$(id -g) -v ${{ github.workspace }}:/app plantuml/plantuml -tsvg "/app/build/spring-modulith-docs/*.puml"
+
+          shopt -s nullglob
+          cp build/spring-modulith-docs/*.svg docs/architecture/modulith/ || true
+          cp build/spring-modulith-docs/*.puml docs/architecture/modulith/ || true
+
+      - name: 7. PlantUML -> Mermaid & README 주입
         run: |
           python3 -c '
           import re
+          import sys
 
           with open("docs/architecture/plantuml/full-architecture.puml", "r", encoding="utf-8") as f:
               puml = f.read()
@@ -90,7 +103,7 @@ jobs:
                   mermaid_lines.append("  " + rel)
 
           mermaid_code = "\n".join(mermaid_lines)
-          mermaid_block = f"\n<details data-auto-diagram=\"true\"><summary><b>[클릭하여 전체 아키텍처 다이어그램 보기]</b></summary>\n\n```mermaid\n{mermaid_code}\n```\n</details>\n"
+          mermaid_block = f"\n<details data-auto-diagram=\"true\"><summary><b>[전체 클래스 다이어그램 보기]</b></summary>\n\n```mermaid\n{mermaid_code}\n```\n</details>\n"
 
           with open("README.md", "r", encoding="utf-8") as f:
               readme = f.read()
@@ -106,10 +119,13 @@ jobs:
                   
               with open("README.md", "w", encoding="utf-8") as f:
                   f.write(new_readme)
+          else:
+              print(f"::error::README.md 파일에서 타겟 헤딩({target_heading})을 찾을 수 없습니다.")
+              sys.exit(1)
           '
 
-      - name: 6. Commit & Push
+      - name: 8. 종합 변경사항 자동 커밋 및 푸시
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs: Plantuml 아키텍처 다이어그램 업데이트"
-          file_pattern: "README.md"
+          commit_message: "docs: 아키텍처 다이어그램 및 README 문서 자동 동기화"
+          file_pattern: "docs/architecture/modulith/* README.md"
