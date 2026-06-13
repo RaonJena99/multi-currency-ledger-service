@@ -106,9 +106,6 @@ jobs:
                   
               with open("README.md", "w", encoding="utf-8") as f:
                   f.write(new_readme)
-              print("성공: '### 3. Class Diagram' 아래에 다이어그램을 주입했습니다.")
-          else:
-              print(f"에러: README.md 에서 '{target_heading}' 을 찾을 수 없습니다.")
           '
 
       - name: 6. Commit & Push
