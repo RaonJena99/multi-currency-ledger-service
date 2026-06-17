@@ -162,6 +162,20 @@ classDiagram
     DEBIT
     CREDIT
   }
+  class FailureReason {
+    <<Enumeration>>
+    AMOUNT_MISMATCH
+    TEXT_NOT_FOUND
+    TIME_WINDOW_EXCEEDED
+    SYSTEM_ERROR
+  }
+  class SettlementStatus {
+    <<Enumeration>>
+    PENDING
+    MATCHED
+    UNMATCHED
+    MANUALLY_RESOLVED
+  }
   class OutboxEvent {
     +void markAsProcessed()
     +void recordFailure(String)
@@ -225,6 +239,126 @@ classDiagram
   class PortfolioController {
     +ResponseEntity~PortfolioSummaryResponse~ getPortfolioSummary(UUID)
   }
+  class ReconciliationDeadLetterRepository {
+    <<Interface>>
+    + Page~ReconciliationDeadLetter~ findUnresolvedDeadLetters(Pageable)
+  }
+  class HeuristicMatchingProcessor {
+    +void beforeStep(StepExecution)
+    +MatchedReconciliationResult process(ExternalSettlement)
+  }
+  class MatchedReconciliationResult {
+    +ExternalSettlement externalSettlement()
+    +Money feeDifference()
+  }
+  class ReconciliationResultWriter {
+    +void write(Chunk~? extends MatchedReconciliationResult~)
+  }
+  class UnmatchableSettlementException {
+    +Throwable fillInStackTrace()
+    +String getExternalSettlementId()
+  }
+  class AmountToleranceRule {
+    +int getOrder()
+    +RuleResult evaluate(ExternalSettlement, InternalTransactionCandidate)
+  }
+  class FuzzyTextMatchingRule {
+    +int getOrder()
+    +RuleResult evaluate(ExternalSettlement, InternalTransactionCandidate)
+  }
+  class MatchingRule {
+    <<Interface>>
+    + RuleResult evaluate(ExternalSettlement, InternalTransactionCandidate)
+    + int getOrder()
+  }
+  class RuleResult {
+    + RuleResultBuilder builder()
+    +boolean isPassed()
+    +int getScore()
+    +String getFailReason()
+  }
+  class RuleResult_RuleResultBuilder {
+    +RuleResultBuilder passed(boolean)
+    +RuleResultBuilder score(int)
+    +RuleResultBuilder failReason(String)
+    +RuleResult build()
+  }
+  class TimeToleranceRule {
+    +int getOrder()
+    +RuleResult evaluate(ExternalSettlement, InternalTransactionCandidate)
+  }
+  class ManualReconciliationService {
+    +void resolveManually(Long, UUID, Money)
+  }
+  class ExternalSettlement {
+    + ExternalSettlement create(String, String, OffsetDateTime, String, Money)
+    + ExternalSettlement create(String, String, OffsetDateTime, String, Money, String)
+    +void markAsMatched(UUID)
+    +void markAsUnmatched()
+    +void resolveManually(UUID)
+    +UUID getId()
+    +OffsetDateTime getSettlementDate()
+    +String getExternalReferenceId()
+    +String getInstitutionCode()
+    +String getDescription()
+    +Money getAmount()
+    +String getCurrencyCode()
+    +SettlementStatus getStatus()
+    +UUID getMatchedInternalTransactionId()
+  }
+  class ExternalSettlementId {
+  }
+  class ReconciliationDeadLetter {
+    + ReconciliationDeadLetter isolate(UUID, FailureReason, String, String)
+    +void markAsResolved()
+    +Long getId()
+    +UUID getExternalSettlementId()
+    +FailureReason getFailureReason()
+    +String getErrorMessage()
+    +boolean isResolved()
+    +LocalDateTime getResolvedAt()
+    +String getHandlerEnrichmentPayload()
+  }
+  class ReconciliationFeeAdjustedEvent {
+    +UUID settlementId()
+    +Money feeDifference()
+  }
+  class ExternalSettlementRepository {
+    <<Interface>>
+    + Optional~ExternalSettlement~ findByIdWithoutPartitionKey(UUID)
+    + Optional~ExternalSettlement~ findByInstitutionCodeAndExternalReferenceId(String, String)
+  }
+  class ReconciliationJobConfig {
+    +Job monthlyReconciliationJob()
+    +Step reconciliationStep()
+  }
+  class ReconciliationReaderConfig {
+    +JpaPagingItemReader~ExternalSettlement~ externalSettlementReader(EntityManagerFactory, String)
+  }
+  class ReconciliationSkipListener {
+    +void onSkipInProcess(ExternalSettlement, Throwable)
+  }
+  class ReconciliationBatchTxConfig {
+    +PlatformTransactionManager batchTransactionManager(DataSource)
+  }
+  class InternalTransactionCandidate {
+    +UUID transactionId()
+    +OffsetDateTime transactedAt()
+    +String description()
+    +Money amount()
+  }
+  class InternalTransactionQueryDao {
+    +List~InternalTransactionCandidate~ fetchCandidatesForPeriod(OffsetDateTime, OffsetDateTime)
+  }
+  class ReconciliationAdminController {
+    +ResponseEntity~Void~ resolveDeadLetter(Long, ManualResolutionRequest)
+  }
+  class ReconciliationAdminController_ManualResolutionRequest {
+    +Money getFeeDifference()
+    +UUID internalTransactionId()
+    +BigDecimal feeAmount()
+    +AssetType feeAssetType()
+  }
   class LedgerService {
     +void recordDoubleEntry(LedgerRecordingCommand)
   }
@@ -275,6 +409,9 @@ classDiagram
     +void persistOutboxEvent(TradeExecutedEvent)
     +void handleOutboxRelay(OutboxMessageEvent)
   }
+  class ReconciliationToLedgerAcl {
+    +void handle(ReconciliationFeeAdjustedEvent)
+  }
   class DummyExchangeRateAdapter {
     +BigDecimal getExchangeRate(String, String)
   }
@@ -288,6 +425,29 @@ classDiagram
   PortfolioQueryService --> PortfolioQueryRepository
   PortfolioSummaryResponse --> PortfolioSummaryResponse_AssetDetailDto
   PortfolioController --> PortfolioQueryService
+  HeuristicMatchingProcessor --> InternalTransactionQueryDao
+  HeuristicMatchingProcessor --> MatchingRule
+  HeuristicMatchingProcessor --> InternalTransactionCandidate
+  MatchedReconciliationResult --> ExternalSettlement
+  MatchedReconciliationResult --> Money
+  AmountToleranceRule ..|> MatchingRule
+  FuzzyTextMatchingRule ..|> MatchingRule
+  TimeToleranceRule ..|> MatchingRule
+  ManualReconciliationService --> ExternalSettlementRepository
+  ManualReconciliationService --> ReconciliationDeadLetterRepository
+  ExternalSettlement --|> BaseEntity
+  ExternalSettlement --> SettlementStatus
+  ExternalSettlement --> Money
+  ReconciliationDeadLetter --|> BaseEntity
+  ReconciliationDeadLetter --> FailureReason
+  ReconciliationFeeAdjustedEvent --> Money
+  ReconciliationJobConfig --> ExternalSettlement
+  ReconciliationJobConfig --> ReconciliationResultWriter
+  ReconciliationJobConfig --> HeuristicMatchingProcessor
+  ReconciliationJobConfig --> ReconciliationSkipListener
+  InternalTransactionCandidate --> Money
+  ReconciliationAdminController --> ManualReconciliationService
+  ReconciliationAdminController_ManualResolutionRequest --> AssetType
   LedgerService --> TransactionRepository
   LedgerRecordingCommand --> Money
   Transaction "0..1" o-- "0..*" TransactionEntry
@@ -295,9 +455,9 @@ classDiagram
   TransactionEntry --> Money
   OrderToLedgerAcl --> LedgerService
   OrderToLedgerAcl --> OutboxRepository
+  ReconciliationToLedgerAcl --> LedgerService
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
 ```
-
 </details>
 
 ---
