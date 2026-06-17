@@ -19,15 +19,18 @@ System_Boundary("MultiCurrencyLedgerServiceApplication_boundary", "MultiCurrency
   Container_Boundary("MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication_boundary", "MultiCurrencyLedgerServiceApplication", $tags="") {
     Component(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "Common", $techn="Module", $descr="", $tags="", $link="")
     Component(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, "Account", $techn="Module", $descr="", $tags="", $link="")
+    Component(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Reconciliation, "Reconciliation", $techn="Module", $descr="", $tags="", $link="")
     Component(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, "Transaction", $techn="Module", $descr="", $tags="", $link="")
   }
 
 }
 
 Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, "listens to", $techn="", $tags="", $link="")
-Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "listens to", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Reconciliation, "listens to", $techn="", $tags="", $link="")
 Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "uses", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Reconciliation, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "depends on", $techn="", $tags="", $link="")
 Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "depends on", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "listens to", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)
 hide stereotypes
