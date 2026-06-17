@@ -5,7 +5,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-blue?logo=postgresql&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-Build-02303A?logo=gradle&logoColor=white)
 
-> 도메인 주도 설계(DDD)와 복식부기 모델을 기반으로 구축된 **엔터프라이즈급 불변 원장 코어 뱅킹 플랫폼**입니다.
+> 도메인 주도 설계(DDD)와 복식부기 모델을 기반으로 구축된 **엔터프라이즈급 불변 원장 코어 뱅킹 플랫폼**입니다.  
 > 완벽한 대차평균 정합성을 보장하며, 글로벌 금융 환경에 대응하는 대규모 트래픽 및 다중 자산 처리 아키텍처를 지향합니다.
 
 ---
@@ -17,13 +17,13 @@
 - 🛡️ **불변 객체 모델링:** `Money` VO(Value Object)를 도입하여 부동소수점 오차 및 이종 통화 간 연산 오류 원천 차단
 - 🔒 **견고한 동시성 제어:** 낙관적 락(`@Version`)과 DB 유니크 제약조건을 결합하여 갱신 손실(Lost Update) 방지
 - 🔄 **최종 정합성 (Eventual Consistency):** Transactional Outbox 패턴을 통한 비즈니스 로직과 원장 기록의 물리적 분리
-- 📦 **기능 기반 패키징 (DDD):** Account, Transaction, Portfolio 등 컨텍스트 단위 분리로 도메인 간 결합도 최소화
+- 📦 **기능 기반 패키징 (DDD):** Account, Transaction, Portfolio, Reconciliation 등 컨텍스트 단위 분리로 도메인 간 결합도 최소화
 
 ---
 
 ## 🚀 시스템 진화 로드맵 & 주요 성과
 
-단순 입출금을 넘어, 글로벌 수준의 다중 자산 포트폴리오 처리를 위해 **3단계 아키텍처 고도화**를 완료했습니다.
+> **4단계 아키텍처 고도화**를 완료했습니다.
 
 ### [Phase 1] 다중 자산 수용 및 손익 파이프라인 구축
 
@@ -43,10 +43,18 @@
 
 ### [Phase 3] CQRS 기반 읽기 최적화 및 월차 원장 도입
 
-- **월차 원장 (Monthly Ledger) 패턴:** 무한 누적되는 스냅샷 역설을 해결하기 위해 월 단위 생명주기를 가진 원장 도입 (자동 이월/Rollover)
-- **CQRS & 구체화된 뷰 (Materialized View):** \* 원장 기록(Write)과 자산 평가(Read) 책임을 물리적으로 분리
+- **월차 원장 (Monthly Ledger) 패턴:** 무한 누적되는 스냅샷 역설을 해결하기 위해 월 단위 생명주기를 가진 원장 도입
+- **CQRS & 구체화된 뷰 (Materialized View):** 원장 기록(Write)과 자산 평가(Read) 책임을 물리적으로 분리
   - 트랜잭션 커밋 직후(`AFTER_COMMIT`) 백그라운드에서 View 비동기 갱신(`CONCURRENTLY`)
-- **O(1) 실시간 포트폴리오 서빙:** 복잡한 조인 및 손익 계산 로직을 View로 이관하여, 클라이언트 조회 시 DTO 스냅샷만 즉시 반환
+- **실시간 포트폴리오 서빙:** 복잡한 조인 및 손익 계산 로직을 View로 이관하여, 클라이언트 조회 시 DTO 스냅샷만 즉시 반환
+
+### [Phase 4] 대규모 트랜잭션 대사 엔진 및 Spring Batch 최적화
+
+- **인메모리 해시 기반 매칭 (Heuristic Rules):** 외부 정산 데이터와 내부 원장의 무거운 DB JOIN을 배제하기 위해, 배치 Step 시작 전 후보군을 메모리 해시맵에 캐싱
+  - 시간 오차, 금액 오차, 레벤슈타인 거리 알고리즘을 통한 다중 룰 엔진 평가
+- **고성능 Chunk 파이프라인:** 대규모 데이터의 OOM(Out Of Memory) 방지를 위해 (`JpaPagingItemReader`) 적용 및 날짜 기반 파티셔닝 스키마를 활용한 Driving Query 최적화
+- **결함 격리와 DLQ (Dead Letter Queue):** 데이터 불일치 예외 발생 시 전체 청크를 롤백하는 대신 SkipListener를 활용해 우회하고, 독립 트랜잭션(`REQUIRES_NEW`)으로 실패 사유와 함께 DLQ 테이블에 영구 격리
+- **자동 분개 연동:** 대사 성공 시 발생하는 PG사 수수료 차액을 식별하고, (`ReconciliationToLedgerAcl`)을 거쳐 원장 모듈에 자동 복식부기 기장
 
 ---
 
@@ -60,13 +68,13 @@
 
 ### 2. Bounded Context
 
-| Account (계좌 모듈)                                              | Transaction (원장 모듈)                                                  | Portfolio (자산 모듈)                                                |
-| :--------------------------------------------------------------- | :----------------------------------------------------------------------- | :------------------------------------------------------------------- |
-| ![Account Module](docs/architecture/modulith/module-account.svg) | ![Transaction Module](docs/architecture/modulith/module-transaction.svg) | ![Portfolio Module](docs/architecture/modulith/module-portfolio.svg) |
+| Account (계좌 모듈)                                              | Transaction (원장 모듈)                                                  |
+| :--------------------------------------------------------------- | :----------------------------------------------------------------------- |
+| ![Account Module](docs/architecture/modulith/module-account.svg) | ![Transaction Module](docs/architecture/modulith/module-transaction.svg) |
 
-| Reconciliation (대사 모듈)                                                     |
-| :----------------------------------------------------------------------------- |
-| ![Reconciliation Module](docs/architecture/modulith/module-reconciliation.svg) |
+| Portfolio (자산 모듈)                                                | Reconciliation (대사 모듈)                                                     |
+| :------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| ![Portfolio Module](docs/architecture/modulith/module-portfolio.svg) | ![Reconciliation Module](docs/architecture/modulith/module-reconciliation.svg) |
 
 ### 3. Class Diagram
 
@@ -482,9 +490,13 @@ multi-currency-ledger-service/
 │   ├── portfolio/                            # [Read/CQRS] O(1) 포트폴리오 집계 및 비동기 뷰 갱신
 │   │   ├── application/PortfolioQueryService.java
 │   │   └── application/PortfolioViewRefresher.java
-│   └── transaction/                          # [원장] 복식부기 분개, ACL (부패 방지 계층)
-│       ├── application/LedgerService.java
-│       └── infrastructure/acl/OrderToLedgerAcl.java
-├── src/main/resources/db/migration/          # Flyway 마이그레이션 (월차 원장, Materialized View)
-└── src/test/java/.../                        # Testcontainers 기반 롤오버/데드락 통합 테스트 스위트
+│   ├── transaction/                          # [원장] 복식부기 분개, ACL (부패 방지 계층)
+│   │   ├── application/LedgerService.java
+│   │   └── infrastructure/acl/OrderToLedgerAcl.java
+│   └── reconciliation/                       # [대사/Batch] 인메모리 해시 매칭 엔진 및 DLQ 처리
+│       ├── application/batch/HeuristicMatchingProcessor.java
+│       ├── application/rule/                 # 허용 오차 판별 룰 엔진 (Amount, Time, Text)
+│       └── domain/ExternalSettlement.java    # 복합키 및 파티셔닝 적용 정산 엔티티
+├── src/main/resources/db/migration/          # Flyway 마이그레이션 (파티셔닝 스키마, DLQ 테이블 등)
+└── src/test/java/.../                        # E2E 통합 테스트, Testcontainers 기반 격리 테스트 스위트
 ```
