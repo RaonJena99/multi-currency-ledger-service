@@ -52,7 +52,7 @@
 
 ## 📊 System Architecture
 
-> 본 다이어그램은 CI/CD 파이프라인에 의해 실제 코드로부터 자동 추출된 Living Documentation입니다.
+> 본 다이어그램은 CI/CD 파이프라인에 의해 코드로부터 자동 추출된 Living Documentation입니다.
 
 ### 1. 시스템 컴포넌트
 
@@ -297,8 +297,8 @@ classDiagram
   OrderToLedgerAcl --> OutboxRepository
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
 ```
-</details>
 
+</details>
 
 ---
 
