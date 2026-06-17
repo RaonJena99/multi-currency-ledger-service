@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * Transactional Outbox Pattern을 위한 엔티티
- * 비즈니스 로직(원장 기록)과 동일한 트랜잭션에서 이 테이블에 데이터가 적재됨
  */
 @Entity
 @Getter

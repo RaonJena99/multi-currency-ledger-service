@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OutboxRelayWorker {
 
     private final OutboxRepository outboxRepository;
-    private final ApplicationEventPublisher eventPublisher; // LedgerService, JsonMapper 제거
+    private final ApplicationEventPublisher eventPublisher;
 
     @Scheduled(fixedDelay = 5000)
     @Transactional
