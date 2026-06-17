@@ -118,14 +118,17 @@ public class MonthlyAccountLedger extends BaseEntity{
 
     // 매도
     public Money subtractBalance(Money quantityToSubtract) {
+        // 음수 or 공백
         if (quantityToSubtract.isNegative() || quantityToSubtract.isZero()) {
             throw new IllegalArgumentException("Invalid quantity to subtract");
         }
         
+        // 잔고 부족
         if (this.balance.compareTo(quantityToSubtract) < 0) {
             throw new IllegalArgumentException("Insufficient balance");
         }
-
+        
+        // 매도
         this.balance = this.balance.subtract(quantityToSubtract);
 
         // 전량 매도 시 평균 단가 초기화
