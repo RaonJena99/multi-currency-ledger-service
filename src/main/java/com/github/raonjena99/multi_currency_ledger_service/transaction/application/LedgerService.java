@@ -41,7 +41,6 @@ public class LedgerService {
             transaction.addBuyEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), cmd.unitPrice(), cmd.exchangeRate());
             transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), requiredFiatAmount, 
                                     Money.of("1", AssetType.FIAT), BigDecimal.ONE, Money.of("1", AssetType.FIAT));
-
         } else if ("SELL".equals(cmd.tradeType())) {
             Money earnedFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
             

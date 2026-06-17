@@ -30,9 +30,8 @@ public class OrderToLedgerAcl {
         log.info("ACL: Translating and Persisting OutboxEvent for TradeID: {}", externalEvent.tradeId());
 
         try {
-            // [수정] 상류 이벤트의 원시 타입(BigDecimal)을 하류 커맨드의 도메인 타입(Money)으로 명시적 번역
             LedgerRecordingCommand command = new LedgerRecordingCommand(
-                externalEvent.tradeId(), // referenceTradeId로 매핑
+                externalEvent.tradeId(),
                 externalEvent.accountId(),
                 externalEvent.assetCode(),
                 externalEvent.fiatCode(),
