@@ -49,10 +49,12 @@ public class MonthlyLedgerResolver {
 
             ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, assetCode)
                 .ifPresentOrElse(
+                    // 전월 장부가 있을 경우
                     prevLedger -> {
                         MonthlyAccountLedger rolledOver = MonthlyAccountLedger.carryForwardFrom(prevLedger, targetMonth);
                         ledgerRepository.save(rolledOver); // flush 없이 순수 save
                     },
+                    // 전월 장부가 없는 경우
                     () -> {
                         MonthlyAccountLedger newLedger = new MonthlyAccountLedger(accountId, assetCode, assetType, targetMonth);
                         ledgerRepository.save(newLedger); // flush 없이 순수 save
