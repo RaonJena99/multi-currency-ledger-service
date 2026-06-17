@@ -1,31 +1,42 @@
-# --- [공통 및 운영 환경 기본 설정] ---
 spring:
   application:
     name: multi-currency-ledger-service
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: 6379
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/ledger_db
     username: ${DB_USER:ledger_admin}
     password: ${DB_PASSWORD:ledger_password}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
 
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
-        "[format_sql]": true
-        "[default_batch_fetch_size]": 1000
+        format_sql: true
+        default_batch_fetch_size: 1000
     open-in-view: false
 
   flyway:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
 
 management:
   endpoints:
@@ -44,10 +55,8 @@ management:
 logging:
   level:
     root: info
-    "[org.hibernate.SQL]": debug
-
+    org.hibernate.SQL: debug
 ---
-# --- [로컬/개발 환경 전용 설정] ---
 spring:
   config:
     activate:
@@ -55,4 +64,4 @@ spring:
 
 logging:
   level:
-    "[org.hibernate.orm.jdbc.bind]": trace
+    org.hibernate.orm.jdbc.bind: trace

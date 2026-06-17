@@ -2,6 +2,11 @@ spring:
   application:
     name: multi-currency-ledger-test
 
+  datasource:
+    url: jdbc:tc:postgresql:15.2:///ledger_test_db
+    username: test
+    password: test
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -16,6 +21,15 @@ spring:
     enabled: true
     locations: classpath:db/migration
     clean-disabled: false
+
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
 
 logging:
   level:
