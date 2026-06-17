@@ -64,6 +64,10 @@
 | :--------------------------------------------------------------- | :----------------------------------------------------------------------- | :------------------------------------------------------------------- |
 | ![Account Module](docs/architecture/modulith/module-account.svg) | ![Transaction Module](docs/architecture/modulith/module-transaction.svg) | ![Portfolio Module](docs/architecture/modulith/module-portfolio.svg) |
 
+| Reconciliation (대사 모듈)                                                     |
+| :----------------------------------------------------------------------------- |
+| ![Reconciliation Module](docs/architecture/modulith/module-reconciliation.svg) |
+
 ### 3. Class Diagram
 
 <details data-auto-diagram="true"><summary><b>[전체 클래스 다이어그램 보기]</b></summary>
@@ -458,6 +462,7 @@ classDiagram
   ReconciliationToLedgerAcl --> LedgerService
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
 ```
+
 </details>
 
 ---
