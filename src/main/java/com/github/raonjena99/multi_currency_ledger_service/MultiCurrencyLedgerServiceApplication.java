@@ -11,7 +11,9 @@ import jakarta.annotation.PostConstruct;
 
 @EnableAsync
 @EnableScheduling
-@SpringBootApplication
+@SpringBootApplication(excludeName = {
+    "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration"
+})
 public class MultiCurrencyLedgerServiceApplication {
 
 	@PostConstruct
