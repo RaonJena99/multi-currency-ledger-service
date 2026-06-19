@@ -84,6 +84,9 @@ dependencies {
 
     // 테스트용 인메모리 DB (H2)
     testImplementation 'com.h2database:h2'
+
+    // Mac 환경 DNS 경고 제거용 (Netty)
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos::osx-aarch_64'
 }
 
 classDiagrams {
@@ -100,4 +103,5 @@ classDiagrams {
 
 tasks.named('test') {
     useJUnitPlatform()
+    jvmArgs("-Xshare:off")
 }
