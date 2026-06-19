@@ -135,6 +135,10 @@ classDiagram
   class JpaConfig {
     +DateTimeProvider offsetDateTimeProvider()
   }
+  class KafkaProducerConfig {
+    +ProducerFactory~String, String~ primaryProducerFactory()
+    +KafkaTemplate~String, String~ primaryKafkaTemplate()
+  }
   class BaseEntity {
     <<Abstract>>
     +OffsetDateTime getCreatedAt()
@@ -187,6 +191,9 @@ classDiagram
     MATCHED
     UNMATCHED
     MANUALLY_RESOLVED
+  }
+  class KafkaProducerListener {
+    +void handleOutboxMessageEvent(OutboxMessageEvent)
   }
   class OutboxEvent {
     +void markAsProcessed()
