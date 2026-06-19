@@ -3,7 +3,6 @@ package com.github.raonjena99.multi_currency_ledger_service.common.outbox;
 import java.util.List;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +21,7 @@ public class OutboxRelayWorker {
     @Scheduled(fixedDelay = 5000)
     @Transactional
     public void relayOutboxEvents() {
-        List<OutboxEvent> events = outboxRepository.findUnprocessedEvents(PageRequest.of(0, 100));
+        List<OutboxEvent> events = outboxRepository.findUnprocessedEventsWithSkipLocked(100);
 
         for (OutboxEvent event : events) {
             try {
