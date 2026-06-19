@@ -132,7 +132,7 @@ classDiagram
     + Optional~MonthlyAccountLedger~ findByAccountIdAndAssetCodeAndLedgerMonth(UUID, String, String)
     + Optional~MonthlyAccountLedger~ findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
   }
-  class JpaAuditingConfig {
+  class JpaConfig {
     +DateTimeProvider offsetDateTimeProvider()
   }
   class BaseEntity {
@@ -211,7 +211,7 @@ classDiagram
   }
   class OutboxRepository {
     <<Interface>>
-    + List~OutboxEvent~ findUnprocessedEvents(Pageable)
+    + List~OutboxEvent~ findUnprocessedEventsWithSkipLocked(int)
     + List~OutboxEvent~ findTop100ByProcessedFalseOrderByCreatedAtAsc()
   }
   class PortfolioQueryService {
@@ -256,11 +256,11 @@ classDiagram
     + Page~ReconciliationDeadLetter~ findUnresolvedDeadLetters(Pageable)
   }
   class HeuristicMatchingProcessor {
-    +void beforeStep(StepExecution)
     +MatchedReconciliationResult process(ExternalSettlement)
   }
   class MatchedReconciliationResult {
     +ExternalSettlement externalSettlement()
+    +UUID matchedTransactionId()
     +Money feeDifference()
   }
   class ReconciliationResultWriter {
@@ -349,9 +349,6 @@ classDiagram
   }
   class ReconciliationSkipListener {
     +void onSkipInProcess(ExternalSettlement, Throwable)
-  }
-  class ReconciliationBatchTxConfig {
-    +PlatformTransactionManager batchTransactionManager(DataSource)
   }
   class InternalTransactionCandidate {
     +UUID transactionId()
@@ -442,6 +439,7 @@ classDiagram
   HeuristicMatchingProcessor --> InternalTransactionCandidate
   MatchedReconciliationResult --> ExternalSettlement
   MatchedReconciliationResult --> Money
+  ReconciliationResultWriter --> ExternalSettlementRepository
   AmountToleranceRule ..|> MatchingRule
   FuzzyTextMatchingRule ..|> MatchingRule
   TimeToleranceRule ..|> MatchingRule
@@ -457,6 +455,8 @@ classDiagram
   ReconciliationJobConfig --> ReconciliationResultWriter
   ReconciliationJobConfig --> HeuristicMatchingProcessor
   ReconciliationJobConfig --> ReconciliationSkipListener
+  ReconciliationSkipListener --> ExternalSettlementRepository
+  ReconciliationSkipListener --> ReconciliationDeadLetterRepository
   InternalTransactionCandidate --> Money
   ReconciliationAdminController --> ManualReconciliationService
   ReconciliationAdminController_ManualResolutionRequest --> AssetType
@@ -470,7 +470,6 @@ classDiagram
   ReconciliationToLedgerAcl --> LedgerService
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
 ```
-
 </details>
 
 ---
