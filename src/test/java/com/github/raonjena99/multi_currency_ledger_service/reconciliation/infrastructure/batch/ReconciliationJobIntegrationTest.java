@@ -15,15 +15,18 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.test.JobLauncherTestUtils;
+import org.springframework.batch.test.JobOperatorTestUtils;
 import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.github.raonjena99.multi_currency_ledger_service.IntegrationTestSupport;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.SettlementStatus;
+import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRelayWorker;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.ReconciliationDeadLetterRepository;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlementId;
@@ -32,7 +35,7 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infras
 @SpringBatchTest
 class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
 
-    @Autowired private JobLauncherTestUtils jobLauncherTestUtils;
+    @Autowired private JobOperatorTestUtils jobOperatorTestUtils;
     @Autowired @Qualifier("monthlyReconciliationJob") private Job monthlyReconciliationJob;
     @Autowired private ExternalSettlementRepository settlementRepository;
     @Autowired private ReconciliationDeadLetterRepository deadLetterRepository;
@@ -43,14 +46,18 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
     private UUID failSettlementId;
     private OffsetDateTime failSettlementDate;   
 
+    @MockitoBean
+    private OutboxRelayWorker outboxRelayWorker;
+
     @BeforeEach
     void setUp() {
-        jobLauncherTestUtils.setJob(monthlyReconciliationJob);
+        jobOperatorTestUtils.setJob(monthlyReconciliationJob);
 
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS external_settlement_default PARTITION OF external_settlement DEFAULT");
 
         deadLetterRepository.deleteAllInBatch();
         settlementRepository.deleteAllInBatch();
+        jdbcTemplate.update("DELETE FROM outbox_events"); 
         jdbcTemplate.update("DELETE FROM transaction_entries");
         jdbcTemplate.update("DELETE FROM transactions");
         jdbcTemplate.update("DELETE FROM accounts");
@@ -67,7 +74,8 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
         UUID accountId = UUID.randomUUID();
         
         jdbcTemplate.update("INSERT INTO accounts (id, owner_name, status) VALUES (?, 'TEST_USER', 'ACTIVE')", accountId);
-        jdbcTemplate.update("INSERT INTO transactions (id, transaction_type, transacted_at, description) VALUES (?, 'TRADE', '2026-06-15 10:00:00+00', 'TOSS_PAYMENTS')", tId);
+        
+        jdbcTemplate.update("INSERT INTO transactions (id, transaction_type, transacted_at, description) VALUES (?, 'DEPOSIT', '2026-06-15 10:00:00+00', 'TOSS_PAYMENTS')", tId);
         
         jdbcTemplate.update("INSERT INTO transaction_entries (" +
                 "transaction_id, account_id, entry_type, asset_code, " +
@@ -91,6 +99,7 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
     void tearDown() {
         deadLetterRepository.deleteAllInBatch();
         settlementRepository.deleteAllInBatch();
+        jdbcTemplate.update("DELETE FROM outbox_events");
         jdbcTemplate.update("DELETE FROM transaction_entries");
         jdbcTemplate.update("DELETE FROM transactions");
         jdbcTemplate.update("DELETE FROM accounts");
@@ -106,9 +115,10 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
                 .addLong("time", System.currentTimeMillis()) 
                 .toJobParameters();
 
-        JobExecution jobExecution = jobLauncherTestUtils.launchJob(jobParameters);
-
+        JobExecution jobExecution = jobOperatorTestUtils.startJob(jobParameters);
+        
         if (jobExecution.getStatus() != BatchStatus.COMPLETED) {
+            jobExecution.getAllFailureExceptions().forEach(Throwable::printStackTrace);
             throw new AssertionError("Job failed! Root Cause: " + jobExecution.getAllFailureExceptions());
         }
 
