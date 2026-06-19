@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict 23vdDpSknocco38PmpeMIFnSyE6rAY9bTbhqMfsPUT07N12ywMxOfrJhxACBYwd
 
 -- Dumped from database version 15.18
 -- Dumped by pg_dump version 15.18
@@ -563,6 +562,3 @@ ALTER TABLE ONLY public.transaction_entries
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict 23vdDpSknocco38PmpeMIFnSyE6rAY9bTbhqMfsPUT07N12ywMxOfrJhxACBYwd
-
