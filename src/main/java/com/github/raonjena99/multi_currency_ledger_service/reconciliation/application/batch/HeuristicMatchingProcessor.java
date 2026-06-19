@@ -9,9 +9,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.core.listener.StepExecutionListener;
-import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
@@ -22,31 +21,43 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionCandidate;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionQueryDao;
 
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @StepScope
 @Component
-@RequiredArgsConstructor
-public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlement, MatchedReconciliationResult>, StepExecutionListener { // [Fix 2] 명시적 인터페이스 구현
+public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlement, MatchedReconciliationResult> {
 
     private final InternalTransactionQueryDao queryDao;
     private final List<MatchingRule> rules;
+    private final String startOfMonthStr;
 
     private Map<LocalDate, List<InternalTransactionCandidate>> monthlyCandidatesCache;
 
-    @Override
-    public void beforeStep(StepExecution stepExecution) {
-        OffsetDateTime startOfMonth = OffsetDateTime.parse(stepExecution.getJobParameters().getString("startOfMonth"));
-        OffsetDateTime endOfMonth = startOfMonth.plusMonths(1);
+    public HeuristicMatchingProcessor(
+            InternalTransactionQueryDao queryDao,
+            List<MatchingRule> rules,
+            @Value("#{jobParameters['startOfMonth']}") String startOfMonthStr) {
+        this.queryDao = queryDao;
+        this.rules = rules;
+        this.startOfMonthStr = startOfMonthStr;
+    }
 
-        List<InternalTransactionCandidate> rawCandidates = queryDao.fetchCandidatesForPeriod(startOfMonth, endOfMonth);
-        
-        this.monthlyCandidatesCache = rawCandidates.stream()
-            .collect(Collectors.groupingBy(c -> c.transactedAt().toLocalDate()));
+    private void initCacheIfNeeded() {
+        if (this.monthlyCandidatesCache == null) {
+            log.info("Initializing monthly candidates cache for month: {}", startOfMonthStr);
+            OffsetDateTime startOfMonth = OffsetDateTime.parse(startOfMonthStr);
+            OffsetDateTime endOfMonth = startOfMonth.plusMonths(1);
+            List<InternalTransactionCandidate> rawCandidates = queryDao.fetchCandidatesForPeriod(startOfMonth, endOfMonth);
+            this.monthlyCandidatesCache = rawCandidates.stream()
+                .collect(Collectors.groupingBy(c -> c.transactedAt().toLocalDate()));
+        }
     }
 
     @Override
     public MatchedReconciliationResult process(ExternalSettlement external) {
+        initCacheIfNeeded();
+
         LocalDate targetDate = external.getSettlementDate().toLocalDate();
         List<InternalTransactionCandidate> searchSpace = new ArrayList<>();
 
@@ -79,9 +90,13 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         }
 
         if (bestMatch != null) {
-            external.markAsMatched(bestMatch.transactionId());
             Money feeDifference = external.getAmount().subtract(bestMatch.amount());
-            return new MatchedReconciliationResult(external, feeDifference);
+            
+            return new MatchedReconciliationResult(
+                external, 
+                bestMatch.transactionId(),
+                feeDifference
+            );
         }
 
         throw new UnmatchableSettlementException(lastFailReason, external.getId().toString());
