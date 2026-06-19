@@ -2,6 +2,9 @@ spring:
   application:
     name: multi-currency-ledger-test
 
+  main:
+    allow-bean-definition-overriding: true
+
   datasource:
     url: jdbc:tc:postgresql:15.2:///ledger_test_db
     username: test
