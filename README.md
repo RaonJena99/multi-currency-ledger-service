@@ -23,38 +23,41 @@
 
 ## 🚀 시스템 진화 로드맵 & 주요 성과
 
-> **4단계 아키텍처 고도화**를 완료했습니다.
+> **5단계 아키텍처 고도화**를 완료했습니다.
 
-### [Phase 1] 다중 자산 수용 및 손익 파이프라인 구축
+### [Phase 1] 다중 자산 수용 및 손익 파이프라인
 
-- **가변적 정밀도 제어:** 암호화폐(최대 소수점 18자리) 등 자산별 특성에 맞춘 동적 스케일 지원
-- **이종 자산 복식부기:** 환율, 수량, 단가 변동을 원장 테이블에 포괄하여 자산 간 완벽한 교환 정합성 달성
-- **손익 분리 모델링:**
-  | 분류 | 산출 시점 | 시스템 처리 방식 |
-  | :--- | :--- | :--- |
-  | **미실현 손익** | 실시간 시장가 반영 | Materialized View 기반 동적 계산 및 인메모리 캐싱 |
-  | **실현 손익** | 자산 매도/결제 시점 | 매도 트랜잭션 발생 시 복식부기 원장에 영구 기록 |
+- **진화 목표:** 원화 입출금을 넘어 주식, 암호화폐 등 **다양한 자산을 한 곳에서 오차 없이 관리**하는 기반 다지기
+- **주요 성과:** \* 자산별로 다른 소수점 정밀도를 동적으로 처리하고, 부동소수점 오차를 막기 위해 불변 객체(`Money` VO) 적용
+- 실시간 시장가에 따른 '미실현 손익'과 매도 시점의 '실현 손익'을 완벽하게 분리하여 복식부기 원장에 기록
 
 ### [Phase 2] 비동기 이벤트 기반 원장 동기화
 
-- **Transactional Outbox 패턴:** 계좌 변동 로직과 이벤트(`TradeExecutedEvent`) 발행을 단일 트랜잭션으로 묶어 이벤트 유실률 0% 달성
-- **비동기 릴레이 Worker:** 주기적인 폴링 워커가 미처리 이벤트를 원장 서비스로 비동기 전달하여 최종 정합성 보장
-- **부패 방지 계층 (ACL):** 상류 이벤트를 원장 내부 규격(`LedgerRecordingCommand`)으로 번역하여 도메인 오염 차단
+- **진화 목표:** 거래량이 폭증해도 사용자의 주문 요청이 지연되지 않도록 **시스템의 병목 구간 해소**
+- **주요 성과:**
+- 계좌 변동 로직과 원장 기록 로직을 분리하여 핵심 비즈니스 로직의 응답 속도 향상
+- 데이터베이스 트랜잭션과 메시지 발행을 하나로 묶는 **Transactional Outbox 패턴**을 도입해 이벤트 유실률 0% 달성
 
-### [Phase 3] CQRS 기반 읽기 최적화 및 월차 원장 도입
+### [Phase 3] CQRS 및 월차 원장(Monthly Ledger) 도입
 
-- **월차 원장 (Monthly Ledger) 패턴:** 무한 누적되는 스냅샷 역설을 해결하기 위해 월 단위 생명주기를 가진 원장 도입
-- **CQRS & 구체화된 뷰 (Materialized View):** 원장 기록(Write)과 자산 평가(Read) 책임을 물리적으로 분리
-  - 트랜잭션 커밋 직후(`AFTER_COMMIT`) 백그라운드에서 View 비동기 갱신(`CONCURRENTLY`)
-- **실시간 포트폴리오 서빙:** 복잡한 조인 및 손익 계산 로직을 View로 이관하여, 클라이언트 조회 시 DTO 스냅샷만 즉시 반환
+- **진화 목표:** 수백만 건의 원장 데이터가 누적되어도 **포트폴리오 조회 속도를 O(1) 수준으로 유지**
+- **주요 성과:**
+- 데이터 '쓰기'와 '읽기' 책임을 물리적으로 분리하는 **CQRS 아키텍처** 적용 (구체화된 뷰 비동기 갱신)
+- 무한히 데이터가 쌓여 연산이 느려지는 것을 방지하기 위해, 매월 스냅샷을 뜨는 **'월차 원장'** 개념을 도입하여 조회 성능 한계 극복
 
-### [Phase 4] 대규모 트랜잭션 대사 엔진 및 Spring Batch 최적화
+### [Phase 4] 대규모 트랜잭션 자동 대사(Reconciliation) 엔진
 
-- **인메모리 해시 기반 매칭 (Heuristic Rules):** 외부 정산 데이터와 내부 원장의 무거운 DB JOIN을 배제하기 위해, 배치 Step 시작 전 후보군을 메모리 해시맵에 캐싱
-  - 시간 오차, 금액 오차, 레벤슈타인 거리 알고리즘을 통한 다중 룰 엔진 평가
-- **고성능 Chunk 파이프라인:** 대규모 데이터의 OOM(Out Of Memory) 방지를 위해 (`JpaPagingItemReader`) 적용 및 날짜 기반 파티셔닝 스키마를 활용한 Driving Query 최적화
-- **결함 격리와 DLQ (Dead Letter Queue):** 데이터 불일치 예외 발생 시 전체 청크를 롤백하는 대신 SkipListener를 활용해 우회하고, 독립 트랜잭션(`REQUIRES_NEW`)으로 실패 사유와 함께 DLQ 테이블에 영구 격리
-- **자동 분개 연동:** 대사 성공 시 발생하는 PG사 수수료 차액을 식별하고, (`ReconciliationToLedgerAcl`)을 거쳐 원장 모듈에 자동 복식부기 기장
+- **진화 목표:** 외부 기관(PG사, 거래소 등)의 정산 데이터와 우리 시스템의 **원장이 1원이라도 틀리지 않도록 자동 검증**
+- **주요 성과:**
+- 무거운 DB JOIN 대신 **인메모리 해시 매칭**과 다중 룰 엔진(시간/금액 오차 허용)을 적용해 대규모 배치(Spring Batch) 처리 속도 극대화
+- 불일치 데이터 발생 시 전체 작업을 멈추지 않고 DLQ(Dead Letter Queue)로 안전하게 격리하여 무중단 배치 파이프라인 완성
+
+### [Phase 5] Kafka 통합 및 완벽한 최종 정합성(EOS)
+
+- **진화 목표:** 서버가 여러 대로 확장(Scale-out)되고 네트워크 장애가 발생해도 **데이터 중복이나 누락을 원천 차단**
+- **주요 성과:**
+- 여러 워커(Worker)가 동시에 데이터를 퍼가도 충돌하지 않도록 PostgreSQL의 비관적 락(`FOR UPDATE SKIP LOCKED`)을 적용하여 동시성 최적화
+- Kafka의 멱등성 프로듀서를 활용해 분산 환경에서도 메시지가 **'정확히 한 번 처리(Exactly-Once)'** 되도록 보장하는 엔터프라이즈 인프라 완성
 
 ---
 
@@ -477,6 +480,7 @@ classDiagram
   ReconciliationToLedgerAcl --> LedgerService
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
 ```
+
 </details>
 
 ---
@@ -489,7 +493,9 @@ classDiagram
 ```text
 multi-currency-ledger-service/
 ├── src/main/java/.../
-│   ├── common/                               # [공통] Money VO, Outbox 워커, 전역 예외 처리
+│   ├── common/                               # [공통] Money VO, 전역 예외 처리, 인프라 Config
+│   │   ├── config/KafkaProducerConfig.java   # Kafka 의존성 강제 주입 최적화 설정 (@Primary)
+│   │   └── outbox/                           # Transactional Outbox 릴레이 워커 및 Kafka 연동 리스너
 │   ├── account/                              # [Write] 월차 원장 기반 매매 트랜잭션 처리 (낙관적 락)
 │   │   ├── application/AccountTradeService.java
 │   │   └── domain/MonthlyAccountLedger.java
@@ -504,5 +510,5 @@ multi-currency-ledger-service/
 │       ├── application/rule/                 # 허용 오차 판별 룰 엔진 (Amount, Time, Text)
 │       └── domain/ExternalSettlement.java    # 복합키 및 파티셔닝 적용 정산 엔티티
 ├── src/main/resources/db/migration/          # Flyway 마이그레이션 (파티셔닝 스키마, DLQ 테이블 등)
-└── src/test/java/.../                        # E2E 통합 테스트, Testcontainers 기반 격리 테스트 스위트
+└── src/test/java/.../                        # E2E 통합 테스트, Testcontainers(PostgreSQL, Kafka-native) 기반 격리 테스트 스위트
 ```
