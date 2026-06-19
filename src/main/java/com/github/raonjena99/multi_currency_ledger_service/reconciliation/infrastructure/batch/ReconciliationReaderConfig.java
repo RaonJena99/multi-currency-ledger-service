@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.model.SettlementStatus;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 
 import jakarta.persistence.EntityManagerFactory;
@@ -33,10 +34,13 @@ public class ReconciliationReaderConfig {
                 .entityManagerFactory(entityManagerFactory)
                 .pageSize(CHUNK_SIZE)
                 .queryString("SELECT e FROM ExternalSettlement e " +
-                            "WHERE e.status = 'PENDING' " +
+                            "WHERE e.status = :status " +
                             "AND e.settlementDate >= :start AND e.settlementDate < :end " +
-                            "ORDER BY e.settlementDate ASC, e.id ASC")
-                .parameterValues(Map.of("start", startOfMonth, "end", endOfMonth))
+                            "ORDER BY e.settlementDate ASC")
+                .parameterValues(Map.of(
+                        "status", SettlementStatus.PENDING,
+                        "start", startOfMonth, 
+                        "end", endOfMonth))
                 .build();
     }
 }
