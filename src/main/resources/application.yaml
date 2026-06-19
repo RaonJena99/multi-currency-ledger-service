@@ -1,17 +1,14 @@
 spring:
   application:
     name: multi-currency-ledger-service
-
   data:
     redis:
       repositories:
         enabled: false
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
-
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/ledger_db
     username: ${DB_USER:ledger_admin}
@@ -19,7 +16,6 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
-
   jpa:
     hibernate:
       ddl-auto: validate
@@ -28,12 +24,10 @@ spring:
         format_sql: true
         default_batch_fetch_size: 1000
     open-in-view: false
-
   flyway:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
-
   batch:
     jdbc:
       initialize-schema: always
@@ -58,6 +52,32 @@ logging:
   level:
     root: info
     org.hibernate.SQL: debug
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      # 1. 실시간 환율 및 시세 API 설정
+      exchangeRateApi:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+      # 2. PG사 정산 대사 API 설정
+      pgSettlementApi:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 20
+        failureRateThreshold: 30
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
 ---
 spring:
   config:

@@ -57,6 +57,12 @@ dependencies {
     // Fuzzy Matching을 위한 Levenshtein Distance 지원 (Apache Commons Text)
     implementation 'org.apache.commons:commons-text:1.15.0'
 
+    // Resilience4j 어노테이션 처리 (Spring Boot AOP)
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    
+    // 시스템 장애 확산 방지 (Resilience4j Spring Boot 3/4 Starter)
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3'
+
     // 핵심 테스트 프레임워크 (Boot Test)
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
