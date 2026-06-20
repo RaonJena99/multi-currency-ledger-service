@@ -1,6 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.batch;
 
 import org.springframework.batch.core.listener.SkipListener;
+import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionCandidate;
@@ -8,6 +9,7 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infras
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@Component
 public class PgApiSkipListener implements SkipListener<InternalTransactionCandidate, MatchedReconciliationResult> {
 
     @Override
