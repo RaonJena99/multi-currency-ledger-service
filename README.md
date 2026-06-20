@@ -481,7 +481,6 @@ classDiagram
   ReconciliationToLedgerAcl --> LedgerService
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
 ```
-
 </details>
 
 ---
