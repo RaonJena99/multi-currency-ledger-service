@@ -14,7 +14,6 @@ import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.HeuristicMatchingProcessor;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.ReconciliationResultWriter;
-import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.exception.UnmatchableSettlementException;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 
 import lombok.RequiredArgsConstructor;
@@ -54,8 +53,7 @@ public class ReconciliationJobConfig {
                 .processor(heuristicMatchingProcessor)
                 .writer(reconciliationResultWriter)
                 .faultTolerant()
-                .skip(UnmatchableSettlementException.class)
-                .skipLimit(50000)
+                .skipPolicy(new ReconciliationCompositeSkipPolicy(50000))
                 .listener(skipListener)
                 .transactionAttribute(attribute)
                 .build();
