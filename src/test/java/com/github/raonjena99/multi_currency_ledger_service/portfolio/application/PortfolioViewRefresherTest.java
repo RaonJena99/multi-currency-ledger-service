@@ -31,7 +31,8 @@ class PortfolioViewRefresherTest {
         // given
         TradeExecutedEvent mockEvent = new TradeExecutedEvent(
             UUID.randomUUID(), UUID.randomUUID(), "BTC", "CRYPTO", "KRW", "BUY",
-            new BigDecimal("1"), new BigDecimal("50000000"), BigDecimal.ONE, BigDecimal.ZERO
+            new BigDecimal("1"), new BigDecimal("50000000"), BigDecimal.ONE, BigDecimal.ZERO,
+            false
         );
 
         // when
