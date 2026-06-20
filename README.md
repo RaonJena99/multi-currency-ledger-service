@@ -435,6 +435,10 @@ classDiagram
   class DummyExchangeRateAdapter {
     +BigDecimal getExchangeRate(String, String)
   }
+  class LiveExchangeRateAdapter {
+    +BigDecimal getExchangeRate(String, String)
+    +BigDecimal fallbackExchangeRate(String, String, Throwable)
+  }
   AccountTradeService --> MonthlyLedgerResolver
   MonthlyLedgerResolver --> MonthlyAccountLedgerRepository
   Account --|> BaseEntity
@@ -480,6 +484,7 @@ classDiagram
   OrderToLedgerAcl --> OutboxRepository
   ReconciliationToLedgerAcl --> LedgerService
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
+  LiveExchangeRateAdapter ..|> ExchangeRateProvider
 ```
 </details>
 
