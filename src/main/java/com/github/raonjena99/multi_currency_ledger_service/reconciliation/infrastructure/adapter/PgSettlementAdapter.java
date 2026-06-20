@@ -16,6 +16,7 @@ public class PgSettlementAdapter {
 
     @CircuitBreaker(name = "pgSettlementApi")
     public ExternalSettlementDto fetchSettlement(String transactionId) {
+        log.debug("외부 PG 정산망 데이터 Fetch 시도: {}", transactionId);
         return restClient.get()
                 .uri("/api/v1/pg/settlements/{id}", transactionId)
                 .retrieve()

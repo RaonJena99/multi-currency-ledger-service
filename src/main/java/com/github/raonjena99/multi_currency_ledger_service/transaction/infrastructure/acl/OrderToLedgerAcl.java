@@ -40,7 +40,7 @@ public class OrderToLedgerAcl {
                 Money.of(externalEvent.unitPrice().toPlainString(), AssetType.FIAT),
                 externalEvent.exchangeRate(),
                 Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT),
-                false 
+                externalEvent.isStaleRate()
             );
 
             String payload = jsonMapper.writeValueAsString(command);
