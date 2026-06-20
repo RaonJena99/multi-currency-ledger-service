@@ -127,6 +127,7 @@ classDiagram
     +BigDecimal unitPrice()
     +BigDecimal exchangeRate()
     +BigDecimal averageCost()
+    +boolean isStaleRate()
   }
   class AccountRepository {
     <<Interface>>
@@ -169,6 +170,13 @@ classDiagram
     +ResponseEntity~ErrorResponse~ handleIllegalArgument(IllegalArgumentException)
     +ResponseEntity~ErrorResponse~ handleOptimisticLockingFailure(OptimisticLockingFailureException)
     +ResponseEntity~ErrorResponse~ handleIllegalState(IllegalStateException)
+  }
+  class DummyExchangeRateAdapter {
+    +ExchangeRate getExchangeRate(String, String)
+  }
+  class LiveExchangeRateAdapter {
+    +ExchangeRate getExchangeRate(String, String)
+    +ExchangeRate fallbackExchangeRate(String, String, Throwable)
   }
   class AssetType {
     <<Enumeration>>
@@ -225,6 +233,14 @@ classDiagram
     + List~OutboxEvent~ findUnprocessedEventsWithSkipLocked(int)
     + List~OutboxEvent~ findTop100ByProcessedFalseOrderByCreatedAtAsc()
   }
+  class ExchangeRateProvider {
+    <<Interface>>
+    + ExchangeRate getExchangeRate(String, String)
+  }
+  class ExchangeRateProvider_ExchangeRate {
+    +BigDecimal rate()
+    +boolean isStale()
+  }
   class PortfolioQueryService {
     +PortfolioSummaryResponse getPortfolioSummary(UUID)
   }
@@ -235,6 +251,7 @@ classDiagram
     +UUID accountId()
     +BigDecimal totalAssetValue()
     +BigDecimal totalUnrealizedPnl()
+    +boolean isStaleData()
     +List~AssetDetailDto~ assets()
   }
   class PortfolioSummaryResponse_AssetDetailDto {
@@ -244,6 +261,7 @@ classDiagram
     +BigDecimal currentMarketPrice()
     +BigDecimal totalValue()
     +BigDecimal unrealizedPnl()
+    +boolean isRateStale()
   }
   class CurrentPortfolio {
     +String getId()
@@ -351,6 +369,28 @@ classDiagram
     + Optional~ExternalSettlement~ findByIdWithoutPartitionKey(UUID)
     + Optional~ExternalSettlement~ findByInstitutionCodeAndExternalReferenceId(String, String)
   }
+  class ExternalSettlementDto {
+    +String transactionId()
+    +String currency()
+    +BigDecimal amount()
+    +BigDecimal fee()
+    +String status()
+    +OffsetDateTime settledAt()
+  }
+  class PgSettlementAdapter {
+    +ExternalSettlementDto fetchSettlement(String)
+  }
+  class PgApiSkipListener {
+    +void onSkipInProcess(InternalTransactionCandidate, Throwable)
+    +void onSkipInRead(Throwable)
+    +void onSkipInWrite(MatchedReconciliationResult, Throwable)
+  }
+  class PgApiSkipPolicy {
+    +boolean shouldSkip(Throwable, long)
+  }
+  class ReconciliationCompositeSkipPolicy {
+    +boolean shouldSkip(Throwable, long)
+  }
   class ReconciliationJobConfig {
     +Job monthlyReconciliationJob()
     +Step reconciliationStep()
@@ -392,10 +432,7 @@ classDiagram
     +Money unitPrice()
     +BigDecimal exchangeRate()
     +Money averageCost()
-  }
-  class ExchangeRateProvider {
-    <<Interface>>
-    + BigDecimal getExchangeRate(String, String)
+    +boolean isStaleRate()
   }
   class Transaction {
     +void addBuyEntry(UUID, String, Money, Money, BigDecimal)
@@ -432,21 +469,18 @@ classDiagram
   class ReconciliationToLedgerAcl {
     +void handle(ReconciliationFeeAdjustedEvent)
   }
-  class DummyExchangeRateAdapter {
-    +BigDecimal getExchangeRate(String, String)
-  }
-  class LiveExchangeRateAdapter {
-    +BigDecimal getExchangeRate(String, String)
-    +BigDecimal fallbackExchangeRate(String, String, Throwable)
-  }
   AccountTradeService --> MonthlyLedgerResolver
+  AccountTradeService --> ExchangeRateProvider
   MonthlyLedgerResolver --> MonthlyAccountLedgerRepository
   Account --|> BaseEntity
   MonthlyAccountLedger --|> BaseEntity
   MonthlyAccountLedger --> Money
   Money --> AssetType
+  DummyExchangeRateAdapter ..|> ExchangeRateProvider
+  LiveExchangeRateAdapter ..|> ExchangeRateProvider
   OutboxRelayWorker --> OutboxRepository
   PortfolioQueryService --> PortfolioQueryRepository
+  PortfolioQueryService --> ExchangeRateProvider
   PortfolioSummaryResponse --> PortfolioSummaryResponse_AssetDetailDto
   PortfolioController --> PortfolioQueryService
   HeuristicMatchingProcessor --> InternalTransactionQueryDao
@@ -467,6 +501,7 @@ classDiagram
   ReconciliationDeadLetter --> FailureReason
   ReconciliationFeeAdjustedEvent --> Money
   ReconciliationJobConfig --> ExternalSettlement
+  ReconciliationJobConfig --> PgApiSkipListener
   ReconciliationJobConfig --> ReconciliationResultWriter
   ReconciliationJobConfig --> HeuristicMatchingProcessor
   ReconciliationJobConfig --> ReconciliationSkipListener
@@ -483,8 +518,6 @@ classDiagram
   OrderToLedgerAcl --> LedgerService
   OrderToLedgerAcl --> OutboxRepository
   ReconciliationToLedgerAcl --> LedgerService
-  DummyExchangeRateAdapter ..|> ExchangeRateProvider
-  LiveExchangeRateAdapter ..|> ExchangeRateProvider
 ```
 </details>
 
