@@ -32,7 +32,9 @@ public class ReconciliationJobConfig {
     private final ItemReader<ExternalSettlement> externalSettlementReader;
     private final HeuristicMatchingProcessor heuristicMatchingProcessor;
     private final ReconciliationResultWriter reconciliationResultWriter; 
+
     private final ReconciliationSkipListener skipListener;
+    private final PgApiSkipListener pgApiSkipListener;
 
     @Bean
     public Job monthlyReconciliationJob() {
@@ -55,6 +57,7 @@ public class ReconciliationJobConfig {
                 .faultTolerant()
                 .skipPolicy(new ReconciliationCompositeSkipPolicy(50000))
                 .listener(skipListener)
+                .listener(pgApiSkipListener)
                 .transactionAttribute(attribute)
                 .build();
     }

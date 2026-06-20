@@ -16,5 +16,6 @@ public record TradeExecutedEvent(
     BigDecimal quantity,     // 거래 수량 (Money의 amount)
     BigDecimal unitPrice,    // 거래 단가 (Money의 amount)
     BigDecimal exchangeRate, // 적용 환율
-    BigDecimal averageCost   // 매도시 계산된 평균 단가
+    BigDecimal averageCost,  // 매도시 계산된 평균 단가
+    boolean isStaleRate      // 상태 마커
 ) {}
