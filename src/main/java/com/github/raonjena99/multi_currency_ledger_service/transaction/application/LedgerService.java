@@ -29,10 +29,16 @@ public class LedgerService {
             return;
         }
 
+        String description = "Auto-recorded via ACL. Ref TradeID: " + cmd.referenceTradeId();
+        if (cmd.isStaleRate()) {
+            description += " [APPLIED_FALLBACK_RATE=TRUE]";
+            log.warn("Fallback 환율이 적용된 거래가 원장에 기록됩니다. 향후 정산 대사(Reconciliation) 시 오차 허용 룰 엔진의 타겟이 됩니다. TradeID: {}", cmd.referenceTradeId());
+        }
+
         Transaction transaction = new Transaction(
             cmd.referenceTradeId(), 
             cmd.tradeType(), 
-            "Auto-recorded via ACL. Ref TradeID: " + cmd.referenceTradeId()
+            description 
         );
         
         if ("BUY".equals(cmd.tradeType())) {
