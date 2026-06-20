@@ -39,10 +39,10 @@ public class OrderToLedgerAcl {
                 Money.of(externalEvent.quantity().toPlainString(), AssetType.valueOf(externalEvent.assetType())),
                 Money.of(externalEvent.unitPrice().toPlainString(), AssetType.FIAT),
                 externalEvent.exchangeRate(),
-                Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT)
+                Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT),
+                false 
             );
 
-            // 규격에 맞게 변환된 Command를 직렬화
             String payload = jsonMapper.writeValueAsString(command);
             
             OutboxEvent outboxEvent = new OutboxEvent(
@@ -68,7 +68,7 @@ public class OrderToLedgerAcl {
             }
         } catch (Exception e) {
             log.error("Failed to process relayed outbox message", e);
-            throw new RuntimeException("Outbox relay processing error", e); // 워커가 실패를 감지하도록 예외 전파
+            throw new RuntimeException("Outbox relay processing error", e);
         }
     }
 }
