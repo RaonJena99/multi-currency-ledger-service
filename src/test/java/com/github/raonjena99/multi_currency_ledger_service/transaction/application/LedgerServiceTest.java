@@ -38,7 +38,8 @@ class LedgerServiceTest extends IntegrationTestSupport {
             Money.of("1", AssetType.CRYPTO), 
             Money.of("100000000", AssetType.FIAT), 
             BigDecimal.ONE, 
-            Money.zero(AssetType.FIAT)
+            Money.zero(AssetType.FIAT),
+            false
         );
 
         ledgerService.recordDoubleEntry(command);
@@ -61,7 +62,8 @@ class LedgerServiceTest extends IntegrationTestSupport {
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "ETH", "KRW", "BUY", 
-            Money.of("1", AssetType.CRYPTO), Money.of("3000000", AssetType.FIAT), BigDecimal.ONE, Money.zero(AssetType.FIAT)
+            Money.of("1", AssetType.CRYPTO), Money.of("3000000", AssetType.FIAT), BigDecimal.ONE, Money.zero(AssetType.FIAT),
+            false
         );
 
         ledgerService.recordDoubleEntry(command); 

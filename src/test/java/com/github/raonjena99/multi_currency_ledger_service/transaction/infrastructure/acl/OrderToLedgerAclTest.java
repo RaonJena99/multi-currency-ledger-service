@@ -39,7 +39,8 @@ class OrderToLedgerAclTest extends IntegrationTestSupport {
         
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, "TSLA", "STOCK", "USD", "SELL", 
-            BigDecimal.valueOf(10), BigDecimal.valueOf(200), BigDecimal.valueOf(1400.50), BigDecimal.valueOf(180)
+            BigDecimal.valueOf(10), BigDecimal.valueOf(200), BigDecimal.valueOf(1400.50), BigDecimal.valueOf(180),
+            false
         );
 
         // when
