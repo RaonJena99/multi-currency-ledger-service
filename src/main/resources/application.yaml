@@ -57,6 +57,18 @@ resilience4j:
   circuitbreaker:
     circuitBreakerAspectOrder: 1 # Outer Proxy
     instances:
+      # 1. 실시간 환율 및 시세 API 서킷 브레이커
+      exchangeRateApi:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+      # 2. PG사 정산 대사 API 서킷 브레이커
       pgSettlementApi:
         registerHealthIndicator: true
         slidingWindowType: COUNT_BASED
@@ -70,12 +82,29 @@ resilience4j:
   retry:
     retryAspectOrder: 2 # Inner Proxy
     instances:
+      # 실시간 환율 및 시세 API 리트라이
+      exchangeRateApi:
+        maxAttempts: 3
+        waitDuration: 100ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.2
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.RestClientException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException.BadRequest
+          - org.springframework.web.client.HttpClientErrorException.Unauthorized
+
+      # PG사 정산 대사 API 리트라이
       pgSettlementApi:
-        maxAttempts: 3 # 최대 3회 시도
-        waitDuration: 500ms # 첫 재시도 대기 시간
-        enableExponentialBackoff: true # 지수 백오프 활성화
-        exponentialBackoffMultiplier: 2 # 점진적 증가
-        enableRandomizedWait: true # 트래픽 결집 현상을 방지하는 지터(Jitter) 추가
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
         randomizedWaitFactor: 0.1
         retryExceptions:
           - java.io.IOException
