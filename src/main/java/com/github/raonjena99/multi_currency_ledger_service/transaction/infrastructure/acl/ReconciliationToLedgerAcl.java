@@ -19,7 +19,6 @@ public class ReconciliationToLedgerAcl {
 
     private final LedgerService ledgerService;
     
-    // 시스템 속성: 펌뱅킹 수수료 및 환차손익을 처리할 공용 시스템 계좌 ID
     private static final UUID SYSTEM_FEE_ACCOUNT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @EventListener
@@ -35,10 +34,10 @@ public class ReconciliationToLedgerAcl {
                 feeDifference,                                  
                 Money.of("1", feeDifference.getAssetType()), 
                 BigDecimal.ONE,                                  
-                Money.of("0", feeDifference.getAssetType()) 
+                Money.of("0", feeDifference.getAssetType()),
+                false
         );
 
-        // transaction 모듈 내부 서비스 동기 호출
         ledgerService.recordDoubleEntry(command);
     }
 }

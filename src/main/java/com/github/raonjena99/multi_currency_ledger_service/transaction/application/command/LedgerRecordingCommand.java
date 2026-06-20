@@ -14,6 +14,7 @@ public record LedgerRecordingCommand(
     Money quantity,
     Money unitPrice,
     BigDecimal exchangeRate,
-    Money averageCost
+    Money averageCost,
+    boolean isStaleRate
 ) {}
 
