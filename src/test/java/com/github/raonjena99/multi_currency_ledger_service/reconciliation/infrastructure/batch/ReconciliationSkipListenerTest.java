@@ -94,4 +94,13 @@ class ReconciliationSkipListenerTest {
         verify(settlementRepository, Mockito.never()).save(any());
         verify(deadLetterRepository, Mockito.never()).save(any());
     }
+
+    @Test
+    @DisplayName("[SkipListener] determineFailureReason null branch 테스트")
+    void determineFailureReason_null() throws Exception {
+        java.lang.reflect.Method method = ReconciliationSkipListener.class.getDeclaredMethod("determineFailureReason", String.class);
+        method.setAccessible(true);
+        Object res = method.invoke(skipListener, (String) null);
+        org.assertj.core.api.Assertions.assertThat(res).isEqualTo(com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason.SYSTEM_ERROR);
+    }
 }

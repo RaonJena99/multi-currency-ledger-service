@@ -59,4 +59,34 @@ class MonthlyLedgerResolverTest {
 
         verify(ledgerRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("초기화 시 유니크 제약 조건 위반 발생 시 조용히 무시한다")
+    void initializeInNewTransaction_dataIntegrityViolation() {
+        UUID accountId = UUID.randomUUID();
+        when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2026-07"))
+            .thenReturn(Optional.empty());
+        when(ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, "BTC"))
+            .thenReturn(Optional.empty());
+        when(ledgerRepository.save(any())).thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate"));
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> 
+            resolver.initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, "2026-07")
+        );
+    }
+
+    @Test
+    @DisplayName("이전 장부가 있을 경우 이월하여 초기화한다")
+    void initializeInNewTransaction_withPrevLedger() {
+        UUID accountId = UUID.randomUUID();
+        when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2026-07"))
+            .thenReturn(Optional.empty());
+        
+        MonthlyAccountLedger prev = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, "2026-06");
+        when(ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, "BTC"))
+            .thenReturn(Optional.of(prev));
+
+        resolver.initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, "2026-07");
+        verify(ledgerRepository).save(any());
+    }
 }
