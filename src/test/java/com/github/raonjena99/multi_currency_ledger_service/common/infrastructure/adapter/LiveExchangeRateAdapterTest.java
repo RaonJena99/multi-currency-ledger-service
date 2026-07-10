@@ -68,4 +68,70 @@ class LiveExchangeRateAdapterTest {
         assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3000000"));
         assertThat(result.isStale()).isTrue();
     }
+
+    @Test
+    @DisplayName("getExchangeRate - baseAsset과 targetAsset이 같으면 API 호출 없이 1 반환")
+    void testGetExchangeRate_SameCurrency() {
+        ExchangeRate result = adapter.getExchangeRate("BTC", "BTC");
+        assertThat(result.rate()).isEqualByComparingTo(BigDecimal.ONE);
+        assertThat(result.isStale()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getExchangeRate - Redis 쓰기 실패 시 예외를 무시하고 정상 응답 반환")
+    void testGetExchangeRate_RedisWriteException() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))
+                .andRespond(withSuccess("3000000", MediaType.APPLICATION_JSON));
+                
+        // Mock Redis exception
+        org.mockito.Mockito.doThrow(new RuntimeException("Redis down"))
+            .when(valueOperations).set("ledger:exchange-rate:ETH:KRW", "3000000", java.time.Duration.ofDays(1));
+
+        ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
+        
+        assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3000000"));
+        assertThat(result.isStale()).isFalse();
+    }
+
+    @Test
+    @DisplayName("fallbackExchangeRate - 캐시가 비어있으면 1 반환")
+    void testFallbackExchangeRate_EmptyCache() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(null);
+
+        ExchangeRate result = adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
+
+        assertThat(result.rate()).isEqualByComparingTo(BigDecimal.ONE);
+        assertThat(result.isStale()).isTrue();
+    }
+
+    @Test
+    @DisplayName("fallbackExchangeRate - Redis 읽기 실패 시 1 반환")
+    void testFallbackExchangeRate_RedisReadException() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenThrow(new RuntimeException("Redis read down"));
+
+        ExchangeRate result = adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
+
+        assertThat(result.rate()).isEqualByComparingTo(BigDecimal.ONE);
+        assertThat(result.isStale()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getExchangeRate - API 응답이 null일 때 Fallback 호출")
+    void testGetExchangeRate_EmptyApiResponse() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn("3000000");
+
+        // Return empty body
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))
+                .andRespond(withSuccess("", MediaType.APPLICATION_JSON));
+
+        ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
+
+        assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3000000"));
+        assertThat(result.isStale()).isTrue();
+    }
 }
