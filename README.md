@@ -18,6 +18,8 @@
 - 🔒 **견고한 동시성 제어:** 낙관적 락(`@Version`)과 DB 유니크 제약조건을 결합하여 갱신 손실(Lost Update) 방지
 - 🔄 **최종 정합성 (Eventual Consistency):** Transactional Outbox 패턴을 통한 비즈니스 로직과 원장 기록의 물리적 분리
 - 📦 **기능 기반 패키징 (DDD):** Account, Transaction, Portfolio, Reconciliation 등 컨텍스트 단위 분리로 도메인 간 결합도 최소화
+- 🚀 **대용량 데이터 최적화:** Hibernate Batch Insert (시퀀스 제너레이터) 및 테이블 파티셔닝 전략을 도입하여 대규모 트랜잭션 성능 최적화
+- 🌍 **글로벌 타임존 표준화:** 모든 일시 필드를 `OffsetDateTime` (TIMESTAMPTZ)으로 통일하여 글로벌 분산 환경 완벽 대응
 
 ---
 

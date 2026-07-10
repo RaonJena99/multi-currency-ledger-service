@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
@@ -22,30 +23,38 @@ import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "external_settlement", indexes = {
-    @Index(name = "idx_settlement_date_status", columnList = "settlement_date, status"),
-    @Index(name = "idx_external_ref_id", columnList = "external_reference_id")
-})
+@Table(name = "external_settlement", 
+    indexes = {
+        @Index(name = "idx_settlement_date_status", columnList = "settlement_date, status"),
+        @Index(name = "idx_external_ref_id", columnList = "external_reference_id")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_external_ref_id_settlement_date", 
+            columnNames = {"external_reference_id", "settlement_date"}
+        )
+    }
+)
 @IdClass(ExternalSettlementId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ExternalSettlement extends BaseEntity {
+public class ExternalSettlement extends BaseEntity implements Persistable<UUID> {
 
     @Id
     @Column(name = "id", length = 36)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
     private UUID id;
 
     @Id
     @Column(name = "settlement_date", nullable = false)
     private OffsetDateTime settlementDate;
 
-    @Column(name = "external_reference_id", nullable = false, unique = true, length = 100)
+    @Column(name = "external_reference_id", nullable = false, length = 100)
     private String externalReferenceId;
 
     @Column(name = "institution_code", nullable = false, length = 20)
@@ -56,7 +65,7 @@ public class ExternalSettlement extends BaseEntity {
 
     @Embedded
     @AttributeOverrides({
-        @AttributeOverride(name = "amount", column = @Column(name = "amount", precision = 27, scale = 18, nullable = false)),
+        @AttributeOverride(name = "amount", column = @Column(name = "amount", precision = 36, scale = 18, nullable = false)),
         @AttributeOverride(name = "assetType", column = @Column(name = "asset_type", length = 20, nullable = false))
     })
     private Money amount;
@@ -69,7 +78,6 @@ public class ExternalSettlement extends BaseEntity {
     private SettlementStatus status;
 
     @Column(name = "matched_internal_transaction_id", length = 36)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
     private UUID matchedInternalTransactionId;
 
     public static ExternalSettlement create(String externalReferenceId, String institutionCode, 
@@ -113,6 +121,11 @@ public class ExternalSettlement extends BaseEntity {
         }
         this.status = SettlementStatus.MANUALLY_RESOLVED;
         this.matchedInternalTransactionId = Objects.requireNonNull(internalTransactionId);
+    }
+
+    @Override
+    public boolean isNew() {
+        return this.getCreatedAt() == null;
     }
 
 }
