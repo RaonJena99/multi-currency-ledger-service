@@ -2,6 +2,8 @@ package com.github.raonjena99.multi_currency_ledger_service.account.domain;
 
 import java.util.UUID;
 
+import org.springframework.data.domain.Persistable;
+
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -16,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "accounts")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Account extends BaseEntity {
+public class Account extends BaseEntity implements Persistable<UUID> {
 
     @Id
     private UUID id;
@@ -31,6 +33,11 @@ public class Account extends BaseEntity {
         this.id = id;
         this.ownerName = ownerName;
         this.status = "ACTIVE";
+    }
+
+    @Override
+    public boolean isNew() {
+        return this.getCreatedAt() == null;
     }
 
 }
