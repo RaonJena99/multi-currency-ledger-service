@@ -89,4 +89,20 @@ class MonthlyLedgerResolverTest {
         resolver.initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, "2026-07");
         verify(ledgerRepository).save(any());
     }
+
+    @Test
+    @DisplayName("초기화 이후에도 장부 조회가 실패하면 예외를 던진다")
+    void resolveOrInitializeLedger_failAfterInit() {
+        UUID accountId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.parse("2026-07-15T00:00:00Z");
+        
+        when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2026-07"))
+            .thenReturn(Optional.empty()); 
+        when(ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, "BTC"))
+            .thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> 
+            resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, now)
+        ).isInstanceOf(IllegalStateException.class);
+    }
 }

@@ -86,4 +86,11 @@ class TransactionTest {
         transaction.onPersist();
         assertThat(transaction.getEntries().get(0).getExchangeRate()).isEqualByComparingTo(BigDecimal.ONE);
     }
+
+    @Test
+    @DisplayName("빈 트랜잭션이라도 onPersist 검증(0=0)을 통과한다.")
+    void onPersist_emptyEntries() {
+        Transaction tx = new Transaction(UUID.randomUUID(), "TEST", "Empty");
+        tx.onPersist(); // Should pass, 0 = 0
+    }
 }

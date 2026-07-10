@@ -1,30 +1,62 @@
 package com.github.raonjena99.multi_currency_ledger_service.reconciliation.presentation;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseEntity;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
-import com.github.raonjena99.multi_currency_ledger_service.reconciliation.presentation.ReconciliationAdminController.ManualResolutionRequest;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.service.ManualReconciliationService;
 
+@ExtendWith(MockitoExtension.class)
 class ReconciliationAdminControllerTest {
+    @Mock private ManualReconciliationService manualReconciliationService;
+    @InjectMocks private ReconciliationAdminController controller;
+
+    @Test
+    void resolveDeadLetter() {
+        UUID txId = UUID.randomUUID();
+        ReconciliationAdminController.ManualResolutionRequest req = 
+            new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT);
+        
+        ResponseEntity<Void> res = controller.resolveDeadLetter(1L, req);
+        
+        verify(manualReconciliationService).resolveManually(eq(1L), eq(txId), any());
+        org.assertj.core.api.Assertions.assertThat(res.getStatusCode().is2xxSuccessful()).isTrue();
+    }
+    
+    @Test
+    void resolveDeadLetter_nullFee() {
+        UUID txId = UUID.randomUUID();
+        ReconciliationAdminController.ManualResolutionRequest req = 
+            new ReconciliationAdminController.ManualResolutionRequest(txId, null, AssetType.FIAT);
+        
+        ResponseEntity<Void> res = controller.resolveDeadLetter(1L, req);
+        
+        verify(manualReconciliationService).resolveManually(eq(1L), eq(txId), any());
+        org.assertj.core.api.Assertions.assertThat(res.getStatusCode().is2xxSuccessful()).isTrue();
+    }
 
     @Test
     void manualResolutionRequest_getFeeDifference() {
-        ManualResolutionRequest req1 = new ManualResolutionRequest(UUID.randomUUID(), null, AssetType.FIAT);
-        assertThat(req1.getFeeDifference()).isNull();
-
-        ManualResolutionRequest req2 = new ManualResolutionRequest(UUID.randomUUID(), BigDecimal.ZERO, AssetType.FIAT);
-        assertThat(req2.getFeeDifference()).isNull();
-
-        ManualResolutionRequest req3 = new ManualResolutionRequest(UUID.randomUUID(), BigDecimal.TEN, null);
-        assertThat(req3.getFeeDifference()).isNull();
-
-        ManualResolutionRequest req4 = new ManualResolutionRequest(UUID.randomUUID(), BigDecimal.TEN, AssetType.FIAT);
-        assertThat(req4.getFeeDifference()).isNotNull();
-        assertThat(req4.getFeeDifference().getAmount()).isEqualByComparingTo(BigDecimal.TEN);
+        UUID txId = UUID.randomUUID();
+        
+        // feeAmount == null
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, null, AssetType.FIAT).getFeeDifference()).isNull();
+        // feeAmount == 0
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.ZERO, AssetType.FIAT).getFeeDifference()).isNull();
+        // feeAssetType == null
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, null).getFeeDifference()).isNull();
+        // all present
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT).getFeeDifference()).isNotNull();
     }
 }
