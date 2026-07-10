@@ -59,6 +59,10 @@ class HeuristicMatchingProcessorTest {
         assertThat(result.externalSettlement()).isEqualTo(ext);
         assertThat(result.matchedTransactionId()).isNotNull();
         assertThat(ext.getStatus()).isNotEqualTo(SettlementStatus.MATCHED); 
+
+        // Call again to hit the cache branch
+        MatchedReconciliationResult result2 = processor.process(ext);
+        assertThat(result2).isNotNull();
     }
 
     @Test

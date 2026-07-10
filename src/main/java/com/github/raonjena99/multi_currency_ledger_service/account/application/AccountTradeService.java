@@ -63,7 +63,6 @@ public class AccountTradeService {
     public UUID sellAsset(UUID accountId, String targetAssetCode, AssetType targetAssetType, 
                         Money sellQuantity, Money sellUnitPrice) {
         
-        BigDecimal exchangeRate = BigDecimal.ONE;
         OffsetDateTime transactedAt = OffsetDateTime.now();
         
         MonthlyAccountLedger targetAssetLedger = ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, transactedAt);
