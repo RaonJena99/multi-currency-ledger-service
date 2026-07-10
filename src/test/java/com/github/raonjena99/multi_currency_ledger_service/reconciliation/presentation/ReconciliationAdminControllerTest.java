@@ -45,4 +45,18 @@ class ReconciliationAdminControllerTest {
         verify(manualReconciliationService).resolveManually(eq(1L), eq(txId), any());
         org.assertj.core.api.Assertions.assertThat(res.getStatusCode().is2xxSuccessful()).isTrue();
     }
+
+    @Test
+    void manualResolutionRequest_getFeeDifference() {
+        UUID txId = UUID.randomUUID();
+        
+        // feeAmount == null
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, null, AssetType.FIAT).getFeeDifference()).isNull();
+        // feeAmount == 0
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.ZERO, AssetType.FIAT).getFeeDifference()).isNull();
+        // feeAssetType == null
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, null).getFeeDifference()).isNull();
+        // all present
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT).getFeeDifference()).isNotNull();
+    }
 }
