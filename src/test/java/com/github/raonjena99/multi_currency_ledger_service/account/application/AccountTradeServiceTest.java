@@ -77,4 +77,45 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         
         assertThat(eventCount).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("자산 매도 시 원화 잔액 증가, 자산 감소, 그리고 도메인 이벤트가 정상 발행된다.")
+    void sellAsset_integration_flow() {
+        // given
+        UUID accountId = UUID.randomUUID();
+        String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+
+        transactionTemplate.execute(status -> {
+            accountRepository.save(new Account(accountId, "TEST_USER"));
+            MonthlyAccountLedger fiatLedger = new MonthlyAccountLedger(accountId, "KRW", AssetType.FIAT, currentMonth);
+            monthlyAccountLedgerRepository.save(fiatLedger);
+            
+            MonthlyAccountLedger cryptoLedger = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, currentMonth);
+            cryptoLedger.addBalance(Money.of("1.0", AssetType.CRYPTO), Money.of("40000000", AssetType.FIAT));
+            monthlyAccountLedgerRepository.save(cryptoLedger);
+            return null;
+        });
+
+        Money sellQuantity = Money.of("0.5", AssetType.CRYPTO);
+        Money unitPrice = Money.of("50000000", AssetType.FIAT); 
+
+        // when
+        UUID tradeId = accountTradeService.sellAsset(accountId, "BTC", AssetType.CRYPTO, sellQuantity, unitPrice);
+
+        // then
+        transactionTemplate.execute(status -> {
+            MonthlyAccountLedger updatedFiat = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "KRW", currentMonth).orElseThrow();
+            MonthlyAccountLedger updatedCrypto = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", currentMonth).orElseThrow();
+
+            assertThat(updatedFiat.getBalance().getAmount()).isEqualByComparingTo("25000000"); // 5천만 * 0.5
+            assertThat(updatedCrypto.getBalance().getAmount()).isEqualByComparingTo("0.5");
+            return null;
+        });
+        
+        long eventCount = applicationEvents.stream(TradeExecutedEvent.class)
+            .filter(event -> event.tradeId().equals(tradeId))
+            .count();
+        
+        assertThat(eventCount).isEqualTo(1);
+    }
 }
