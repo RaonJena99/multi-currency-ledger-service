@@ -76,7 +76,7 @@ public class Transaction implements org.springframework.data.domain.Persistable<
 
             if (entry.getEntryType() == EntryType.DEBIT) {
                 totalDebit = totalDebit.add(baseFiatValue);
-            } else if (entry.getEntryType() == EntryType.CREDIT) {
+            } else {
                 totalCredit = totalCredit.add(baseFiatValue);
             }
 
