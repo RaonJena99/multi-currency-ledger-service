@@ -1,12 +1,14 @@
 package com.github.raonjena99.multi_currency_ledger_service.common.outbox;
 
-import java.time.LocalDateTime;
+import com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -17,11 +19,15 @@ import lombok.NoArgsConstructor;
  */
 @Entity
 @Getter
-@Table(name = "outbox_events")
+@Table(name = "outbox_events", indexes = {
+    @Index(name = "idx_outbox_event_processed", columnList = "processed, created_at"),
+})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class OutboxEvent {
+public class OutboxEvent extends BaseEntity{
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id 
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ob_event_seq")
+    @SequenceGenerator(name = "ob_event_seq", sequenceName = "outbox_event_seq", allocationSize = 50)
     private Long id;
 
     @Column(name = "aggregate_type",nullable = false, length = 255)
@@ -35,9 +41,6 @@ public class OutboxEvent {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String payload;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
 
     @Column(nullable = false)
     private boolean processed = false;
@@ -57,7 +60,6 @@ public class OutboxEvent {
         this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.payload = payload;
-        this.createdAt = LocalDateTime.now();
     }
 
     public void markAsProcessed() {
