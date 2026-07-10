@@ -119,12 +119,18 @@ public class TransactionEntry {
             Transaction transaction, UUID accountId, String assetCode, 
             Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost) {
         
-        Money pnl = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount());
+        Money pnl = Money.zero(AssetType.FIAT);
+        Money costPrice = sellPrice;
+        
+        if (averageCost != null) {
+            pnl = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount());
+            costPrice = averageCost;
+        }
         
         return new TransactionEntry(
                 transaction, accountId, EntryType.CREDIT, assetCode, 
                 sellQuantity, 
-                averageCost,
+                costPrice,
                 exchangeRate, 
                 pnl
         );

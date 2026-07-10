@@ -3,8 +3,6 @@ package com.github.raonjena99.multi_currency_ledger_service.portfolio.applicatio
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -71,4 +69,24 @@ class PortfolioQueryServiceTest {
         // 자산 세부 리스트 개수 검증
         assertThat(response.assets()).hasSize(2);
     }
-}
+
+    @Test
+    @DisplayName("자산 가격 조회 중 staleRate가 하나라도 있으면 finalStaleFlag가 true가 된다")
+    void aggregate_portfolio_summary_with_stale() {
+        UUID accountId = UUID.randomUUID();
+
+        CurrentPortfolio btc = mock(CurrentPortfolio.class);
+        when(btc.getAssetCode()).thenReturn("BTC");
+        when(btc.getTotalQuantity()).thenReturn(new BigDecimal("2"));
+        when(btc.getAvgUnitPrice()).thenReturn(new BigDecimal("50000000"));
+
+        when(portfolioQueryRepository.findAllByAccountId(accountId)).thenReturn(List.of(btc));
+
+        when(exchangeRateProvider.getExchangeRate("BTC", "KRW"))
+                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), true));
+
+        PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
+
+        assertThat(response.isStaleData()).isTrue();
+    }
+}
