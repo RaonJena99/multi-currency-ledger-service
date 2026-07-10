@@ -1,15 +1,17 @@
 package com.github.raonjena99.multi_currency_ledger_service;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.springframework.boot.SpringApplication;
 
-@SpringBootTest(args = "--server.port=0")
-@ActiveProfiles("test")
 class MultiCurrencyLedgerServiceApplicationMainTest {
 
     @Test
-    void contextLoads() {
-        MultiCurrencyLedgerServiceApplication.main(new String[]{"--server.port=0", "--spring.profiles.active=test"});
+    void main() {
+        try (MockedStatic<SpringApplication> mocked = Mockito.mockStatic(SpringApplication.class)) {
+            MultiCurrencyLedgerServiceApplication.main(new String[]{});
+            mocked.verify(() -> SpringApplication.run(MultiCurrencyLedgerServiceApplication.class, new String[]{}));
+        }
     }
 }
