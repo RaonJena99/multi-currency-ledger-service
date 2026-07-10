@@ -99,4 +99,24 @@ class ManualReconciliationServiceTest {
         
         verify(eventPublisher, never()).publishEvent(any(ReconciliationFeeAdjustedEvent.class));
     }
+
+    @Test
+    @DisplayName("resolveManually - DLQ 데이터를 찾을 수 없으면 예외 발생")
+    void testResolveManually_deadLetterNotFound() {
+        when(deadLetterRepository.findById(1L)).thenReturn(Optional.empty());
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> manualReconciliationService.resolveManually(1L, UUID.randomUUID(), null))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("resolveManually - 원천 정산 데이터를 찾을 수 없으면 예외 발생")
+    void testResolveManually_settlementNotFound() {
+        ReconciliationDeadLetter dlq = org.mockito.Mockito.mock(ReconciliationDeadLetter.class);
+        when(dlq.getExternalSettlementId()).thenReturn(UUID.randomUUID());
+        when(deadLetterRepository.findById(1L)).thenReturn(Optional.of(dlq));
+        when(settlementRepository.findByIdWithoutPartitionKey(any())).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> manualReconciliationService.resolveManually(1L, UUID.randomUUID(), null))
+            .isInstanceOf(IllegalStateException.class);
+    }
 }
