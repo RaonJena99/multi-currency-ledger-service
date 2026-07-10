@@ -21,10 +21,7 @@ public class CheckJacoco {
                     String cls = cols[classIdx];
                     String pkg = cols[pkgIdx];
                     
-                    if (missed > 0 && !cls.contains("Exception") && !cls.contains("Config") 
-                            && !cls.contains("Dto") && !cls.contains("Application") 
-                            && !cls.contains("Entity") && !cls.contains("Event") 
-                            && !cls.contains("Result") && !pkg.contains("common")) {
+                    if (missed > 0) {
                         System.out.println(pkg + "." + cls + " -> Missed Branches: " + missed + ", Covered: " + covered);
                     }
                 }
