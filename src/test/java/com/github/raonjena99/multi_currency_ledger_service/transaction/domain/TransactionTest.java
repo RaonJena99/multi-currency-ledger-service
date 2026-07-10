@@ -55,4 +55,35 @@ class TransactionTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("Double-entry accounting error");
     }
+
+    @Test
+    @DisplayName("isNew - 항상 true 반환")
+    void isNew_alwaysTrue() {
+        Transaction transaction = new Transaction(UUID.randomUUID(), "TEST", "Desc");
+        assertThat(transaction.isNew()).isTrue();
+    }
+
+    @Test
+    @DisplayName("exchangeRate가 null이면 ONE으로 대체되고, realizedPnl이 null이어도 검증을 통과한다.")
+    void null_exchangeRate_and_pnl() throws Exception {
+        Transaction transaction = new Transaction(UUID.randomUUID(), "BUY", "Desc");
+        UUID accountId = UUID.randomUUID();
+
+        // null exchange rate -> fallback to ONE
+        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO), 
+                                Money.of("50000", AssetType.FIAT), null);
+        
+        transaction.addSellEntry(accountId, "USD", Money.of("100000", AssetType.FIAT), 
+                                Money.of("1", AssetType.FIAT), BigDecimal.ONE, Money.of("1", AssetType.FIAT));
+
+        // Use reflection to set realizedPnl to null to cover the null check branch
+        TransactionEntry sellEntry = transaction.getEntries().get(1);
+        java.lang.reflect.Field field = TransactionEntry.class.getDeclaredField("realizedPnl");
+        field.setAccessible(true);
+        field.set(sellEntry, null);
+
+        // Should balance since 2 * 50000 * 1 = 100000 * 1 * 1, and pnl is null so ignored
+        transaction.onPersist();
+        assertThat(transaction.getEntries().get(0).getExchangeRate()).isEqualByComparingTo(BigDecimal.ONE);
+    }
 }
