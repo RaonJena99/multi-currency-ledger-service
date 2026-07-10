@@ -26,14 +26,14 @@ System_Boundary("MultiCurrencyLedgerServiceApplication_boundary", "MultiCurrency
 
 }
 
-Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Reconciliation, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "depends on", $techn="", $tags="", $link="")
-Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Portfolio, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, "listens to", $techn="", $tags="", $link="")
-Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Portfolio, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "uses", $techn="", $tags="", $link="")
-Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, "listens to", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "uses", $techn="", $tags="", $link="")
 Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "listens to", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, "listens to", $techn="", $tags="", $link="")
 Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Reconciliation, "listens to", $techn="", $tags="", $link="")
 Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Transaction, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "uses", $techn="", $tags="", $link="")
-Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "uses", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Portfolio, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Account, "listens to", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Portfolio, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "uses", $techn="", $tags="", $link="")
+Rel(MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Reconciliation, MultiCurrencyLedgerServiceApplication.MultiCurrencyLedgerServiceApplication.Common, "depends on", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)
 hide stereotypes
