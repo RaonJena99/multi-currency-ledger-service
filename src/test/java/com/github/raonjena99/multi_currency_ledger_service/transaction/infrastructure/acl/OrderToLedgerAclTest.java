@@ -1,53 +1,72 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.acl;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.github.raonjena99.multi_currency_ledger_service.IntegrationTestSupport;
-import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
-import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
+import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxMessageEvent;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository;
+import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService;
+import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
 
-@DisplayName("통합 테스트: OrderToLedgerAcl (이벤트 수신 및 부패 방지 계층 매핑 검증)")
-class OrderToLedgerAclTest extends IntegrationTestSupport {
+import tools.jackson.databind.json.JsonMapper;
 
-    @Autowired
-    private ApplicationEventPublisher eventPublisher;
+@ExtendWith(MockitoExtension.class)
+class OrderToLedgerAclTest {
 
-    @Autowired
-    private OutboxRepository outboxRepository;
+    @Mock private OutboxRepository outboxRepository;
+    @Mock private JsonMapper jsonMapper;
+    @Mock private LedgerService ledgerService;
 
-    @Autowired 
-    private AccountRepository accountRepository;
+    @InjectMocks private OrderToLedgerAcl acl;
 
     @Test
-    @DisplayName("TradeExecutedEvent가 발행되면, ACL이 감지하여 완벽하게 원장(Transaction)으로 기록해낸다.")
-    void acl_translates_event_to_command_and_invokes_ledger_service() {
-        // given
-        UUID tradeId = UUID.randomUUID();
-        UUID accountId = UUID.randomUUID();
+    void persistOutboxEvent() throws Exception {
+        TradeExecutedEvent event = new TradeExecutedEvent(UUID.randomUUID(), UUID.randomUUID(), "KRW", "USD", "BUY", BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false);
+        when(jsonMapper.writeValueAsString(any())).thenReturn("{}");
+        acl.persistOutboxEvent(event);
+        verify(outboxRepository).save(any());
+    }
 
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER"));
-        
-        TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, "TSLA", "STOCK", "USD", "SELL", 
-            BigDecimal.valueOf(10), BigDecimal.valueOf(200), BigDecimal.valueOf(1400.50), BigDecimal.valueOf(180),
-            false
-        );
+    @Test
+    void persistOutboxEvent_exception() throws Exception {
+        TradeExecutedEvent event = new TradeExecutedEvent(UUID.randomUUID(), UUID.randomUUID(), "KRW", "USD", "BUY", BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false);
+        when(jsonMapper.writeValueAsString(any())).thenThrow(new RuntimeException("error"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> acl.persistOutboxEvent(event))
+            .isInstanceOf(RuntimeException.class);
+    }
 
-        // when
-        eventPublisher.publishEvent(event);
+    @Test
+    void handleOutboxRelay() throws Exception {
+        OutboxMessageEvent msg = new OutboxMessageEvent("LedgerRecordingCommand", "{}");
+        LedgerRecordingCommand cmd = org.mockito.Mockito.mock(LedgerRecordingCommand.class);
+        when(jsonMapper.readValue("{}", LedgerRecordingCommand.class)).thenReturn(cmd);
+        acl.handleOutboxRelay(msg);
+        verify(ledgerService).recordDoubleEntry(cmd);
+    }
+    
+    @Test
+    void handleOutboxRelay_ignore() throws Exception {
+        OutboxMessageEvent msg = new OutboxMessageEvent("OtherCommand", "{}");
+        acl.handleOutboxRelay(msg);
+        verify(ledgerService, org.mockito.Mockito.never()).recordDoubleEntry(any());
+    }
 
-        // then
-        long count = outboxRepository.count();
-        assertThat(count).isGreaterThanOrEqualTo(1);
+    @Test
+    void handleOutboxRelay_exception() throws Exception {
+        OutboxMessageEvent msg = new OutboxMessageEvent("LedgerRecordingCommand", "{}");
+        when(jsonMapper.readValue("{}", LedgerRecordingCommand.class)).thenThrow(new RuntimeException("error"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> acl.handleOutboxRelay(msg))
+            .isInstanceOf(RuntimeException.class);
     }
 }
