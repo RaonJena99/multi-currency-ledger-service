@@ -37,4 +37,16 @@ class KafkaProducerListenerTest {
         assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload")))
             .isInstanceOf(RuntimeException.class);
     }
+
+    @Test
+    void handleOutboxMessageEvent_interruptedException() throws Exception {
+        KafkaTemplate<String, String> template = mock(KafkaTemplate.class);
+        CompletableFuture<SendResult<String, String>> future = mock(CompletableFuture.class);
+        when(template.send(anyString(), anyString())).thenReturn(future);
+        when(future.get(3, java.util.concurrent.TimeUnit.SECONDS)).thenThrow(new InterruptedException());
+
+        KafkaProducerListener listener = new KafkaProducerListener(template);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload")))
+            .isInstanceOf(RuntimeException.class);
+    }
 }
