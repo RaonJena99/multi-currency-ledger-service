@@ -29,7 +29,7 @@ class MatchingRuleMiscTest {
         InternalTransactionCandidate internal = new InternalTransactionCandidate(java.util.UUID.randomUUID(), OffsetDateTime.now(), "$%^", Money.of("1000", AssetType.FIAT));
 
         RuleResult result = rule.evaluate(external, internal);
-        assertThat(result.passed()).isTrue();
-        assertThat(result.score()).isEqualTo(100);
+        assertThat(result.isPassed()).isTrue();
+        assertThat(result.getScore()).isEqualTo(100);
     }
 }
