@@ -101,6 +101,7 @@ classDiagram
     +void initializeInNewTransaction(UUID, String, AssetType, String)
   }
   class Account {
+    +boolean isNew()
     +UUID getId()
     +String getOwnerName()
     +String getStatus()
@@ -145,6 +146,9 @@ classDiagram
   class KafkaProducerConfig {
     +ProducerFactory~String, String~ primaryProducerFactory()
     +KafkaTemplate~String, String~ primaryKafkaTemplate()
+  }
+  class RestClientConfig {
+    +RestClient customRestClient(Builder)
   }
   class BaseEntity {
     <<Abstract>>
@@ -217,7 +221,6 @@ classDiagram
     +String getAggregateId()
     +String getEventType()
     +String getPayload()
-    +LocalDateTime getCreatedAt()
     +boolean isProcessed()
     +int getRetryCount()
     +String getErrorMessage()
@@ -339,6 +342,7 @@ classDiagram
     +void markAsMatched(UUID)
     +void markAsUnmatched()
     +void resolveManually(UUID)
+    +boolean isNew()
     +UUID getId()
     +OffsetDateTime getSettlementDate()
     +String getExternalReferenceId()
@@ -359,7 +363,7 @@ classDiagram
     +FailureReason getFailureReason()
     +String getErrorMessage()
     +boolean isResolved()
-    +LocalDateTime getResolvedAt()
+    +OffsetDateTime getResolvedAt()
     +String getHandlerEnrichmentPayload()
   }
   class ReconciliationFeeAdjustedEvent {
@@ -383,7 +387,7 @@ classDiagram
     +ExternalSettlementDto fetchSettlement(String)
   }
   class PgApiSkipListener {
-    +void onSkipInProcess(InternalTransactionCandidate, Throwable)
+    +void onSkipInProcess(ExternalSettlement, Throwable)
     +void onSkipInRead(Throwable)
     +void onSkipInWrite(MatchedReconciliationResult, Throwable)
   }
@@ -480,6 +484,7 @@ classDiagram
   Money --> AssetType
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
   LiveExchangeRateAdapter ..|> ExchangeRateProvider
+  OutboxEvent --|> BaseEntity
   OutboxRelayWorker --> OutboxRepository
   PortfolioQueryService --> PortfolioQueryRepository
   PortfolioQueryService --> ExchangeRateProvider
