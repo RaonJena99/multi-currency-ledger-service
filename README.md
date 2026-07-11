@@ -94,7 +94,6 @@
 
 </details>
 
-### 3. Class Diagram
 <details data-auto-diagram="true">
 <summary><b>[전체 클래스 다이어그램 보기]</b></summary>
 
