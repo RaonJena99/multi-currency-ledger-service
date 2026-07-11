@@ -39,7 +39,8 @@ public class InternalTransactionQueryDao {
                     t.transacted_at, 
                     t.description, 
                     te.amount, 
-                    te.amount_asset_type AS asset_type
+                    te.amount_asset_type AS asset_type,
+                    te.amount_currency AS currency
             FROM transactions t
             INNER JOIN transaction_entries te ON t.id = te.transaction_id
             WHERE te.entry_type = 'CREDIT' 
@@ -62,7 +63,7 @@ public class InternalTransactionQueryDao {
                     transactedAt,
                     rs.getString("description"),
                     Money.of(rs.getBigDecimal("amount").stripTrailingZeros().toPlainString(), 
-                            AssetType.valueOf(rs.getString("asset_type")), "KRW")
+                            AssetType.valueOf(rs.getString("asset_type")), rs.getString("currency"))
                 );
             }
         );
