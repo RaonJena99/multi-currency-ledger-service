@@ -56,7 +56,7 @@ public class MonthlyLedgerResolver {
                     },
                     // 전월 장부가 없는 경우
                     () -> {
-                        MonthlyAccountLedger newLedger = new MonthlyAccountLedger(accountId, assetCode, assetType, targetMonth);
+                        MonthlyAccountLedger newLedger = MonthlyAccountLedger.initialize(accountId, assetCode, assetType, targetMonth, "KRW"); 
                         ledgerRepository.save(newLedger); // flush 없이 순수 save
                     }
                 );

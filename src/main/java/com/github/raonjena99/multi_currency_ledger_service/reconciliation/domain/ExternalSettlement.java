@@ -64,12 +64,10 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "amount", precision = 36, scale = 18, nullable = false)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "asset_type", length = 20, nullable = false))
+        @AttributeOverride(name = "assetType", column = @Column(name = "asset_type", length = 20, nullable = false)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "currency_code", length = 10, nullable = false))
     })
     private Money amount;
-
-    @Column(name = "currency_code", nullable = false, length = 3)
-    private String currencyCode;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -80,12 +78,6 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
 
     public static ExternalSettlement create(String externalReferenceId, String institutionCode, 
                                             OffsetDateTime settlementDate, String description, Money amount) {
-        return create(externalReferenceId, institutionCode, settlementDate, description, amount, "KRW");
-    }
-
-    public static ExternalSettlement create(String externalReferenceId, String institutionCode, 
-                                            OffsetDateTime settlementDate, String description, 
-                                            Money amount, String currencyCode) {
         ExternalSettlement settlement = new ExternalSettlement();
         settlement.id = UUID.randomUUID();
         settlement.externalReferenceId = Objects.requireNonNull(externalReferenceId);
@@ -93,11 +85,13 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
         settlement.settlementDate = Objects.requireNonNull(settlementDate);
         settlement.description = Objects.requireNonNull(description);
         settlement.amount = Objects.requireNonNull(amount);
-        settlement.currencyCode = Objects.requireNonNull(currencyCode);
         settlement.status = SettlementStatus.PENDING;
         return settlement;
     }
 
+    /**
+     * 내부 거래 ID를 매핑하고 일치(MATCHED) 상태로 변경
+     */
     public void markAsMatched(UUID internalTransactionId) {
         if (this.status != SettlementStatus.PENDING && this.status != SettlementStatus.UNMATCHED) {
             throw new IllegalStateException("Only specifications in PENDING or UNMATCHED state can transition to MATCHED.");
@@ -106,13 +100,19 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
         this.matchedInternalTransactionId = Objects.requireNonNull(internalTransactionId);
     }
 
+    /**
+     * 대기(PENDING) 상태인 경우, 불일치(UNMATCHED) 상태로 변경
+     */
     public void markAsUnmatched() {
         if (this.status != SettlementStatus.PENDING) {
-            throw new IllegalStateException("Only specifications in PENDING state can transition to MATCHED.");
+            throw new IllegalStateException("Only specifications in PENDING state can transition to UNMATCHED.");
         }
         this.status = SettlementStatus.UNMATCHED;
     }
 
+    /**
+     * 불일치(UNMATCHED) 상태인 경우, 내부 거래 ID를 매핑하고 수동 해제(MANUALLY_RESOLVED) 상태로 변경
+     */
     public void resolveManually(UUID internalTransactionId) {
         if (this.status != SettlementStatus.UNMATCHED) {
             throw new IllegalStateException("Only specifications in UNMATCHED state can be manually resolved.");
@@ -125,5 +125,4 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
     public boolean isNew() {
         return this.getCreatedAt() == null;
     }
-
 }

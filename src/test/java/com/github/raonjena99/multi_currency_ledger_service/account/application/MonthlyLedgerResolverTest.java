@@ -36,7 +36,7 @@ class MonthlyLedgerResolverTest {
         UUID accountId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.parse("2026-07-15T00:00:00Z");
         
-        MonthlyAccountLedger ledger = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, "2026-07");
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, "2026-07", "KRW");
         when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2026-07"))
             .thenReturn(Optional.of(ledger));
 
@@ -50,7 +50,7 @@ class MonthlyLedgerResolverTest {
     @DisplayName("초기화 시 이미 장부가 존재할 경우 로직을 무시하고 리턴한다")
     void initializeInNewTransaction_alreadyExists() {
         UUID accountId = UUID.randomUUID();
-        MonthlyAccountLedger ledger = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, "2026-07");
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, "2026-07", "KRW");
         
         when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2026-07"))
             .thenReturn(Optional.of(ledger));
@@ -82,7 +82,7 @@ class MonthlyLedgerResolverTest {
         when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2026-07"))
             .thenReturn(Optional.empty());
         
-        MonthlyAccountLedger prev = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, "2026-06");
+        MonthlyAccountLedger prev = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, "2026-06", "KRW");
         when(ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, "BTC"))
             .thenReturn(Optional.of(prev));
 
