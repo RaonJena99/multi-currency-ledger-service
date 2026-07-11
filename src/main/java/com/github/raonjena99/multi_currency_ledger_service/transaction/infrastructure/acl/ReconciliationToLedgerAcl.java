@@ -37,7 +37,7 @@ public class ReconciliationToLedgerAcl {
                 event.settlementId(),                           
                 SYSTEM_FEE_ACCOUNT_ID,                          
                 feeDifference.getAssetType().name(),             
-                "KRW",                                           
+                feeDifference.getCurrencyCode(),                                           
                 "FEE_DEDUCTION",                               
                 feeDifference,                                  
                 Money.of("1", feeDifference.getAssetType(), feeDifference.getCurrencyCode()),
