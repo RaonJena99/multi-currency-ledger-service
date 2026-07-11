@@ -183,6 +183,14 @@ classDiagram
     CRYPTO
     +BigDecimal normalize(BigDecimal)
   }
+  class TradeType {
+    <<Enumeration>>
+    BUY
+    SELL
+  }
+  class KafkaProducerListener {
+    +void handleOutboxMessageEvent(OutboxMessageEvent)
+  }
   class EntryType {
     <<Enumeration>>
     DEBIT
