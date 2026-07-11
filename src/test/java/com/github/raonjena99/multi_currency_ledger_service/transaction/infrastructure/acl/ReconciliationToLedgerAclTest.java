@@ -25,8 +25,8 @@ class ReconciliationToLedgerAclTest {
     @Test
     void handle_firesRecordDoubleEntry() {
         UUID settlementId = UUID.randomUUID();
-        Money feeDifference = Money.of("10", AssetType.FIAT);
-        ReconciliationFeeAdjustedEvent event = new ReconciliationFeeAdjustedEvent(settlementId, feeDifference);
+        Money feeDifference = Money.of("10", AssetType.FIAT, "KRW");
+        ReconciliationFeeAdjustedEvent event = ReconciliationFeeAdjustedEvent.of(settlementId, UUID.randomUUID(), UUID.randomUUID(), feeDifference);
         
         acl.handle(event);
         

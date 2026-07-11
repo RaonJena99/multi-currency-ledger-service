@@ -69,13 +69,13 @@ class MatchingRulesTest {
         ExternalSettlement mock = Mockito.mock(ExternalSettlement.class);
         when(mock.getSettlementDate()).thenReturn(date);
         when(mock.getDescription()).thenReturn(desc);
-        when(mock.getAmount()).thenReturn(Money.of(amount, AssetType.FIAT));
+        when(mock.getAmount()).thenReturn(Money.of(amount, AssetType.FIAT, "KRW"));
         return mock;
     }
 
     private InternalTransactionCandidate mockCandidate(OffsetDateTime date, String desc, String amount) {
         return new InternalTransactionCandidate(
-                UUID.randomUUID(), date, desc, Money.of(amount, AssetType.FIAT)
+                UUID.randomUUID(), date, desc, Money.of(amount, AssetType.FIAT, "KRW")
         );
     }
 }
