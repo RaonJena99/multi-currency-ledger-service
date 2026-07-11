@@ -112,12 +112,24 @@ classDiagram
     +void initializeInNewTransaction(UUID, String, AssetType, String)
   }
   class Account {
+    + Account open(UUID, String)
+    +boolean isActive()
+    +void suspend()
+    +void activate()
+    +void close()
     +boolean isNew()
     +UUID getId()
     +String getOwnerName()
-    +String getStatus()
+    +AccountStatus getStatus()
+  }
+  class AccountStatus {
+    <<Enumeration>>
+    ACTIVE
+    SUSPENDED
+    CLOSED
   }
   class MonthlyAccountLedger {
+    + MonthlyAccountLedger initialize(UUID, String, AssetType, String, String)
     + MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger, String)
     +void addBalance(Money, Money)
     +Money subtractBalance(Money)
@@ -134,14 +146,15 @@ classDiagram
     +UUID tradeId()
     +UUID accountId()
     +String assetCode()
-    +String assetType()
+    +AssetType assetType()
     +String fiatCode()
-    +String tradeType()
+    +TradeType tradeType()
     +BigDecimal quantity()
     +BigDecimal unitPrice()
     +BigDecimal exchangeRate()
     +BigDecimal averageCost()
     +boolean isStaleRate()
+    +OffsetDateTime occurredAt()
   }
   class AccountRepository {
     <<Interface>>
@@ -154,20 +167,28 @@ classDiagram
   class BaseEntity {
     <<Abstract>>
     +OffsetDateTime getCreatedAt()
+    +OffsetDateTime getUpdatedAt()
+  }
+  class CurrencyScaleResolver {
+    + BigDecimal normalize(BigDecimal, AssetType, String)
+    + int resolveScale(AssetType, String)
   }
   class Money {
-    + Money of(String, AssetType)
-    + Money zero(AssetType)
+    + Money of(BigDecimal, AssetType, String)
+    + Money of(String, AssetType, String)
+    + Money zero(AssetType, String)
     +Money add(Money)
     +Money subtract(Money)
     +Money multiply(BigDecimal)
     +Money divide(BigDecimal)
+    +Money[] allocate(int)
     +Money negate()
     +boolean isNegative()
     +boolean isZero()
     +int compareTo(Money)
     +BigDecimal getAmount()
     +AssetType getAssetType()
+    +String getCurrencyCode()
   }
   class DummyExchangeRateAdapter {
     +ExchangeRate getExchangeRate(String, String)
@@ -181,7 +202,10 @@ classDiagram
     FIAT
     STOCK
     CRYPTO
-    +BigDecimal normalize(BigDecimal)
+    POINT
+    +int getDefaultScale()
+    +boolean isDigitalAsset()
+    +boolean isIndivisible()
   }
   class TradeType {
     <<Enumeration>>
@@ -202,6 +226,14 @@ classDiagram
     MATCHED
     UNMATCHED
     MANUALLY_RESOLVED
+  }
+  class TradeType {
+    <<Enumeration>>
+    BUY
+    SELL
+  }
+  class KafkaProducerListener {
+    +void handleOutboxMessageEvent(OutboxMessageEvent)
   }
   class OutboxEvent {
     +void markAsProcessed()
@@ -249,7 +281,9 @@ classDiagram
     +String getId()
     +UUID getAccountId()
     +String getAssetCode()
+    +String getBalanceCurrency()
     +BigDecimal getTotalQuantity()
+    +String getQuoteCurrency()
     +BigDecimal getAvgUnitPrice()
     +BigDecimal getCurrentMarketPrice()
     +BigDecimal getUnrealizedPnl()
@@ -293,7 +327,6 @@ classDiagram
   }
   class ExternalSettlement {
     + ExternalSettlement create(String, String, OffsetDateTime, String, Money)
-    + ExternalSettlement create(String, String, OffsetDateTime, String, Money, String)
     +void markAsMatched(UUID)
     +void markAsUnmatched()
     +void resolveManually(UUID)
@@ -304,7 +337,6 @@ classDiagram
     +String getInstitutionCode()
     +String getDescription()
     +Money getAmount()
-    +String getCurrencyCode()
     +SettlementStatus getStatus()
     +UUID getMatchedInternalTransactionId()
   }
@@ -313,8 +345,12 @@ classDiagram
     +void markAsResolved()
   }
   class ReconciliationFeeAdjustedEvent {
+    + ReconciliationFeeAdjustedEvent of(UUID, UUID, UUID, Money)
     +UUID settlementId()
+    +UUID internalTransactionId()
+    +UUID accountId()
     +Money feeDifference()
+    +OffsetDateTime occurredAt()
   }
   class ExternalSettlementRepository {
     <<Interface>>
@@ -348,8 +384,9 @@ classDiagram
     +boolean isStaleRate()
   }
   class Transaction {
-    +void addBuyEntry(UUID, String, Money, Money, BigDecimal)
-    +void addSellEntry(UUID, String, Money, Money, BigDecimal, Money)
+    + Transaction record(UUID, String, String)
+    +void addBuyEntry(UUID, String, Money, Money, BigDecimal, String)
+    +void addSellEntry(UUID, String, Money, Money, BigDecimal, Money, String)
     +boolean isNew()
     +UUID getId()
     +String getTransactionType()
@@ -358,8 +395,8 @@ classDiagram
     +List~TransactionEntry~ getEntries()
   }
   class TransactionEntry {
-    + TransactionEntry createBuyEntry(Transaction, UUID, String, Money, Money, BigDecimal)
-    + TransactionEntry createSellEntry(Transaction, UUID, String, Money, Money, BigDecimal, Money)
+    + TransactionEntry createBuyEntry(Transaction, UUID, String, Money, Money, BigDecimal, String)
+    + TransactionEntry createSellEntry(Transaction, UUID, String, Money, Money, BigDecimal, Money, String)
     +Long getId()
     +Transaction getTransaction()
     +UUID getAccountId()
@@ -386,8 +423,11 @@ classDiagram
   AccountTradeService --> ExchangeRateProvider
   MonthlyLedgerResolver --> MonthlyAccountLedgerRepository
   Account --|> BaseEntity
+  Account --> AccountStatus
   MonthlyAccountLedger --|> BaseEntity
   MonthlyAccountLedger --> Money
+  TradeExecutedEvent --> TradeType
+  TradeExecutedEvent --> AssetType
   Money --> AssetType
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
   LiveExchangeRateAdapter ..|> ExchangeRateProvider
