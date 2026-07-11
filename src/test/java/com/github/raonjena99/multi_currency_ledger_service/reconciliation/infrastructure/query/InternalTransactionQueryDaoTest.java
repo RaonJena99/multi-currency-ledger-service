@@ -29,6 +29,7 @@ class InternalTransactionQueryDaoTest {
         when(rs.getString("description")).thenReturn("desc");
         when(rs.getBigDecimal("amount")).thenReturn(BigDecimal.TEN);
         when(rs.getString("asset_type")).thenReturn("FIAT");
+        when(rs.getString("currency")).thenReturn("KRW");
 
         // mock jdbcTemplate behavior
         when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class), any(RowMapper.class)))

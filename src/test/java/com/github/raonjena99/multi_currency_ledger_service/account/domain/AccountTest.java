@@ -10,7 +10,7 @@ class AccountTest {
     @Test
     @DisplayName("isNew check")
     void isNew_check() {
-        Account account = Account.open(UUID.randomUUID(), "Test Owner");
+        Account account = Account.open(UUID.randomUUID(), "Test Owner", "KRW");
         assertThat(account.isNew()).isTrue();
         ReflectionTestUtils.setField(account, "createdAt", OffsetDateTime.now());
         assertThat(account.isNew()).isFalse();
