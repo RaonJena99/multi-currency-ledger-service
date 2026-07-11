@@ -30,9 +30,9 @@ class PortfolioViewRefresherTest {
     void trigger_materialized_view_refresh() {
         // given
         TradeExecutedEvent mockEvent = new TradeExecutedEvent(
-            UUID.randomUUID(), UUID.randomUUID(), "BTC", "CRYPTO", "KRW", "BUY",
+            UUID.randomUUID(), UUID.randomUUID(), "BTC", com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType.CRYPTO, "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY,
             new BigDecimal("1"), new BigDecimal("50000000"), BigDecimal.ONE, BigDecimal.ZERO,
-            false
+            false, java.time.OffsetDateTime.now()
         );
 
         // when

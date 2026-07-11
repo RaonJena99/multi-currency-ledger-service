@@ -30,14 +30,14 @@ class TransactionRepositoryTest extends IntegrationTestSupport {
     void persist_fails_due_to_pre_persist_validation() {
         UUID accountId = UUID.randomUUID();
         // FK 방어
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER"));
 
-        Transaction transaction = new Transaction(UUID.randomUUID(), "BUY", "Hack");
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "BUY", "Hack");
         
         // 차변: 2 * 50,000 = 100,000
-        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO), Money.of("50000", AssetType.FIAT), BigDecimal.ONE);
+        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO, "KRW"), Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, "KRW");
         // 대변: 1 * 50,000 = 50,000
-        transaction.addSellEntry(accountId, "KRW", Money.of("1", AssetType.FIAT), Money.of("50000", AssetType.FIAT), BigDecimal.ONE, Money.zero(AssetType.FIAT));
+        transaction.addSellEntry(accountId, "KRW", Money.of("1", AssetType.FIAT, "KRW"), Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.zero(AssetType.FIAT, "KRW"), "KRW");
 
         // 예외 검증
         assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
