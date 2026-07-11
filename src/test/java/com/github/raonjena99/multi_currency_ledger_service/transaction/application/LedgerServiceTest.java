@@ -72,4 +72,64 @@ class LedgerServiceTest extends IntegrationTestSupport {
         long count = transactionRepository.count();
         assertThat(count).isGreaterThanOrEqualTo(1); 
     }
+
+    @Test
+    @DisplayName("SELL 커맨드 및 staleRate가 true일 때의 로직 검증")
+    void recordDoubleEntry_sell_with_staleRate() {
+        UUID tradeId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+
+        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER_3"));
+
+        LedgerRecordingCommand command = new LedgerRecordingCommand(
+            tradeId, accountId, "BTC", "KRW", "SELL", 
+            Money.of("1", AssetType.CRYPTO), 
+            Money.of("100000000", AssetType.FIAT), 
+            BigDecimal.ONE, 
+            Money.of("50000000", AssetType.FIAT), // averageCost
+            true // isStaleRate
+        );
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
+        
+        assertThat(savedTx.getTransactionType()).isEqualTo("SELL");
+        assertThat(savedTx.getEntries()).hasSize(2);
+        assertThat(savedTx.getDescription()).contains("[APPLIED_FALLBACK_RATE=TRUE]");
+    }
+
+    @Test
+    @DisplayName("SELL 커맨드 및 averageCost가 null일 때 (realizedPnl == null) - 분기 커버리지용")
+    void recordDoubleEntry_sell_with_null_averageCost() {
+        UUID tradeId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+
+        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER_4"));
+
+        LedgerRecordingCommand command = new LedgerRecordingCommand(
+            tradeId, accountId, "BTC", "KRW", "SELL", 
+            Money.of("1", AssetType.CRYPTO), 
+            Money.of("100000000", AssetType.FIAT), 
+            BigDecimal.ONE, 
+            null, // averageCost == null
+            false 
+        );
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
+        assertThat(savedTx.getTransactionType()).isEqualTo("SELL");
+        
+        // OTHER type test (not BUY and not SELL)
+        LedgerRecordingCommand command2 = new LedgerRecordingCommand(
+            UUID.randomUUID(), accountId, "BTC", "KRW", "DEPOSIT", 
+            Money.of("1", AssetType.CRYPTO), 
+            Money.of("100000000", AssetType.FIAT), 
+            BigDecimal.ONE, 
+            null,
+            false 
+        );
+        ledgerService.recordDoubleEntry(command2);
+    }
 }

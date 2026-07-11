@@ -18,6 +18,8 @@
 - 🔒 **견고한 동시성 제어:** 낙관적 락(`@Version`)과 DB 유니크 제약조건을 결합하여 갱신 손실(Lost Update) 방지
 - 🔄 **최종 정합성 (Eventual Consistency):** Transactional Outbox 패턴을 통한 비즈니스 로직과 원장 기록의 물리적 분리
 - 📦 **기능 기반 패키징 (DDD):** Account, Transaction, Portfolio, Reconciliation 등 컨텍스트 단위 분리로 도메인 간 결합도 최소화
+- 🚀 **대용량 데이터 최적화:** Hibernate Batch Insert (시퀀스 제너레이터) 및 테이블 파티셔닝 전략을 도입하여 대규모 트랜잭션 성능 최적화
+- 🌍 **글로벌 타임존 표준화:** 모든 일시 필드를 `OffsetDateTime` (TIMESTAMPTZ)으로 통일하여 글로벌 분산 환경 완벽 대응
 
 ---
 
@@ -99,6 +101,7 @@ classDiagram
     +void initializeInNewTransaction(UUID, String, AssetType, String)
   }
   class Account {
+    +boolean isNew()
     +UUID getId()
     +String getOwnerName()
     +String getStatus()
@@ -143,6 +146,9 @@ classDiagram
   class KafkaProducerConfig {
     +ProducerFactory~String, String~ primaryProducerFactory()
     +KafkaTemplate~String, String~ primaryKafkaTemplate()
+  }
+  class RestClientConfig {
+    +RestClient customRestClient(Builder)
   }
   class BaseEntity {
     <<Abstract>>
@@ -215,7 +221,6 @@ classDiagram
     +String getAggregateId()
     +String getEventType()
     +String getPayload()
-    +LocalDateTime getCreatedAt()
     +boolean isProcessed()
     +int getRetryCount()
     +String getErrorMessage()
@@ -337,6 +342,7 @@ classDiagram
     +void markAsMatched(UUID)
     +void markAsUnmatched()
     +void resolveManually(UUID)
+    +boolean isNew()
     +UUID getId()
     +OffsetDateTime getSettlementDate()
     +String getExternalReferenceId()
@@ -357,7 +363,7 @@ classDiagram
     +FailureReason getFailureReason()
     +String getErrorMessage()
     +boolean isResolved()
-    +LocalDateTime getResolvedAt()
+    +OffsetDateTime getResolvedAt()
     +String getHandlerEnrichmentPayload()
   }
   class ReconciliationFeeAdjustedEvent {
@@ -381,7 +387,7 @@ classDiagram
     +ExternalSettlementDto fetchSettlement(String)
   }
   class PgApiSkipListener {
-    +void onSkipInProcess(InternalTransactionCandidate, Throwable)
+    +void onSkipInProcess(ExternalSettlement, Throwable)
     +void onSkipInRead(Throwable)
     +void onSkipInWrite(MatchedReconciliationResult, Throwable)
   }
@@ -478,6 +484,7 @@ classDiagram
   Money --> AssetType
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
   LiveExchangeRateAdapter ..|> ExchangeRateProvider
+  OutboxEvent --|> BaseEntity
   OutboxRelayWorker --> OutboxRepository
   PortfolioQueryService --> PortfolioQueryRepository
   PortfolioQueryService --> ExchangeRateProvider
