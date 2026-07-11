@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 
@@ -26,6 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class MonthlyLedgerResolver {
     private final MonthlyAccountLedgerRepository ledgerRepository;
+    private final AccountRepository accountRepository;
+    
     private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 
     /**
@@ -83,7 +87,9 @@ public class MonthlyLedgerResolver {
                     },
                     // 전월 장부가 없는 경우, 잔고가 0인 새로운 원장으로 초기화
                     () -> {
-                        MonthlyAccountLedger newLedger = MonthlyAccountLedger.initialize(accountId, assetCode, assetType, targetMonth, "KRW"); 
+                        Account account = accountRepository.findById(accountId)
+                                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+                        MonthlyAccountLedger newLedger = MonthlyAccountLedger.initialize(accountId, assetCode, assetType, targetMonth, account.getBaseCurrency()); 
                         ledgerRepository.save(newLedger); // flush 없이 순수 save
                     }
                 );
