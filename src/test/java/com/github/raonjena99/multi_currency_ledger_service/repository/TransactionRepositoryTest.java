@@ -30,7 +30,7 @@ class TransactionRepositoryTest extends IntegrationTestSupport {
     void persist_fails_due_to_pre_persist_validation() {
         UUID accountId = UUID.randomUUID();
         // FK 방어
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER", "KRW"));
 
         Transaction transaction = Transaction.record(UUID.randomUUID(), "BUY", "Hack");
         

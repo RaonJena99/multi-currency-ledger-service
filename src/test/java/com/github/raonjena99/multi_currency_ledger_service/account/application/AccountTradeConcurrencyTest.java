@@ -48,7 +48,7 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
         transactionTemplate.execute(status -> {
-            accountRepository.save(Account.open(accountId, "TEST_USER"));
+            accountRepository.save(Account.open(accountId, "TEST_USER", "KRW"));
 
             MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
             fiatLedger.addBalance(Money.of("10000000000", AssetType.FIAT, "KRW"), Money.of("1", AssetType.FIAT, "KRW"));
@@ -73,7 +73,7 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         for (int i = 0; i < threadCount; i++) {
             executorService.execute(() -> {
                 try {
-                    accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, buyQuantity, unitPrice);
+                    accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
                     successCount.incrementAndGet();
                 } catch (ObjectOptimisticLockingFailureException e) {
                     lockExceptionCount.incrementAndGet();

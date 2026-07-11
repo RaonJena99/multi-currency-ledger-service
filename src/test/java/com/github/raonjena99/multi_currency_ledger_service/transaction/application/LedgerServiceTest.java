@@ -31,7 +31,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER", "KRW"));
         
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "BTC", "KRW", "BUY", 
@@ -58,7 +58,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_2"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_2", "KRW"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "ETH", "KRW", "BUY", 
@@ -79,7 +79,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_3"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_3", "KRW"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "BTC", "KRW", "SELL", 
@@ -105,7 +105,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_4"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_4", "KRW"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "BTC", "KRW", "SELL", 

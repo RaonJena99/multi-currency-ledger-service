@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
@@ -28,6 +29,9 @@ class PortfolioQueryServiceTest {
     private PortfolioQueryRepository portfolioQueryRepository;
 
     @Mock
+    private AccountApi accountApi;
+
+    @Mock
     private ExchangeRateProvider exchangeRateProvider;
 
     @InjectMocks
@@ -38,6 +42,8 @@ class PortfolioQueryServiceTest {
     void aggregate_portfolio_summary() {
         // given
         UUID accountId = UUID.randomUUID();
+
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
 
         CurrentPortfolio btc = mock(CurrentPortfolio.class);
         when(btc.getAssetCode()).thenReturn("BTC");
@@ -74,6 +80,8 @@ class PortfolioQueryServiceTest {
     @DisplayName("자산 가격 조회 중 staleRate가 하나라도 있으면 finalStaleFlag가 true가 된다")
     void aggregate_portfolio_summary_with_stale() {
         UUID accountId = UUID.randomUUID();
+
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
 
         CurrentPortfolio btc = mock(CurrentPortfolio.class);
         when(btc.getAssetCode()).thenReturn("BTC");
