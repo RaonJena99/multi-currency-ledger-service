@@ -65,14 +65,13 @@
   * 불일치 건 발생 시 DLQ(Dead Letter Queue)로 격리하여 무중단 배치 파이프라인 완성
 * **Phase 5: Kafka 통합 및 최종 정합성 (Exactly-Once)**
   * 분산 환경에서 Kafka 멱등성 보장과 PostgreSQL `FOR UPDATE SKIP LOCKED` 큐 폴링을 결합해 메시지 중복/누락 원천 차단
+  * Consumer의 `read_committed` 격리 수준 설정으로 더티 리드(Dirty Read) 현상을 완벽히 차단하는 트랜잭셔널 API 완성
 * **Phase 6: 외부 연동 시스템 복원력 확보 (Resilience)**
   * Resilience4j 서킷 브레이커를 적용해 통제 범위 밖의 서드파티(PG사, 환율 API) 장애가 내부 시스템으로 전파(Cascading Failure)되는 것을 방지
   * 서드파티 완전 다운 시 빈 데이터를 반환하는 우아한 성능 저하(Graceful Degradation) 메커니즘 구축
-  * Micrometer를 활용해 보유 현금 총액 등 커스텀 비즈니스 지표(Metrics)를 Prometheus로 실시간 노출
-* **Phase 7: 글로벌 서비스 기반 확보 (Multi-Currency Expansion)**
-  * 시스템 전반에 결합되어 있던 기준 통화(KRW) 하드코딩 제거 
-  * 사용자의 계정(Account)에 `base_currency` 속성을 도입해 글로벌 포트폴리오 가치 환산 지원
-  * 통화별 지표(Currency-tagged Metrics) 관리를 통해 글로벌 모니터링 토대 구축
+* **Phase 7: 풀스택 관측성 파이프라인 (Observability)**
+  * Correlation ID를 HTTP 진입점부터 Kafka 이벤트 컨슈머까지 주입하여 ELK 기반 분산 추적(Distributed Tracing) 체계 구축
+  * Micrometer를 활용해 보유 현금 총액(Gauge), 폴백 횟수(Counter), 핵심 API 및 배치 응답 시간(Timer/Histogram) 등 비즈니스 커스텀 지표를 Prometheus로 실시간 노출
 
 </details>
 
@@ -95,8 +94,8 @@
 
 </details>
 
-<details>
-<summary><b>전체 클래스 다이어그램</b></summary>
+<details data-auto-diagram="true">
+<summary><b>[전체 클래스 다이어그램 보기]</b></summary>
 
 ```mermaid
 classDiagram
@@ -113,17 +112,24 @@ classDiagram
     +void initializeInNewTransaction(UUID, String, AssetType, String)
   }
   class Account {
+    + Account open(UUID, String)
+    +boolean isActive()
+    +void suspend()
+    +void activate()
+    +void close()
     +boolean isNew()
     +UUID getId()
     +String getOwnerName()
-    +String getStatus()
-    +String getBaseCurrency()
+    +AccountStatus getStatus()
   }
-  class AccountApi {
-    <<Interface>>
-    +String getBaseCurrency(UUID)
+  class AccountStatus {
+    <<Enumeration>>
+    ACTIVE
+    SUSPENDED
+    CLOSED
   }
   class MonthlyAccountLedger {
+    + MonthlyAccountLedger initialize(UUID, String, AssetType, String, String)
     + MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger, String)
     +void addBalance(Money, Money)
     +Money subtractBalance(Money)
@@ -140,14 +146,15 @@ classDiagram
     +UUID tradeId()
     +UUID accountId()
     +String assetCode()
-    +String assetType()
+    +AssetType assetType()
     +String fiatCode()
-    +String tradeType()
+    +TradeType tradeType()
     +BigDecimal quantity()
     +BigDecimal unitPrice()
     +BigDecimal exchangeRate()
     +BigDecimal averageCost()
     +boolean isStaleRate()
+    +OffsetDateTime occurredAt()
   }
   class AccountRepository {
     <<Interface>>
@@ -156,25 +163,32 @@ classDiagram
     <<Interface>>
     + Optional~MonthlyAccountLedger~ findByAccountIdAndAssetCodeAndLedgerMonth(UUID, String, String)
     + Optional~MonthlyAccountLedger~ findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
-    + List~String~ findDistinctFiatCodes()
   }
   class BaseEntity {
     <<Abstract>>
     +OffsetDateTime getCreatedAt()
+    +OffsetDateTime getUpdatedAt()
+  }
+  class CurrencyScaleResolver {
+    + BigDecimal normalize(BigDecimal, AssetType, String)
+    + int resolveScale(AssetType, String)
   }
   class Money {
-    + Money of(String, AssetType)
-    + Money zero(AssetType)
+    + Money of(BigDecimal, AssetType, String)
+    + Money of(String, AssetType, String)
+    + Money zero(AssetType, String)
     +Money add(Money)
     +Money subtract(Money)
     +Money multiply(BigDecimal)
     +Money divide(BigDecimal)
+    +Money[] allocate(int)
     +Money negate()
     +boolean isNegative()
     +boolean isZero()
     +int compareTo(Money)
     +BigDecimal getAmount()
     +AssetType getAssetType()
+    +String getCurrencyCode()
   }
   class DummyExchangeRateAdapter {
     +ExchangeRate getExchangeRate(String, String)
@@ -188,7 +202,18 @@ classDiagram
     FIAT
     STOCK
     CRYPTO
-    +BigDecimal normalize(BigDecimal)
+    POINT
+    +int getDefaultScale()
+    +boolean isDigitalAsset()
+    +boolean isIndivisible()
+  }
+  class TradeType {
+    <<Enumeration>>
+    BUY
+    SELL
+  }
+  class KafkaProducerListener {
+    +void handleOutboxMessageEvent(OutboxMessageEvent)
   }
   class EntryType {
     <<Enumeration>>
@@ -201,6 +226,14 @@ classDiagram
     MATCHED
     UNMATCHED
     MANUALLY_RESOLVED
+  }
+  class TradeType {
+    <<Enumeration>>
+    BUY
+    SELL
+  }
+  class KafkaProducerListener {
+    +void handleOutboxMessageEvent(OutboxMessageEvent)
   }
   class OutboxEvent {
     +void markAsProcessed()
@@ -248,7 +281,9 @@ classDiagram
     +String getId()
     +UUID getAccountId()
     +String getAssetCode()
+    +String getBalanceCurrency()
     +BigDecimal getTotalQuantity()
+    +String getQuoteCurrency()
     +BigDecimal getAvgUnitPrice()
     +BigDecimal getCurrentMarketPrice()
     +BigDecimal getUnrealizedPnl()
@@ -292,7 +327,6 @@ classDiagram
   }
   class ExternalSettlement {
     + ExternalSettlement create(String, String, OffsetDateTime, String, Money)
-    + ExternalSettlement create(String, String, OffsetDateTime, String, Money, String)
     +void markAsMatched(UUID)
     +void markAsUnmatched()
     +void resolveManually(UUID)
@@ -303,7 +337,6 @@ classDiagram
     +String getInstitutionCode()
     +String getDescription()
     +Money getAmount()
-    +String getCurrencyCode()
     +SettlementStatus getStatus()
     +UUID getMatchedInternalTransactionId()
   }
@@ -312,8 +345,12 @@ classDiagram
     +void markAsResolved()
   }
   class ReconciliationFeeAdjustedEvent {
+    + ReconciliationFeeAdjustedEvent of(UUID, UUID, UUID, Money)
     +UUID settlementId()
+    +UUID internalTransactionId()
+    +UUID accountId()
     +Money feeDifference()
+    +OffsetDateTime occurredAt()
   }
   class ExternalSettlementRepository {
     <<Interface>>
@@ -347,8 +384,9 @@ classDiagram
     +boolean isStaleRate()
   }
   class Transaction {
-    +void addBuyEntry(UUID, String, Money, Money, BigDecimal)
-    +void addSellEntry(UUID, String, Money, Money, BigDecimal, Money)
+    + Transaction record(UUID, String, String)
+    +void addBuyEntry(UUID, String, Money, Money, BigDecimal, String)
+    +void addSellEntry(UUID, String, Money, Money, BigDecimal, Money, String)
     +boolean isNew()
     +UUID getId()
     +String getTransactionType()
@@ -357,8 +395,8 @@ classDiagram
     +List~TransactionEntry~ getEntries()
   }
   class TransactionEntry {
-    + TransactionEntry createBuyEntry(Transaction, UUID, String, Money, Money, BigDecimal)
-    + TransactionEntry createSellEntry(Transaction, UUID, String, Money, Money, BigDecimal, Money)
+    + TransactionEntry createBuyEntry(Transaction, UUID, String, Money, Money, BigDecimal, String)
+    + TransactionEntry createSellEntry(Transaction, UUID, String, Money, Money, BigDecimal, Money, String)
     +Long getId()
     +Transaction getTransaction()
     +UUID getAccountId()
@@ -385,8 +423,11 @@ classDiagram
   AccountTradeService --> ExchangeRateProvider
   MonthlyLedgerResolver --> MonthlyAccountLedgerRepository
   Account --|> BaseEntity
+  Account --> AccountStatus
   MonthlyAccountLedger --|> BaseEntity
   MonthlyAccountLedger --> Money
+  TradeExecutedEvent --> TradeType
+  TradeExecutedEvent --> AssetType
   Money --> AssetType
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
   LiveExchangeRateAdapter ..|> ExchangeRateProvider
@@ -394,7 +435,6 @@ classDiagram
   OutboxRelayWorker --> OutboxRepository
   PortfolioQueryService --> PortfolioQueryRepository
   PortfolioQueryService --> ExchangeRateProvider
-  PortfolioQueryService --> AccountApi
   PortfolioController --> PortfolioQueryService
   HeuristicMatchingProcessor --> MatchingRule
   MatchedReconciliationResult --> ExternalSettlement
