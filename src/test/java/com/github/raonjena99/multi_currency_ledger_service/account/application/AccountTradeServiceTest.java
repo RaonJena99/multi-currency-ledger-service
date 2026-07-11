@@ -48,7 +48,7 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
         transactionTemplate.execute(status -> {
-            accountRepository.save(Account.open(accountId, "TEST_USER"));
+            accountRepository.save(Account.open(accountId, "TEST_USER", "KRW"));
             MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
             fiatLedger.addBalance(Money.of("50000000", AssetType.FIAT, "KRW"), Money.of("1", AssetType.FIAT, "KRW"));
             monthlyAccountLedgerRepository.save(fiatLedger);
@@ -59,7 +59,7 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         Money unitPrice = Money.of("100000000", AssetType.FIAT, "KRW"); 
 
         // when
-        UUID tradeId = accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, buyQuantity, unitPrice);
+        UUID tradeId = accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
 
         // then
         transactionTemplate.execute(status -> {
@@ -86,7 +86,7 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
         transactionTemplate.execute(status -> {
-            accountRepository.save(Account.open(accountId, "TEST_USER"));
+            accountRepository.save(Account.open(accountId, "TEST_USER", "KRW"));
             MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
             monthlyAccountLedgerRepository.save(fiatLedger);
             
@@ -100,7 +100,7 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW"); 
 
         // when
-        UUID tradeId = accountTradeService.sellAsset(accountId, "BTC", AssetType.CRYPTO, sellQuantity, unitPrice);
+        UUID tradeId = accountTradeService.sellAsset(accountId, "BTC", AssetType.CRYPTO, "KRW", sellQuantity, unitPrice);
 
         // then
         transactionTemplate.execute(status -> {
