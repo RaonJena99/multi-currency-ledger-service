@@ -14,6 +14,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
@@ -33,7 +34,8 @@ import lombok.NoArgsConstructor;
 public class MonthlyAccountLedger extends BaseEntity {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "mal_seq")
+    @SequenceGenerator(name = "mal_seq", sequenceName = "monthly_account_ledger_seq", allocationSize = 50)
     private Long id;
 
     @Column(name = "account_id", nullable = false)
@@ -69,9 +71,6 @@ public class MonthlyAccountLedger extends BaseEntity {
     @Version
     private Long version = 0L;
 
-    /**
-     * 최초 매수 시 원장 생성
-     */
     private MonthlyAccountLedger(UUID accountId, String assetCode, AssetType assetType, String ledgerMonth, String baseCurrency) {
         this.accountId = accountId;
         this.assetCode = assetCode;

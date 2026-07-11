@@ -59,6 +59,10 @@ class HeuristicMatchingProcessorTest {
         assertThat(result.externalSettlement()).isEqualTo(ext);
         assertThat(result.matchedTransactionId()).isNotNull();
         assertThat(ext.getStatus()).isNotEqualTo(SettlementStatus.MATCHED); 
+
+        // Call again to hit the cache branch
+        MatchedReconciliationResult result2 = processor.process(ext);
+        assertThat(result2).isNotNull();
     }
 
     @Test
@@ -72,5 +76,30 @@ class HeuristicMatchingProcessorTest {
         assertThatThrownBy(() -> processor.process(ext))
                 .isInstanceOf(UnmatchableSettlementException.class)
                 .hasMessage("AMOUNT_MISMATCH");
+    }
+
+    @Test
+    @DisplayName("[Processor] 여러 개의 후보 중 점수가 가장 높은 것을 선택한다")
+    void process_MultipleCandidates_SelectsHighestScore() {
+        // First candidate: exact match (score 100 on text)
+        InternalTransactionCandidate cand1 = new InternalTransactionCandidate(
+                UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY", Money.of("1000", AssetType.FIAT)
+        );
+        // Second candidate: partial text match, lower score but still >= 75
+        InternalTransactionCandidate cand2 = new InternalTransactionCandidate(
+                UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY 1", Money.of("1000", AssetType.FIAT)
+        );
+        
+        lenient().when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(List.of(cand1, cand2));
+        // Reset processor to re-initialize cache
+        processor = new HeuristicMatchingProcessor(queryDao, List.of(new TimeToleranceRule(), new AmountToleranceRule(), new FuzzyTextMatchingRule()), "2026-06-01T00:00:00Z");
+
+        ExternalSettlement ext = ExternalSettlement.create(
+                "REF_SUCCESS", "TOSS", OffsetDateTime.parse("2026-06-15T10:00:00Z"),
+                "TOSS PAY", Money.of("1000", AssetType.FIAT)
+        );
+
+        MatchedReconciliationResult result = processor.process(ext);
+        assertThat(result.matchedTransactionId()).isEqualTo(cand1.transactionId());
     }
 }

@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.6'
     id 'io.spring.dependency-management' version '1.1.7'
     id "io.gitlab.plunts.plantuml" version "2.4.1"
+    id 'jacoco'
 }
 
 group = 'com.github.raonjena99'
@@ -110,4 +111,13 @@ classDiagrams {
 tasks.named('test') {
     useJUnitPlatform()
     jvmArgs("-Xshare:off")
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        csv.required = true
+    }
 }
