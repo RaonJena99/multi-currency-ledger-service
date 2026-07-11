@@ -13,6 +13,7 @@ import com.github.raonjena99.multi_currency_ledger_service.portfolio.application
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse.AssetDetailDto;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository;
+import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,8 +25,9 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class PortfolioQueryService {
 
-    private final PortfolioQueryRepository queryRepository;
+    private final PortfolioQueryRepository portfolioQueryRepository;
     private final ExchangeRateProvider exchangeRateProvider;
+    private final AccountApi accountApi;
 
     /**
      * 특정 계좌의 포트폴리오 요약 정보를 조회합니다.
@@ -33,7 +35,12 @@ public class PortfolioQueryService {
      * @return 조회된 PortfolioSummaryResponse(포트폴리오 요약 응답) 객체
      */
     public PortfolioSummaryResponse getPortfolioSummary(UUID accountId) {
-        List<CurrentPortfolio> portfolios = queryRepository.findAllByAccountId(accountId);
+        String baseCurrency = accountApi.getBaseCurrency(accountId);
+
+        List<CurrentPortfolio> portfolios = portfolioQueryRepository.findAllByAccountId(accountId);
+        if (portfolios.isEmpty()) {
+            return new PortfolioSummaryResponse(accountId, BigDecimal.ZERO, BigDecimal.ZERO, false, List.of());
+        }
 
         BigDecimal totalAssetValue = BigDecimal.ZERO;
         BigDecimal totalUnrealizedPnl = BigDecimal.ZERO;
@@ -43,7 +50,7 @@ public class PortfolioQueryService {
 
         for (CurrentPortfolio p : portfolios) {
             // 현재 시장 환율 정보를 조회하여 자산의 현재 가치를 계산합니다.
-            var rateInfo = exchangeRateProvider.getExchangeRate(p.getAssetCode(), "KRW");
+            var rateInfo = exchangeRateProvider.getExchangeRate(p.getAssetCode(), baseCurrency);
             BigDecimal currentMarketPrice = rateInfo.rate();
 
             // 총 가치(Total Value) 및 미실현 손익(Unrealized PnL) 계산
