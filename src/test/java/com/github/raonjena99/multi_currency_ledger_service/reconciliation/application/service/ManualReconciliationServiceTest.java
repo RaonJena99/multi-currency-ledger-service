@@ -42,14 +42,14 @@ class ManualReconciliationServiceTest {
         Long deadLetterId = 1L;
         UUID internalTxId = UUID.randomUUID();
         
-        ExternalSettlement settlement = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("1000", AssetType.FIAT));
+        ExternalSettlement settlement = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("1000", AssetType.FIAT, "KRW"));
         settlement.markAsUnmatched();
         ReconciliationDeadLetter dlq = ReconciliationDeadLetter.isolate(settlement.getId(), com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason.TEXT_NOT_FOUND, "ERROR", "PAYLOAD");
         
         when(deadLetterRepository.findById(deadLetterId)).thenReturn(Optional.of(dlq));
         when(settlementRepository.findByIdWithoutPartitionKey(settlement.getId())).thenReturn(Optional.of(settlement));
 
-        manualReconciliationService.resolveManually(deadLetterId, internalTxId, Money.of("10", AssetType.FIAT));
+        manualReconciliationService.resolveManually(deadLetterId, internalTxId, Money.of("10", AssetType.FIAT, "KRW"));
 
         assertThat(dlq.isResolved()).isTrue();
         assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.MANUALLY_RESOLVED);
@@ -64,14 +64,14 @@ class ManualReconciliationServiceTest {
         Long deadLetterId = 1L;
         UUID internalTxId = UUID.randomUUID();
         
-        ExternalSettlement settlement = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("1000", AssetType.FIAT));
+        ExternalSettlement settlement = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("1000", AssetType.FIAT, "KRW"));
         settlement.markAsUnmatched();
         ReconciliationDeadLetter dlq = ReconciliationDeadLetter.isolate(settlement.getId(), com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason.TEXT_NOT_FOUND, "ERROR", "PAYLOAD");
         
         when(deadLetterRepository.findById(deadLetterId)).thenReturn(Optional.of(dlq));
         when(settlementRepository.findByIdWithoutPartitionKey(settlement.getId())).thenReturn(Optional.of(settlement));
 
-        manualReconciliationService.resolveManually(deadLetterId, internalTxId, Money.of("0", AssetType.FIAT));
+        manualReconciliationService.resolveManually(deadLetterId, internalTxId, Money.of("0", AssetType.FIAT, "KRW"));
 
         assertThat(dlq.isResolved()).isTrue();
         assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.MANUALLY_RESOLVED);
@@ -85,7 +85,7 @@ class ManualReconciliationServiceTest {
         Long deadLetterId = 1L;
         UUID internalTxId = UUID.randomUUID();
         
-        ExternalSettlement settlement = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("1000", AssetType.FIAT));
+        ExternalSettlement settlement = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("1000", AssetType.FIAT, "KRW"));
         settlement.markAsUnmatched();
         ReconciliationDeadLetter dlq = ReconciliationDeadLetter.isolate(settlement.getId(), com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason.TEXT_NOT_FOUND, "ERROR", "PAYLOAD");
         
