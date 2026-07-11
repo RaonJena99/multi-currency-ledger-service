@@ -23,6 +23,10 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 자동 대사(Reconciliation) 과정에서 매칭에 실패하거나 예외가 발생한 항목들을
+ * 별도로 격리 보관하는 데드 레터(Dead Letter) 엔티티 클래스입니다.
+ */
 @Entity
 @Table(name = "reconciliation_dead_letter", indexes = {
     @Index(name = "idx_dlq_reason", columnList = "failure_reason"),
@@ -56,6 +60,15 @@ public class ReconciliationDeadLetter extends BaseEntity{
     @JdbcTypeCode(SqlTypes.JSON)
     private String handlerEnrichmentPayload;
 
+    /**
+     * 실패한 외부 정산 내역을 데드 레터로 격리하기 위해 새로운 엔티티를 생성합니다.
+     * 
+     * @param externalSettlementId 실패한 외부 정산 ID (UUID)
+     * @param reason 실패 사유 (FailureReason)
+     * @param errorMessage 에러 상세 메시지
+     * @param payload 추가적인 상태 정보나 스냅샷 데이터 (JSON)
+     * @return 생성된 데드 레터 엔티티 (ReconciliationDeadLetter)
+     */
     public static ReconciliationDeadLetter isolate(UUID externalSettlementId, FailureReason reason, 
                                                     String errorMessage, String payload) {
         ReconciliationDeadLetter deadLetter = new ReconciliationDeadLetter();
@@ -67,6 +80,10 @@ public class ReconciliationDeadLetter extends BaseEntity{
         return deadLetter;
     }
 
+    /**
+     * 관리자가 수동으로 문제를 해결(Resolved)한 상태로 전이시킵니다.
+     * 해결 일시(resolvedAt)가 현재 시간으로 기록됩니다.
+     */
     public void markAsResolved() {
         if (this.isResolved) {
             throw new IllegalStateException("This dead letter has already been resolved.");

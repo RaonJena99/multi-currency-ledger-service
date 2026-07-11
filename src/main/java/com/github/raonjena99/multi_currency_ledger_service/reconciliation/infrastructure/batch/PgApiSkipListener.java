@@ -8,6 +8,10 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 외부 PG API 호출 실패 등으로 인해 Spring Batch 아이템이 스킵될 때 호출되는 리스너(SkipListener)입니다.
+ * 주로 로깅(Logging) 목적으로 사용됩니다.
+ */
 @Slf4j
 @Component
 public class PgApiSkipListener implements SkipListener<ExternalSettlement, MatchedReconciliationResult> {

@@ -16,6 +16,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * 주문(Order) 도메인 이벤트와 원장(Ledger) 간의 부패 방지 계층(ACL)을 담당하는 OrderToLedgerAcl 클래스입니다.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -25,6 +28,10 @@ public class OrderToLedgerAcl {
     private final JsonMapper jsonMapper;
     private final LedgerService ledgerService;
 
+    /**
+     * TradeExecutedEvent(거래 실행 이벤트)를 수신하여 OutboxEvent(아웃박스 이벤트)로 변환 후 저장합니다.
+     * @param externalEvent 외부 거래 실행 이벤트 객체
+     */
     @EventListener 
     public void persistOutboxEvent(TradeExecutedEvent externalEvent) {
         log.info("ACL: Translating and Persisting OutboxEvent for TradeID: {}", externalEvent.tradeId());
@@ -59,6 +66,10 @@ public class OrderToLedgerAcl {
         }
     }
 
+    /**
+     * 릴레이된 OutboxMessageEvent(아웃박스 메시지 이벤트)를 처리하여 원장에 복식 부기를 기록합니다.
+     * @param msg 릴레이된 아웃박스 메시지 이벤트 객체
+     */
     @EventListener
     public void handleOutboxRelay(OutboxMessageEvent msg) {
         try {

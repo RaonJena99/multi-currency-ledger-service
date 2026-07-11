@@ -23,6 +23,10 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infras
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 휴리스틱 기반의 규칙들(MatchingRule)을 적용하여 ExternalSettlement(외부 정산)와 InternalTransactionCandidate(내부 거래 후보)를
+ * 매칭하는 Spring Batch의 ItemProcessor(아이템 프로세서)입니다.
+ */
 @Slf4j
 @StepScope
 @Component
@@ -46,14 +50,24 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     private void initCacheIfNeeded() {
         if (this.monthlyCandidatesCache == null) {
             log.info("Initializing monthly candidates cache for month: {}", startOfMonthStr);
+            // JobParameter로 전달받은 월 시작일을 기준으로 한 달(1개월) 범위의 내부 거래 후보들을 조회합니다.
             OffsetDateTime startOfMonth = OffsetDateTime.parse(startOfMonthStr);
             OffsetDateTime endOfMonth = startOfMonth.plusMonths(1);
             List<InternalTransactionCandidate> rawCandidates = queryDao.fetchCandidatesForPeriod(startOfMonth, endOfMonth);
+            // 조회된 후보들을 거래 발생 일자(LocalDate) 기준으로 그룹화하여 캐싱 맵을 생성합니다.
             this.monthlyCandidatesCache = rawCandidates.stream()
                 .collect(Collectors.groupingBy(c -> c.transactedAt().toLocalDate()));
         }
     }
 
+    /**
+     * 외부 정산 데이터 1건을 입력받아, 메모리에 캐싱된 내부 거래 후보들과 대조하여 최적의 매칭 결과를 반환합니다.
+     * 모든 규칙을 통과하고 점수가 가장 높은 후보를 선택합니다.
+     * 
+     * @param external 외부 정산 데이터 (ExternalSettlement)
+     * @return 성공적으로 매칭된 결과 (MatchedReconciliationResult)
+     * @throws UnmatchableSettlementException 매칭되는 후보가 없을 경우 (예외 발생 시 DLQ로 이동)
+     */
     @Override
     public MatchedReconciliationResult process(ExternalSettlement external) {
         initCacheIfNeeded();
@@ -61,6 +75,7 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         LocalDate targetDate = external.getSettlementDate().toLocalDate();
         List<InternalTransactionCandidate> searchSpace = new ArrayList<>();
 
+        // 대상 일자의 전후 3일(총 7일) 범위 내에 있는 거래 후보들을 검색 공간(searchSpace)으로 구성합니다.
         for (int i = -3; i <= 3; i++) {
             searchSpace.addAll(monthlyCandidatesCache.getOrDefault(targetDate.plusDays(i), Collections.emptyList()));
         }
@@ -69,13 +84,16 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         int highestScore = -1;
         String lastFailReason = "TIME_WINDOW_EXCEEDED";
 
+        // 검색 공간의 모든 후보들을 순회하면서 규칙들을 평가합니다.
         for (InternalTransactionCandidate candidate : searchSpace) {
             boolean allPassed = true;
             int totalScore = 0;
 
             for (MatchingRule rule : rules) {
+                // 각 매칭 규칙(MatchingRule)을 평가합니다.
                 RuleResult result = rule.evaluate(external, candidate);
                 if (!result.isPassed()) {
+                    // 하나의 규칙이라도 통과하지 못하면 해당 후보는 실패로 처리하고 다음 후보를 검사합니다.
                     lastFailReason = result.getFailReason();
                     allPassed = false;
                     break;
@@ -83,6 +101,7 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
                 totalScore += result.getScore();
             }
 
+            // 모든 규칙을 통과하고, 기존 최고 점수(highestScore)보다 높은 점수를 얻은 경우 최고 후보로 갱신합니다.
             if (allPassed && totalScore > highestScore) {
                 highestScore = totalScore;
                 bestMatch = candidate;
@@ -90,6 +109,7 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         }
 
         if (bestMatch != null) {
+            // 가장 적합한 후보가 발견된 경우, 외부 정산 금액과 내부 거래 금액의 차액을 계산하여 결과를 반환합니다.
             Money feeDifference = external.getAmount().subtract(bestMatch.amount());
             
             return new MatchedReconciliationResult(

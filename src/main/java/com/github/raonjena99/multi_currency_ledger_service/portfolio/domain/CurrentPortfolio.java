@@ -13,6 +13,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 데이터베이스의 current_portfolio_view(구체화된 뷰)와 매핑되는 CurrentPortfolio(현재 포트폴리오) 읽기 전용 엔티티입니다.
+ */
 @Entity
 @Immutable
 @Table(name = "current_portfolio_view")

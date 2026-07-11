@@ -64,6 +64,9 @@ dependencies {
     // 시스템 장애 확산 방지 (Resilience4j Spring Boot 3/4 Starter)
     implementation 'io.github.resilience4j:resilience4j-spring-boot3'
 
+    // Logback의 로그를 JSON 포맷으로 직렬화 (Longstash Logback Encoder)
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+
     // 핵심 테스트 프레임워크 (Boot Test)
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

@@ -19,6 +19,9 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain
 import lombok.RequiredArgsConstructor;
 
 // 패키지 및 임포트 유지
+/**
+ * 월간 대사 배치 작업(ReconciliationJob)을 정의하는 Spring Batch 설정 클래스입니다.
+ */
 @Configuration
 @RequiredArgsConstructor
 public class ReconciliationJobConfig {
@@ -36,6 +39,11 @@ public class ReconciliationJobConfig {
     private final ReconciliationSkipListener skipListener;
     private final PgApiSkipListener pgApiSkipListener;
 
+    /**
+     * 대사 배치 작업(Job)을 생성하고 반환합니다.
+     * 
+     * @return 월간 대사 처리 잡 (Job)
+     */
     @Bean
     public Job monthlyReconciliationJob() {
         return new JobBuilder("monthlyReconciliationJob", jobRepository)
@@ -43,6 +51,12 @@ public class ReconciliationJobConfig {
                 .build();
     }
 
+    /**
+     * 대사 작업의 핵심 단계를 구성합니다. (읽기 -> 처리 -> 쓰기)
+     * 예외 발생 시의 스킵(Skip) 정책과 트랜잭션 타임아웃 등을 설정합니다.
+     * 
+     * @return 대사 처리 스텝 (Step)
+     */
     @Bean
     public Step reconciliationStep() {
         DefaultTransactionAttribute attribute = new DefaultTransactionAttribute();

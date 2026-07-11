@@ -24,7 +24,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 다중 통화 거래를 기록하고 차변/대변의 복식부기 정합성을 검증하는 핵심 Aggregate Root
+ * 다중 통화 거래를 기록하고 차변/대변의 복식부기 정합성을 검증하는 핵심 Transaction(트랜잭션) Aggregate Root 입니다.
  */
 
 @Entity
@@ -55,18 +55,41 @@ public class Transaction implements org.springframework.data.domain.Persistable<
         this.transactedAt = OffsetDateTime.now();
     }
 
-    // 기록
+    /**
+     * 새로운 Transaction(트랜잭션) 엔티티를 생성하여 기록을 시작합니다.
+     * @param id 트랜잭션 ID
+     * @param transactionType 트랜잭션 유형
+     * @param description 트랜잭션 설명
+     * @return 생성된 Transaction(트랜잭션) 객체
+     */
     public static Transaction record(UUID id, String transactionType, String description) {
         return new Transaction(id, transactionType, description);
     }
 
-    // 매수(차변) 분개 추가
+    /**
+     * 트랜잭션에 차변(매수) 엔트리를 추가합니다.
+     * @param accountId 계좌 ID
+     * @param assetCode 자산 코드
+     * @param quantity 수량
+     * @param unitPrice 단가
+     * @param exchangeRate 환율
+     * @param baseCurrencyCode 기준 통화 코드
+     */
     public void addBuyEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
         TransactionEntry entry = TransactionEntry.createBuyEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, baseCurrencyCode);
         this.entries.add(entry);
     }
 
-    // 매도(대변) 분개 추가
+    /**
+     * 트랜잭션에 대변(매도) 엔트리를 추가합니다.
+     * @param accountId 계좌 ID
+     * @param assetCode 자산 코드
+     * @param quantity 수량
+     * @param unitPrice 단가
+     * @param exchangeRate 환율
+     * @param averageCost 평균 단가
+     * @param baseCurrencyCode 기준 통화 코드
+     */
     public void addSellEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate, Money averageCost, String baseCurrencyCode) {
         TransactionEntry entry = TransactionEntry.createSellEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, averageCost, baseCurrencyCode);
         this.entries.add(entry);
@@ -87,7 +110,7 @@ public class Transaction implements org.springframework.data.domain.Persistable<
                 creditBalances.merge(currency, baseFiatValue, BigDecimal::add);
             }
 
-            // 대변에 가산하여 대차를 맞춤
+            // 대변에 가산하여 대차를 맞춤 (실현 손익이 존재하는 경우)
             if (entry.getRealizedPnl() != null && !entry.getRealizedPnl().isZero()) {
                 String pnlCurrency = entry.getRealizedPnl().getCurrencyCode();
                 BigDecimal pnlValue = entry.getRealizedPnl().getAmount();
@@ -128,6 +151,10 @@ public class Transaction implements org.springframework.data.domain.Persistable<
         verifyDoubleEntry();
     }
 
+    /**
+     * 엔티티가 새로운 상태인지 여부를 반환합니다.
+     * @return 항상 true 반환
+     */
     @Override
     public boolean isNew() {
         return true;
