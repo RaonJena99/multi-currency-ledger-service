@@ -32,7 +32,8 @@ public class ReconciliationAdminController {
     public record ManualResolutionRequest(
             UUID internalTransactionId,
             BigDecimal feeAmount,     
-            AssetType feeAssetType    
+            AssetType feeAssetType,
+            String feeCurrency
     ) {
         /**
          * 입력받은 원시 타입 데이터를 도메인 객체(Money)로 안전하게 변환하는 편의 메서드입니다.
@@ -40,10 +41,10 @@ public class ReconciliationAdminController {
          * @return 변환된 수수료 차액 객체 (Money), 없을 경우 null
          */
         public Money getFeeDifference() {
-            if (feeAmount == null || feeAmount.compareTo(BigDecimal.ZERO) == 0 || feeAssetType == null) {
+            if (feeAmount == null || feeAmount.compareTo(BigDecimal.ZERO) == 0 || feeAssetType == null || feeCurrency == null || feeCurrency.isBlank()) {
                 return null; 
             }
-            return Money.of(feeAmount.toPlainString(), feeAssetType, "KRW");
+            return Money.of(feeAmount.toPlainString(), feeAssetType, feeCurrency);
         }
     }
 
