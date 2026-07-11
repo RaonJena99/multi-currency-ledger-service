@@ -62,3 +62,11 @@ ALTER TABLE public.reconciliation_dead_letter
 
 -- 데이터 마이그레이션 후 DEFAULT 해제
 ALTER TABLE public.reconciliation_dead_letter ALTER COLUMN updated_at DROP DEFAULT;
+
+-- Add updated_at if not exists for all BaseEntity extending tables
+ALTER TABLE public.outbox_events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL;
+ALTER TABLE public.outbox_events ALTER COLUMN updated_at DROP DEFAULT;
+ALTER TABLE public.monthly_account_ledgers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL;
+ALTER TABLE public.monthly_account_ledgers ALTER COLUMN updated_at DROP DEFAULT;
+ALTER TABLE public.external_settlement ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL;
+ALTER TABLE public.external_settlement ALTER COLUMN updated_at DROP DEFAULT;
