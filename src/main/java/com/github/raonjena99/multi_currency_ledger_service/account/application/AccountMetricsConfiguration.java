@@ -23,15 +23,23 @@ public class AccountMetricsConfiguration {
 
     @PostConstruct
     public void initializeMetrics() {
-        Gauge.builder("platform.total.balance.krw", ledgerRepository, 
-                repo -> calculateTotalKrwBalance(repo))
-                .description("플랫폼 내의 총 법정 화폐(KRW) 보유 잔액")
-                .register(meterRegistry);
+        java.util.List<String> fiatCodes = ledgerRepository.findDistinctFiatCodes();
+        if (fiatCodes.isEmpty()) {
+            fiatCodes = java.util.List.of("KRW", "USD"); // 기본 모니터링 대상
+        }
+
+        for (String fiatCode : fiatCodes) {
+            Gauge.builder("platform.total.fiat.balance", ledgerRepository, 
+                    repo -> calculateTotalFiatBalance(repo, fiatCode))
+                    .description("플랫폼 내의 총 법정 화폐 보유 잔액")
+                    .tag("currency", fiatCode)
+                    .register(meterRegistry);
+        }
     }
 
-    private double calculateTotalKrwBalance(MonthlyAccountLedgerRepository repo) {
+    private double calculateTotalFiatBalance(MonthlyAccountLedgerRepository repo, String fiatCode) {
         try {
-            BigDecimal totalBalance = repo.sumLatestBalanceByAssetCode("KRW");
+            BigDecimal totalBalance = repo.sumLatestBalanceByAssetCode(fiatCode);
             return totalBalance != null ? totalBalance.doubleValue() : 0.0;
         } catch (Exception e) {
             return 0.0;
