@@ -9,6 +9,8 @@ spring:
       port: ${REDIS_PORT:6379}
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      isolation-level: read_committed
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/ledger_db
     username: ${DB_USER:ledger_admin}

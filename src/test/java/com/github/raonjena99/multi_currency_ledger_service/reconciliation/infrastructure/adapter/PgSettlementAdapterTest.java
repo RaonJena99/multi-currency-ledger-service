@@ -25,7 +25,8 @@ class PgSettlementAdapterTest {
         ExternalSettlementDto dto = new ExternalSettlementDto("tx1", "KRW", BigDecimal.TEN, BigDecimal.ONE, "OK", OffsetDateTime.now());
         when(responseSpec.body(ExternalSettlementDto.class)).thenReturn(dto);
 
-        PgSettlementAdapter adapter = new PgSettlementAdapter(restClient);
+        io.micrometer.core.instrument.MeterRegistry meterRegistry = mock(io.micrometer.core.instrument.MeterRegistry.class);
+        PgSettlementAdapter adapter = new PgSettlementAdapter(restClient, meterRegistry);
         ExternalSettlementDto result = adapter.fetchSettlement("tx1");
 
         org.assertj.core.api.Assertions.assertThat(result).isNotNull();
