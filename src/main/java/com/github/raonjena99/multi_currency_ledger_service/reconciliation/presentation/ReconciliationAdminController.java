@@ -35,7 +35,7 @@ public class ReconciliationAdminController {
             if (feeAmount == null || feeAmount.compareTo(BigDecimal.ZERO) == 0 || feeAssetType == null) {
                 return null; 
             }
-            return Money.of(feeAmount.toPlainString(), feeAssetType);
+            return Money.of(feeAmount.toPlainString(), feeAssetType, "KRW");
         }
     }
 

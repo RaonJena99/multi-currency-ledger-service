@@ -35,11 +35,11 @@ public class OrderToLedgerAcl {
                 externalEvent.accountId(),
                 externalEvent.assetCode(),
                 externalEvent.fiatCode(),
-                externalEvent.tradeType(),
-                Money.of(externalEvent.quantity().toPlainString(), AssetType.valueOf(externalEvent.assetType())),
-                Money.of(externalEvent.unitPrice().toPlainString(), AssetType.FIAT),
+                externalEvent.tradeType().name(),
+                Money.of(externalEvent.quantity().toPlainString(), externalEvent.assetType(), externalEvent.fiatCode()),
+                Money.of(externalEvent.unitPrice().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
                 externalEvent.exchangeRate(),
-                Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT),
+                Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
                 externalEvent.isStaleRate()
             );
 

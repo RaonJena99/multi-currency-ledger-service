@@ -41,7 +41,7 @@ public class ManualReconciliationService {
 
         // 수동 차액 보정 분개가 필요한 경우 (차액이 0이 아닐 때)
         if (feeDifference != null && !feeDifference.isZero()) {
-            eventPublisher.publishEvent(new ReconciliationFeeAdjustedEvent(settlement.getId(), feeDifference));
+            eventPublisher.publishEvent(ReconciliationFeeAdjustedEvent.of(settlement.getId(), targetInternalTransactionId, new java.util.UUID(0,0), feeDifference));
             log.info("Manual reconciliation completed by admin and auto-journaling event published. Settlement ID: {}", settlement.getId());
         } else {
             log.info("Manual reconciliation completed by admin (no fee adjustment required). Settlement ID: {}", settlement.getId());

@@ -1,6 +1,6 @@
 package com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -37,7 +37,6 @@ public class ReconciliationDeadLetter extends BaseEntity{
     private Long id;
 
     @Column(name = "external_settlement_id", nullable = false, length = 36)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
     private UUID externalSettlementId;
 
     @Enumerated(EnumType.STRING)
@@ -50,8 +49,8 @@ public class ReconciliationDeadLetter extends BaseEntity{
     @Column(name = "is_resolved", nullable = false)
     private boolean isResolved;
 
-    @Column(name = "resolved_at")
-    private LocalDateTime resolvedAt;
+    @Column(name = "resolved_at", columnDefinition = "TIMESTAMPTZ")
+    private OffsetDateTime resolvedAt;
 
     @Column(name = "handler_enrichment_payload", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
@@ -73,6 +72,6 @@ public class ReconciliationDeadLetter extends BaseEntity{
             throw new IllegalStateException("This dead letter has already been resolved.");
         }
         this.isResolved = true;
-        this.resolvedAt = LocalDateTime.now();
+        this.resolvedAt = OffsetDateTime.now();
     }
 }
