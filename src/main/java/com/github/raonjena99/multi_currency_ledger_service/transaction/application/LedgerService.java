@@ -57,14 +57,14 @@ public class LedgerService {
             transaction.addBuyEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), cmd.unitPrice(), cmd.exchangeRate(), cmd.fiatCode());
             // 대변(Credit): 지불한 법정화폐 감소 기록
             transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), requiredFiatAmount, 
-                                    Money.of("1", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.of("1", AssetType.FIAT, "KRW"), cmd.fiatCode());
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), BigDecimal.ONE, Money.of("1", AssetType.FIAT, cmd.fiatCode()), cmd.fiatCode());
         } else if ("SELL".equals(cmd.tradeType())) {
             // 매도(SELL) 거래인 경우: 법정화폐를 매수(수취)하고 자산을 매도합니다.
             Money earnedFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
             
             // 차변(Debit): 수취한 법정화폐 증가 기록
             transaction.addBuyEntry(cmd.accountId(), cmd.fiatCode(), earnedFiatAmount, 
-                                    Money.of("1", AssetType.FIAT, "KRW"), BigDecimal.ONE, cmd.fiatCode());
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), BigDecimal.ONE, cmd.fiatCode());
             // 대변(Credit): 매도한 자산 감소 기록
             transaction.addSellEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), 
                                     cmd.unitPrice(), cmd.exchangeRate(), cmd.averageCost(), cmd.fiatCode());
