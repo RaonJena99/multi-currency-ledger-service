@@ -64,4 +64,12 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
     java.math.BigDecimal sumLatestBalanceByAssetCode(
         @org.springframework.data.repository.query.Param("assetCode") String assetCode
     );
+
+    /**
+     * 장부에 기록된 고유한 법정 화폐(FIAT) 코드 목록을 조회합니다.
+     * 
+     * @return 법정 화폐 코드 리스트
+     */
+    @Query("SELECT DISTINCT m.assetCode FROM MonthlyAccountLedger m WHERE m.balance.assetType = 'FIAT'")
+    java.util.List<String> findDistinctFiatCodes();
 }
