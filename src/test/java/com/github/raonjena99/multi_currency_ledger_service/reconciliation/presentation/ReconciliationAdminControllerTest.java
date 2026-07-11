@@ -26,7 +26,7 @@ class ReconciliationAdminControllerTest {
     void resolveDeadLetter() {
         UUID txId = UUID.randomUUID();
         ReconciliationAdminController.ManualResolutionRequest req = 
-            new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT);
+            new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT, "KRW");
         
         ResponseEntity<Void> res = controller.resolveDeadLetter(1L, req);
         
@@ -38,7 +38,7 @@ class ReconciliationAdminControllerTest {
     void resolveDeadLetter_nullFee() {
         UUID txId = UUID.randomUUID();
         ReconciliationAdminController.ManualResolutionRequest req = 
-            new ReconciliationAdminController.ManualResolutionRequest(txId, null, AssetType.FIAT);
+            new ReconciliationAdminController.ManualResolutionRequest(txId, null, AssetType.FIAT, "KRW");
         
         ResponseEntity<Void> res = controller.resolveDeadLetter(1L, req);
         
@@ -51,12 +51,12 @@ class ReconciliationAdminControllerTest {
         UUID txId = UUID.randomUUID();
         
         // feeAmount == null
-        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, null, AssetType.FIAT).getFeeDifference()).isNull();
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, null, AssetType.FIAT, "KRW").getFeeDifference()).isNull();
         // feeAmount == 0
-        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.ZERO, AssetType.FIAT).getFeeDifference()).isNull();
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.ZERO, AssetType.FIAT, "KRW").getFeeDifference()).isNull();
         // feeAssetType == null
-        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, null).getFeeDifference()).isNull();
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, null, "KRW").getFeeDifference()).isNull();
         // all present
-        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT).getFeeDifference()).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT, "KRW").getFeeDifference()).isNotNull();
     }
 }

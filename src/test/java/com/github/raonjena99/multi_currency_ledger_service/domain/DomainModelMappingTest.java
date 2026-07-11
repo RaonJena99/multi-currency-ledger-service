@@ -33,7 +33,7 @@ class DomainModelMappingTest extends IntegrationTestSupport {
     @DisplayName("DB 스키마 마이그레이션 및 도메인 모델 매핑 검증")
     void testDomainModelMappings() {
         // 1. Account (Persistable 검증)
-        Account account = Account.open(UUID.randomUUID(), "테스트 유저");
+        Account account = Account.open(UUID.randomUUID(), "테스트 유저", "KRW");
         accountRepository.saveAndFlush(account);
         assertThat(account.getCreatedAt()).isNotNull();
 
