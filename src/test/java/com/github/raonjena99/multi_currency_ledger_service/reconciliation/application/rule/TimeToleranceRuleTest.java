@@ -22,8 +22,8 @@ class TimeToleranceRuleTest {
     void evaluate_passed() {
         TimeToleranceRule rule = new TimeToleranceRule();
         
-        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.parse("2026-07-15T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT));
-        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.parse("2026-07-12T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT));
+        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.parse("2026-07-15T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT, "KRW"));
+        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.parse("2026-07-12T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT, "KRW"));
         
         RuleResult result = rule.evaluate(ext, cand);
         assertThat(result.isPassed()).isTrue();
@@ -34,8 +34,8 @@ class TimeToleranceRuleTest {
     void evaluate_failed() {
         TimeToleranceRule rule = new TimeToleranceRule();
         
-        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.parse("2026-07-15T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT));
-        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.parse("2026-07-11T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT));
+        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.parse("2026-07-15T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT, "KRW"));
+        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.parse("2026-07-11T10:00:00Z"), "DESC", Money.of("10", AssetType.FIAT, "KRW"));
         
         RuleResult result = rule.evaluate(ext, cand);
         assertThat(result.isPassed()).isFalse();

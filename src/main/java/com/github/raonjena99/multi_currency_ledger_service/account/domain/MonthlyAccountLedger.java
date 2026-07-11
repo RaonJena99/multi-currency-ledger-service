@@ -31,7 +31,7 @@ import lombok.NoArgsConstructor;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MonthlyAccountLedger extends BaseEntity{
+public class MonthlyAccountLedger extends BaseEntity {
     
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "mal_seq")
@@ -51,14 +51,16 @@ public class MonthlyAccountLedger extends BaseEntity{
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "balance", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "balance_currency", nullable = false, length = 10))
     })
     private Money balance;
 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "average_unit_price", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "average_unit_price_asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "average_unit_price_asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "average_unit_price_currency", nullable = false, length = 10))
     })
     private Money averageUnitPrice;
 
@@ -69,17 +71,23 @@ public class MonthlyAccountLedger extends BaseEntity{
     @Version
     private Long version = 0L;
 
-    // 최초 매수
-    public MonthlyAccountLedger(UUID accountId, String assetCode, AssetType assetType, String ledgerMonth) {
+    private MonthlyAccountLedger(UUID accountId, String assetCode, AssetType assetType, String ledgerMonth, String baseCurrency) {
         this.accountId = accountId;
         this.assetCode = assetCode;
         this.ledgerMonth = ledgerMonth;
-        this.balance = Money.zero(assetType);
-        this.averageUnitPrice = Money.zero(AssetType.FIAT);
+        
+        this.balance = Money.zero(assetType, assetCode);
+        
+        this.averageUnitPrice = Money.zero(AssetType.FIAT, baseCurrency);
         this.carriedForward = false;
     }
 
-    // 이전 달 장부 -> 당월 장부
+    // 신규 장부 초기화
+    public static MonthlyAccountLedger initialize(UUID accountId, String assetCode, AssetType assetType, String ledgerMonth, String baseCurrency) {
+        return new MonthlyAccountLedger(accountId, assetCode, assetType, ledgerMonth, baseCurrency);
+    }
+
+    // 이전 달 장부 -> 당월 장부 이월
     public static MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger prev, String currentMonth) {
         MonthlyAccountLedger ledger = new MonthlyAccountLedger();
         ledger.accountId = prev.getAccountId();
@@ -91,21 +99,19 @@ public class MonthlyAccountLedger extends BaseEntity{
         return ledger;
     }
 
-    // 매수
+    // 매수 (잔고 증가 및 평균 단가 갱신)
     public void addBalance(Money quantityToAdd, Money unitPrice) {
-        // 유효성 검증
         if (quantityToAdd == null || quantityToAdd.isNegative() || quantityToAdd.isZero()) {
             throw new IllegalArgumentException("Quantity must be positive and non-null");
         }
-        // 환율/단가 정보가 없는 경우 방어
         if (unitPrice == null || unitPrice.isNegative()) {
             throw new IllegalArgumentException("Unit price must be non-negative");
         }
 
-        // 기존 총 가치 = 현재 수량 * 현재 평균단가
+        // 기존 총 가치 = 현재 평균단가(Money) * 현재 수량(BigDecimal)
         Money totalCurrentValue = this.averageUnitPrice.multiply(this.balance.getAmount());
         
-        // 신규 매입 가치 = 추가 수량 * 신규 단가
+        // 신규 매입 가치 = 신규 단가(Money) * 추가 수량(BigDecimal)
         Money newAdditionValue = unitPrice.multiply(quantityToAdd.getAmount());
 
         // 수량 업데이트
@@ -114,29 +120,26 @@ public class MonthlyAccountLedger extends BaseEntity{
         // 새로운 평균 단가 = (기존 총 가치 + 신규 매입 가치) / 총 수량
         Money newTotalValue = totalCurrentValue.add(newAdditionValue);
         
-        // Money 객체의 divide 가 AssetType 에 맞게 HALF_EVEN 으로 안전하게 처리함
         this.averageUnitPrice = newTotalValue.divide(this.balance.getAmount());
     }
 
-    // 매도
+    // 매도 (잔고 감소)
     public Money subtractBalance(Money quantityToSubtract) {
-        // 음수 or 공백
-        if (quantityToSubtract.isNegative() || quantityToSubtract.isZero()) {
+        if (quantityToSubtract == null || quantityToSubtract.isNegative() || quantityToSubtract.isZero()) {
             throw new IllegalArgumentException("Invalid quantity to subtract");
         }
         
-        // 잔고 부족
         if (this.balance.compareTo(quantityToSubtract) < 0) {
             throw new IllegalArgumentException("Insufficient balance");
         }
         
-        // 매도
+        // 매도에 따른 수량 차감
         this.balance = this.balance.subtract(quantityToSubtract);
 
         // 전량 매도 시 평균 단가 초기화
         if (this.balance.isZero()) {
             Money lastAveragePrice = this.averageUnitPrice;
-            this.averageUnitPrice = Money.zero(this.averageUnitPrice.getAssetType());
+            this.averageUnitPrice = Money.zero(this.averageUnitPrice.getAssetType(), this.averageUnitPrice.getCurrencyCode());
             return lastAveragePrice;
         }
 

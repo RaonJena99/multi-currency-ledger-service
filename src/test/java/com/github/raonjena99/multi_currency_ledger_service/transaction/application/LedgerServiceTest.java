@@ -31,14 +31,14 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER"));
         
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "BTC", "KRW", "BUY", 
-            Money.of("1", AssetType.CRYPTO), 
-            Money.of("100000000", AssetType.FIAT), 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
-            Money.zero(AssetType.FIAT),
+            Money.zero(AssetType.FIAT, "KRW"),
             false
         );
 
@@ -58,11 +58,11 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER_2"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_2"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "ETH", "KRW", "BUY", 
-            Money.of("1", AssetType.CRYPTO), Money.of("3000000", AssetType.FIAT), BigDecimal.ONE, Money.zero(AssetType.FIAT),
+            Money.of("1", AssetType.CRYPTO, "KRW"), Money.of("3000000", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.zero(AssetType.FIAT, "KRW"),
             false
         );
 
@@ -79,14 +79,14 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER_3"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_3"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "BTC", "KRW", "SELL", 
-            Money.of("1", AssetType.CRYPTO), 
-            Money.of("100000000", AssetType.FIAT), 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
-            Money.of("50000000", AssetType.FIAT), // averageCost
+            Money.of("50000000", AssetType.FIAT, "KRW"), // averageCost
             true // isStaleRate
         );
 
@@ -105,12 +105,12 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER_4"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_4"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "BTC", "KRW", "SELL", 
-            Money.of("1", AssetType.CRYPTO), 
-            Money.of("100000000", AssetType.FIAT), 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
             null, // averageCost == null
             false 
@@ -124,8 +124,8 @@ class LedgerServiceTest extends IntegrationTestSupport {
         // OTHER type test (not BUY and not SELL)
         LedgerRecordingCommand command2 = new LedgerRecordingCommand(
             UUID.randomUUID(), accountId, "BTC", "KRW", "DEPOSIT", 
-            Money.of("1", AssetType.CRYPTO), 
-            Money.of("100000000", AssetType.FIAT), 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
             null,
             false 

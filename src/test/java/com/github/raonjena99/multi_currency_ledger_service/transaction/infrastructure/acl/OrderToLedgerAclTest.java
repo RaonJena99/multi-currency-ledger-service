@@ -32,7 +32,7 @@ class OrderToLedgerAclTest {
 
     @Test
     void persistOutboxEvent() throws Exception {
-        TradeExecutedEvent event = new TradeExecutedEvent(UUID.randomUUID(), UUID.randomUUID(), "KRW", "FIAT", "USD", "BUY", BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false);
+        TradeExecutedEvent event = new TradeExecutedEvent(UUID.randomUUID(), UUID.randomUUID(), "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType.FIAT, "USD", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, java.time.OffsetDateTime.now());
         when(jsonMapper.writeValueAsString(any())).thenReturn("{}");
         acl.persistOutboxEvent(event);
         verify(outboxRepository).save(any());
@@ -40,7 +40,7 @@ class OrderToLedgerAclTest {
 
     @Test
     void persistOutboxEvent_exception() throws Exception {
-        TradeExecutedEvent event = new TradeExecutedEvent(UUID.randomUUID(), UUID.randomUUID(), "KRW", "FIAT", "USD", "BUY", BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false);
+        TradeExecutedEvent event = new TradeExecutedEvent(UUID.randomUUID(), UUID.randomUUID(), "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType.FIAT, "USD", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, java.time.OffsetDateTime.now());
         when(jsonMapper.writeValueAsString(any())).thenThrow(new RuntimeException("error"));
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> acl.persistOutboxEvent(event))
             .isInstanceOf(RuntimeException.class);

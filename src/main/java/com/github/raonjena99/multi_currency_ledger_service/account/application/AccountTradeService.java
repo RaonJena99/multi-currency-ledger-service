@@ -49,9 +49,9 @@ public class AccountTradeService {
         var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, FIAT_CODE);
 
         TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, targetAssetCode, targetAssetType.name(), FIAT_CODE, "BUY", 
+            tradeId, accountId, targetAssetCode, targetAssetType, FIAT_CODE, com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, 
             buyQuantity.getAmount(), unitPrice.getAmount(), exchangeRate, BigDecimal.ZERO,
-            rateInfo.isStale()
+            rateInfo.isStale(), OffsetDateTime.now()
         );
         eventPublisher.publishEvent(event);
         
@@ -70,19 +70,20 @@ public class AccountTradeService {
 
         Money averageCost = targetAssetLedger.subtractBalance(sellQuantity);
         Money earnedFiatAmount = Money.of(
-            sellUnitPrice.multiply(sellQuantity.getAmount()).getAmount().toPlainString(),
-            AssetType.FIAT
+            sellQuantity.getAmount().multiply(sellUnitPrice.getAmount()).toPlainString(),
+            AssetType.FIAT,
+            FIAT_CODE
         );
-        fiatLedger.addBalance(earnedFiatAmount, Money.of("1", AssetType.FIAT));
+        fiatLedger.addBalance(earnedFiatAmount, Money.of("1", AssetType.FIAT, FIAT_CODE));
 
         UUID tradeId = UUID.randomUUID();
 
         var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, FIAT_CODE);
 
         TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, targetAssetCode, targetAssetType.name(), FIAT_CODE, "SELL", 
+            tradeId, accountId, targetAssetCode, targetAssetType, FIAT_CODE, com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.SELL, 
             sellQuantity.getAmount(), sellUnitPrice.getAmount(), rateInfo.rate(), averageCost.getAmount(),
-            rateInfo.isStale()
+            rateInfo.isStale(), OffsetDateTime.now()
         );
 
         eventPublisher.publishEvent(event);
