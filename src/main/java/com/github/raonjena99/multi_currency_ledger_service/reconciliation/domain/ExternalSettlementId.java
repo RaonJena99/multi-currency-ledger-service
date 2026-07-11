@@ -5,12 +5,22 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * ExternalSettlement(외부 정산) 엔티티의 복합 키(Composite Key)를 정의하는 클래스입니다.
+ * 식별자(UUID)와 정산 일자(settlementDate)를 조합하여 사용합니다.
+ */
 public class ExternalSettlementId implements Serializable {
     private UUID id;
     private OffsetDateTime settlementDate;
 
     protected ExternalSettlementId() {}
 
+    /**
+     * 복합 키를 초기화하는 생성자입니다.
+     * 
+     * @param id 정산 데이터 식별자 (UUID)
+     * @param settlementDate 정산 일자 (OffsetDateTime)
+     */
     public ExternalSettlementId(UUID id, OffsetDateTime settlementDate) {
         this.id = id;
         this.settlementDate = settlementDate;
