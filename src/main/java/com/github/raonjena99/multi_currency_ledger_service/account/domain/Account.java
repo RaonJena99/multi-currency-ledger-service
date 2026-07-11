@@ -37,14 +37,21 @@ public class Account extends BaseEntity implements Persistable<UUID> {
     @Column(nullable = false, length = 20)
     private AccountStatus status;
 
-    private Account(UUID id, String ownerName) {
+    @Column(name = "base_currency", nullable = false, length = 3)
+    private String baseCurrency;
+
+    private Account(UUID id, String ownerName, String baseCurrency) {
         Objects.requireNonNull(id, "Account ID cannot be null");
         if (ownerName == null || ownerName.isBlank()) {
             throw new IllegalArgumentException("Owner name cannot be null or blank");
         }
+        if (baseCurrency == null || baseCurrency.isBlank()) {
+            throw new IllegalArgumentException("Base currency cannot be null or blank");
+        }
         
         this.id = id;
         this.ownerName = ownerName;
+        this.baseCurrency = baseCurrency.toUpperCase();
         this.status = AccountStatus.ACTIVE;
     }
 
@@ -53,12 +60,13 @@ public class Account extends BaseEntity implements Persistable<UUID> {
      *
      * @param id 계좌의 고유 식별자 (UUID)
      * @param ownerName 계좌 소유주 이름
+     * @param baseCurrency 사용자의 기준 법정 화폐 (예: "KRW", "USD")
      * @return 생성된 Account(계좌) 엔티티 객체
-     * @throws IllegalArgumentException ownerName이 null이거나 비어있는 경우
+     * @throws IllegalArgumentException ownerName이나 baseCurrency가 null이거나 비어있는 경우
      * @throws NullPointerException id가 null인 경우
      */
-    public static Account open(UUID id, String ownerName) {
-        return new Account(id, ownerName);
+    public static Account open(UUID id, String ownerName, String baseCurrency) {
+        return new Account(id, ownerName, baseCurrency);
     }
 
     /**
