@@ -11,6 +11,10 @@ import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 
+/**
+ * 모든 도메인 엔티티의 공통 매핑 정보를 제공하는 BaseEntity(기본 엔티티) 클래스입니다.
+ * 생성 일시(createdAt)와 수정 일시(updatedAt)를 자동으로 관리합니다.
+ */
 @Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)

@@ -27,6 +27,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 원장의 개별 분개 항목을 나타내는 TransactionEntry(트랜잭션 엔트리) 엔티티입니다.
+ */
 @Entity
 @Table(name = "transaction_entries", indexes = {
     @Index(name = "idx_transaction_id", columnList = "transaction_id"),
@@ -101,15 +104,26 @@ public class TransactionEntry {
         this.unitPrice = unitPrice;
         this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
         
-        // 수량(BigDecimal) * 단가(Money) = 외화 가치(Money)
+        // 수량(BigDecimal) * 단가(Money) = 외화 가치(Money) 계산
         Money valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
-        // 외화 가치(Money) * 환율(BigDecimal) = 최종 환산 가치(Money)
+        // 외화 가치(Money) * 환율(BigDecimal) = 최종 환산 가치(Money) 계산
         Money finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
                                     
         this.amount = Money.of(finalCalculatedValue.getAmount(), AssetType.FIAT, baseCurrencyCode);
         this.realizedPnl = realizedPnl;
     }
 
+    /**
+     * 차변(Debit)에 기록되는 매수(Buy) 엔트리를 생성합니다.
+     * @param transaction 부모 Transaction(트랜잭션)
+     * @param accountId 계좌 ID
+     * @param assetCode 자산 코드
+     * @param buyQuantity 매수 수량
+     * @param buyPrice 매수 단가
+     * @param exchangeRate 환율
+     * @param baseCurrencyCode 기준 통화 코드
+     * @return 생성된 차변 TransactionEntry(트랜잭션 엔트리) 객체
+     */
     public static TransactionEntry createBuyEntry(
             Transaction transaction, UUID accountId, String assetCode, 
             Money buyQuantity, Money buyPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
@@ -122,6 +136,19 @@ public class TransactionEntry {
         );
     }
 
+    /**
+     * 대변(Credit)에 기록되는 매도(Sell) 엔트리를 생성합니다.
+     * 실현 손익(Realized PnL)도 함께 계산됩니다.
+     * @param transaction 부모 Transaction(트랜잭션)
+     * @param accountId 계좌 ID
+     * @param assetCode 자산 코드
+     * @param sellQuantity 매도 수량
+     * @param sellPrice 매도 단가
+     * @param exchangeRate 환율
+     * @param averageCost 평균 단가
+     * @param baseCurrencyCode 기준 통화 코드
+     * @return 생성된 대변 TransactionEntry(트랜잭션 엔트리) 객체
+     */
     public static TransactionEntry createSellEntry(
             Transaction transaction, UUID accountId, String assetCode, 
             Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost, String baseCurrencyCode) {

@@ -26,6 +26,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 외부 시스템(예: PG사, 은행 등)으로부터 수신한 정산 내역을 저장하는 엔티티(Entity) 클래스입니다.
+ */
 @Entity
 @Table(name = "external_settlement", 
     indexes = {
@@ -76,6 +79,16 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
     @Column(name = "matched_internal_transaction_id", length = 36)
     private UUID matchedInternalTransactionId;
 
+    /**
+     * 새로운 외부 정산 내역 엔티티를 생성합니다. 초기 상태는 대기(PENDING)로 설정됩니다.
+     * 
+     * @param externalReferenceId 외부 시스템에서 부여한 고유 참조 ID
+     * @param institutionCode 기관(PG사 등) 코드
+     * @param settlementDate 정산 발생 일시
+     * @param description 정산 적요/내역
+     * @param amount 정산 금액 (Money)
+     * @return 생성된 외부 정산 엔티티 (ExternalSettlement)
+     */
     public static ExternalSettlement create(String externalReferenceId, String institutionCode, 
                                             OffsetDateTime settlementDate, String description, Money amount) {
         ExternalSettlement settlement = new ExternalSettlement();
@@ -90,7 +103,9 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
     }
 
     /**
-     * 내부 거래 ID를 매핑하고 일치(MATCHED) 상태로 변경
+     * 내부 거래와 성공적으로 매칭된 경우 상태를 일치(MATCHED)로 변경하고 매칭된 내부 거래 ID를 기록합니다.
+     * 
+     * @param internalTransactionId 매칭된 내부 거래 ID (UUID)
      */
     public void markAsMatched(UUID internalTransactionId) {
         if (this.status != SettlementStatus.PENDING && this.status != SettlementStatus.UNMATCHED) {
@@ -101,7 +116,7 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
     }
 
     /**
-     * 대기(PENDING) 상태인 경우, 불일치(UNMATCHED) 상태로 변경
+     * 대기(PENDING) 상태에서 자동 대사에 실패한 경우, 불일치(UNMATCHED) 상태로 변경합니다.
      */
     public void markAsUnmatched() {
         if (this.status != SettlementStatus.PENDING) {
@@ -111,7 +126,9 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
     }
 
     /**
-     * 불일치(UNMATCHED) 상태인 경우, 내부 거래 ID를 매핑하고 수동 해제(MANUALLY_RESOLVED) 상태로 변경
+     * 불일치(UNMATCHED) 상태인 건을 관리자가 특정 내부 거래와 수동으로 강제 매핑하여 해결(MANUALLY_RESOLVED) 상태로 변경합니다.
+     * 
+     * @param internalTransactionId 수동으로 매칭할 내부 거래 ID (UUID)
      */
     public void resolveManually(UUID internalTransactionId) {
         if (this.status != SettlementStatus.UNMATCHED) {
