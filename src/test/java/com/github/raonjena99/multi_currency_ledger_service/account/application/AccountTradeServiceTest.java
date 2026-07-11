@@ -30,14 +30,14 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
     @Autowired private AccountTradeService accountTradeService;
     @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     @Autowired private AccountRepository accountRepository;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     @Autowired private ApplicationEvents applicationEvents;
     
     @Autowired private TransactionTemplate transactionTemplate;
 
     @AfterEach
     void tearDown() {
-        monthlyAccountLedgerRepository.deleteAllInBatch();
-        accountRepository.deleteAllInBatch();
+        jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transactions, transaction_entries, monthly_account_ledgers, accounts CASCADE");
     }
 
     @Test
@@ -48,15 +48,15 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
         transactionTemplate.execute(status -> {
-            accountRepository.save(new Account(accountId, "TEST_USER"));
-            MonthlyAccountLedger fiatLedger = new MonthlyAccountLedger(accountId, "KRW", AssetType.FIAT, currentMonth);
-            fiatLedger.addBalance(Money.of("50000000", AssetType.FIAT), Money.of("1", AssetType.FIAT));
+            accountRepository.save(Account.open(accountId, "TEST_USER"));
+            MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
+            fiatLedger.addBalance(Money.of("50000000", AssetType.FIAT, "KRW"), Money.of("1", AssetType.FIAT, "KRW"));
             monthlyAccountLedgerRepository.save(fiatLedger);
             return null;
         });
 
-        Money buyQuantity = Money.of("0.5", AssetType.CRYPTO);
-        Money unitPrice = Money.of("100000000", AssetType.FIAT); 
+        Money buyQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
+        Money unitPrice = Money.of("100000000", AssetType.FIAT, "KRW"); 
 
         // when
         UUID tradeId = accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, buyQuantity, unitPrice);
@@ -86,18 +86,18 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
         transactionTemplate.execute(status -> {
-            accountRepository.save(new Account(accountId, "TEST_USER"));
-            MonthlyAccountLedger fiatLedger = new MonthlyAccountLedger(accountId, "KRW", AssetType.FIAT, currentMonth);
+            accountRepository.save(Account.open(accountId, "TEST_USER"));
+            MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
             monthlyAccountLedgerRepository.save(fiatLedger);
             
-            MonthlyAccountLedger cryptoLedger = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, currentMonth);
-            cryptoLedger.addBalance(Money.of("1.0", AssetType.CRYPTO), Money.of("40000000", AssetType.FIAT));
+            MonthlyAccountLedger cryptoLedger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, currentMonth, "KRW");
+            cryptoLedger.addBalance(Money.of("1.0", AssetType.CRYPTO, "BTC"), Money.of("40000000", AssetType.FIAT, "KRW"));
             monthlyAccountLedgerRepository.save(cryptoLedger);
             return null;
         });
 
-        Money sellQuantity = Money.of("0.5", AssetType.CRYPTO);
-        Money unitPrice = Money.of("50000000", AssetType.FIAT); 
+        Money sellQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
+        Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW"); 
 
         // when
         UUID tradeId = accountTradeService.sellAsset(accountId, "BTC", AssetType.CRYPTO, sellQuantity, unitPrice);

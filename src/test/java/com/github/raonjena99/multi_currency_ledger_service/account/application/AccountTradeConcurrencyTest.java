@@ -31,13 +31,13 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
     @Autowired private AccountTradeService accountTradeService;
     @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     @Autowired private AccountRepository accountRepository;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     
     @Autowired private TransactionTemplate transactionTemplate;
 
     @AfterEach
     void tearDown() {
-        monthlyAccountLedgerRepository.deleteAllInBatch();
-        accountRepository.deleteAllInBatch();
+        jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transactions, transaction_entries, monthly_account_ledgers, accounts CASCADE");
     }
 
     @Test
@@ -48,13 +48,13 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
         transactionTemplate.execute(status -> {
-            accountRepository.save(new Account(accountId, "TEST_USER"));
+            accountRepository.save(Account.open(accountId, "TEST_USER"));
 
-            MonthlyAccountLedger fiatLedger = new MonthlyAccountLedger(accountId, "KRW", AssetType.FIAT, currentMonth);
-            fiatLedger.addBalance(Money.of("10000000000", AssetType.FIAT), Money.of("1", AssetType.FIAT));
+            MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
+            fiatLedger.addBalance(Money.of("10000000000", AssetType.FIAT, "KRW"), Money.of("1", AssetType.FIAT, "KRW"));
             monthlyAccountLedgerRepository.save(fiatLedger);
 
-            MonthlyAccountLedger btcLedger = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, currentMonth);
+            MonthlyAccountLedger btcLedger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, currentMonth, "KRW");
             monthlyAccountLedgerRepository.save(btcLedger);
             return null;
         });
@@ -66,8 +66,8 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger lockExceptionCount = new AtomicInteger(0);
 
-        Money buyQuantity = Money.of("1", AssetType.CRYPTO);
-        Money unitPrice = Money.of("50000000", AssetType.FIAT);
+        Money buyQuantity = Money.of("1", AssetType.CRYPTO, "BTC");
+        Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW");
 
         // when
         for (int i = 0; i < threadCount; i++) {
