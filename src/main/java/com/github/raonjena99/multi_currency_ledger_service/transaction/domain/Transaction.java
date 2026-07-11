@@ -3,7 +3,9 @@ package com.github.raonjena99.multi_currency_ledger_service.transaction.domain;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
@@ -46,51 +48,77 @@ public class Transaction implements org.springframework.data.domain.Persistable<
     @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransactionEntry> entries = new ArrayList<>();
 
-    public Transaction(UUID id, String transactionType, String description) {
+    private Transaction(UUID id, String transactionType, String description) {
         this.id = id;
         this.transactionType = transactionType;
         this.description = description;
         this.transactedAt = OffsetDateTime.now();
     }
 
+    // 기록
+    public static Transaction record(UUID id, String transactionType, String description) {
+        return new Transaction(id, transactionType, description);
+    }
+
     // 매수(차변) 분개 추가
-    public void addBuyEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate) {
-        TransactionEntry entry = TransactionEntry.createBuyEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate);
+    public void addBuyEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
+        TransactionEntry entry = TransactionEntry.createBuyEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, baseCurrencyCode);
         this.entries.add(entry);
     }
 
     // 매도(대변) 분개 추가
-    public void addSellEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate, Money averageCost) {
-        TransactionEntry entry = TransactionEntry.createSellEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, averageCost);
+    public void addSellEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate, Money averageCost, String baseCurrencyCode) {
+        TransactionEntry entry = TransactionEntry.createSellEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, averageCost, baseCurrencyCode);
         this.entries.add(entry);
     }
 
     // 이종 자산 간 복식부기 정합성 검증
     private void verifyDoubleEntry() {
-        BigDecimal totalDebit = BigDecimal.ZERO;
-        BigDecimal totalCredit = BigDecimal.ZERO;
+        Map<String, BigDecimal> debitBalances = new HashMap<>();
+        Map<String, BigDecimal> creditBalances = new HashMap<>();
 
         for (TransactionEntry entry : entries) {
-            // (수량 * 단가 * 환율) 연산을 마친 최종 기준 화폐(Fiat) 총액
+            String currency = entry.getAmount().getCurrencyCode();
             BigDecimal baseFiatValue = entry.getAmount().getAmount();
 
             if (entry.getEntryType() == EntryType.DEBIT) {
-                totalDebit = totalDebit.add(baseFiatValue);
-            } else {
-                totalCredit = totalCredit.add(baseFiatValue);
+                debitBalances.merge(currency, baseFiatValue, BigDecimal::add);
+            } else if (entry.getEntryType() == EntryType.CREDIT) {
+                creditBalances.merge(currency, baseFiatValue, BigDecimal::add);
             }
 
-            if (entry.getRealizedPnl() != null) {
-                totalCredit = totalCredit.add(entry.getRealizedPnl().getAmount());
+            // 대변에 가산하여 대차를 맞춤
+            if (entry.getRealizedPnl() != null && !entry.getRealizedPnl().isZero()) {
+                String pnlCurrency = entry.getRealizedPnl().getCurrencyCode();
+                BigDecimal pnlValue = entry.getRealizedPnl().getAmount();
+                creditBalances.merge(pnlCurrency, pnlValue, BigDecimal::add);
             }
         }
 
-        // 환산된 가치 기준으로 차변과 대변 일치 여부 확인
-        if (totalDebit.compareTo(totalCredit) != 0) {
-            throw new IllegalStateException(
-                String.format("Double-entry accounting error: Debits and Credits must balance in base fiat value. (Debit: %s, Credit: %s)", 
-                totalDebit.toPlainString(), totalCredit.toPlainString())
-            );
+        // 모든 통화에 대해 차변 == 대변 검증
+        for (String currency : debitBalances.keySet()) {
+            BigDecimal debit = debitBalances.getOrDefault(currency, BigDecimal.ZERO);
+            BigDecimal credit = creditBalances.getOrDefault(currency, BigDecimal.ZERO);
+            
+            if (debit.compareTo(credit) != 0) {
+                throw new IllegalStateException(
+                    String.format("Double-entry accounting error for currency [%s]: Debits and Credits must balance. (Debit: %s, Credit: %s)", 
+                    currency, debit.toPlainString(), credit.toPlainString())
+                );
+            }
+        }
+        
+        // 차변에는 없고 대변에만 존재하는 통화가 있는지도 교차 검증
+        for (String currency : creditBalances.keySet()) {
+            if (!debitBalances.containsKey(currency)) {
+                BigDecimal credit = creditBalances.get(currency);
+                if (credit.compareTo(BigDecimal.ZERO) != 0) {
+                    throw new IllegalStateException(
+                        String.format("Double-entry accounting error for currency [%s]: Credit exists without Debit. (Credit: %s)", 
+                        currency, credit.toPlainString())
+                    );
+                }
+            }
         }
     }
 

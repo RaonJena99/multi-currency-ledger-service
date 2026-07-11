@@ -15,33 +15,37 @@ class MoneyTest {
     @Test
     @DisplayName("생성자 - null 파라미터 예외")
     void constructor_null() {
-        assertThatThrownBy(() -> new Money(null, AssetType.FIAT))
+        assertThatThrownBy(() -> Money.of((BigDecimal) null, AssetType.FIAT, "KRW"))
             .isInstanceOf(IllegalArgumentException.class);
             
-        assertThatThrownBy(() -> new Money(BigDecimal.TEN, null))
+        assertThatThrownBy(() -> Money.of(BigDecimal.TEN, null, "KRW"))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> Money.of(BigDecimal.TEN, AssetType.FIAT, null))
             .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    @DisplayName("add/subtract - 다른 AssetType 예외")
+    @DisplayName("add/subtract - 다른 AssetType 또는 통화코드 예외")
     void typeMismatch_exception() {
-        Money fiat = Money.of("10", AssetType.FIAT);
-        Money crypto = Money.of("10", AssetType.CRYPTO);
+        Money fiatKrw = Money.of("10", AssetType.FIAT, "KRW");
+        Money fiatUsd = Money.of("10", AssetType.FIAT, "USD");
+        Money crypto = Money.of("10", AssetType.CRYPTO, "BTC");
         
-        assertThatThrownBy(() -> fiat.add(crypto))
+        assertThatThrownBy(() -> fiatKrw.add(crypto))
             .isInstanceOf(IllegalArgumentException.class);
             
-        assertThatThrownBy(() -> fiat.subtract(crypto))
+        assertThatThrownBy(() -> fiatKrw.subtract(fiatUsd))
             .isInstanceOf(IllegalArgumentException.class);
             
-        assertThatThrownBy(() -> fiat.compareTo(crypto))
+        assertThatThrownBy(() -> fiatKrw.compareTo(crypto))
             .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("divide - 0으로 나누기 예외")
     void divideByZero_exception() {
-        Money fiat = Money.of("10", AssetType.FIAT);
+        Money fiat = Money.of("10", AssetType.FIAT, "KRW");
         
         assertThatThrownBy(() -> fiat.divide(BigDecimal.ZERO))
             .isInstanceOf(ArithmeticException.class);
@@ -50,7 +54,7 @@ class MoneyTest {
     @Test
     @DisplayName("divide - 정상 처리")
     void divide() {
-        Money fiat = Money.of("10", AssetType.FIAT);
+        Money fiat = Money.of("10", AssetType.FIAT, "KRW");
         Money result = fiat.divide(new BigDecimal("2"));
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("5"));
     }
@@ -58,7 +62,7 @@ class MoneyTest {
     @Test
     @DisplayName("negate - 정상 처리")
     void negate() {
-        Money fiat = Money.of("10", AssetType.FIAT);
+        Money fiat = Money.of("10", AssetType.FIAT, "KRW");
         Money result = fiat.negate();
         assertThat(result.isNegative()).isTrue();
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("-10"));
@@ -67,18 +71,18 @@ class MoneyTest {
     @Test
     @DisplayName("isZero - 정상 처리")
     void isZero() {
-        assertThat(Money.zero(AssetType.FIAT).isZero()).isTrue();
-        assertThat(Money.of("0.00", AssetType.CRYPTO).isZero()).isTrue();
+        assertThat(Money.zero(AssetType.FIAT, "KRW").isZero()).isTrue();
+        assertThat(Money.of("0.00", AssetType.CRYPTO, "BTC").isZero()).isTrue();
     }
     
     @Test
     @DisplayName("compareTo - 정상 처리")
     void compareTo() {
-        Money m1 = Money.of("10", AssetType.FIAT);
-        Money m2 = Money.of("20", AssetType.FIAT);
+        Money m1 = Money.of("10", AssetType.FIAT, "KRW");
+        Money m2 = Money.of("20", AssetType.FIAT, "KRW");
         
         assertThat(m1.compareTo(m2)).isNegative();
         assertThat(m2.compareTo(m1)).isPositive();
-        assertThat(m1.compareTo(Money.of("10", AssetType.FIAT))).isZero();
+        assertThat(m1.compareTo(Money.of("10", AssetType.FIAT, "KRW"))).isZero();
     }
 }

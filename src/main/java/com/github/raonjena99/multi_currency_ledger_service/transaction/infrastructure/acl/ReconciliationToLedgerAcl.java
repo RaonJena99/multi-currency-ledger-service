@@ -32,9 +32,9 @@ public class ReconciliationToLedgerAcl {
                 "KRW",                                           
                 "FEE_DEDUCTION",                               
                 feeDifference,                                  
-                Money.of("1", feeDifference.getAssetType()), 
+                Money.of("1", feeDifference.getAssetType(), feeDifference.getCurrencyCode()),
                 BigDecimal.ONE,                                  
-                Money.of("0", feeDifference.getAssetType()),
+                Money.of("0", feeDifference.getAssetType(), feeDifference.getCurrencyCode()),
                 false
         );
 

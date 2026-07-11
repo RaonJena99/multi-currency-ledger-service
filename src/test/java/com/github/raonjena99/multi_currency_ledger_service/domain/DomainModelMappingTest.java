@@ -33,7 +33,7 @@ class DomainModelMappingTest extends IntegrationTestSupport {
     @DisplayName("DB 스키마 마이그레이션 및 도메인 모델 매핑 검증")
     void testDomainModelMappings() {
         // 1. Account (Persistable 검증)
-        Account account = new Account(UUID.randomUUID(), "테스트 유저");
+        Account account = Account.open(UUID.randomUUID(), "테스트 유저");
         accountRepository.saveAndFlush(account);
         assertThat(account.getCreatedAt()).isNotNull();
 
@@ -51,7 +51,7 @@ class DomainModelMappingTest extends IntegrationTestSupport {
         // 4. ExternalSettlement 타입 매핑 검증
         ExternalSettlement settlement = ExternalSettlement.create(
             "REF-1234", "INST-A", OffsetDateTime.now(), "Description", 
-            Money.zero(AssetType.FIAT), "KRW"
+            Money.zero(AssetType.FIAT, "KRW")
         );
         em.persist(settlement);
         em.flush();
