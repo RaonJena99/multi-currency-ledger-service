@@ -108,19 +108,12 @@ jobs:
           with open("README.md", "r", encoding="utf-8") as f:
               readme = f.read()
 
-          target_heading = "### 3. Class Diagram"
-
-          if target_heading in readme:
-              if "<details data-auto-diagram=\"true\">" in readme:
-                  new_readme = re.sub(r"\n<details data-auto-diagram=\"true\">.*?</details>\n", mermaid_block, readme, flags=re.DOTALL)
-              else:
-                  parts = readme.split(target_heading)
-                  new_readme = parts[0] + target_heading + "\n" + mermaid_block + parts[1]
-                  
+          if "<details data-auto-diagram=\"true\">" in readme:
+              new_readme = re.sub(r"\n<details data-auto-diagram=\"true\">.*?</details>\n", mermaid_block, readme, flags=re.DOTALL)
               with open("README.md", "w", encoding="utf-8") as f:
                   f.write(new_readme)
           else:
-              print(f"::error::README.md 파일에서 타겟 헤딩({target_heading})을 찾을 수 없습니다.")
+              print("::error::README.md 파일에서 <details data-auto-diagram=\"true\"> 태그를 찾을 수 없습니다.")
               sys.exit(1)
           '
 
