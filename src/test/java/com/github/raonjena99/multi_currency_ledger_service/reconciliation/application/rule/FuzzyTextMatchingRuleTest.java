@@ -22,8 +22,8 @@ class FuzzyTextMatchingRuleTest {
     void evaluate_empty() {
         FuzzyTextMatchingRule rule = new FuzzyTextMatchingRule();
         
-        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "!!", Money.of("10", AssetType.FIAT));
-        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.now(), "@@", Money.of("10", AssetType.FIAT));
+        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "!!", Money.of("10", AssetType.FIAT, "KRW"));
+        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.now(), "@@", Money.of("10", AssetType.FIAT, "KRW"));
         
         RuleResult result = rule.evaluate(ext, cand);
         assertThat(result.isPassed()).isTrue();
@@ -34,8 +34,8 @@ class FuzzyTextMatchingRuleTest {
     void evaluate_passed() {
         FuzzyTextMatchingRule rule = new FuzzyTextMatchingRule();
         
-        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "TOSS PAY", Money.of("10", AssetType.FIAT));
-        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.now(), "TOSS PAY", Money.of("10", AssetType.FIAT));
+        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "TOSS PAY", Money.of("10", AssetType.FIAT, "KRW"));
+        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.now(), "TOSS PAY", Money.of("10", AssetType.FIAT, "KRW"));
         
         RuleResult result = rule.evaluate(ext, cand);
         assertThat(result.isPassed()).isTrue();
@@ -46,8 +46,8 @@ class FuzzyTextMatchingRuleTest {
     void evaluate_failed() {
         FuzzyTextMatchingRule rule = new FuzzyTextMatchingRule();
         
-        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "TOSS PAY", Money.of("10", AssetType.FIAT));
-        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.now(), "NAVER PAY", Money.of("10", AssetType.FIAT));
+        ExternalSettlement ext = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "TOSS PAY", Money.of("10", AssetType.FIAT, "KRW"));
+        InternalTransactionCandidate cand = new InternalTransactionCandidate(UUID.randomUUID(), OffsetDateTime.now(), "NAVER PAY", Money.of("10", AssetType.FIAT, "KRW"));
         
         RuleResult result = rule.evaluate(ext, cand);
         assertThat(result.isPassed()).isFalse();
