@@ -35,7 +35,7 @@ public class LedgerService {
             log.warn("Fallback 환율이 적용된 거래가 원장에 기록됩니다. 향후 정산 대사(Reconciliation) 시 오차 허용 룰 엔진의 타겟이 됩니다. TradeID: {}", cmd.referenceTradeId());
         }
 
-        Transaction transaction = new Transaction(
+        Transaction transaction = Transaction.record(
             cmd.referenceTradeId(), 
             cmd.tradeType(), 
             description 
@@ -44,16 +44,16 @@ public class LedgerService {
         if ("BUY".equals(cmd.tradeType())) {
             Money requiredFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
             
-            transaction.addBuyEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), cmd.unitPrice(), cmd.exchangeRate());
+            transaction.addBuyEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), cmd.unitPrice(), cmd.exchangeRate(), cmd.fiatCode());
             transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), requiredFiatAmount, 
-                                    Money.of("1", AssetType.FIAT), BigDecimal.ONE, Money.of("1", AssetType.FIAT));
+                                    Money.of("1", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.of("1", AssetType.FIAT, "KRW"), cmd.fiatCode());
         } else if ("SELL".equals(cmd.tradeType())) {
             Money earnedFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
             
             transaction.addBuyEntry(cmd.accountId(), cmd.fiatCode(), earnedFiatAmount, 
-                                    Money.of("1", AssetType.FIAT), BigDecimal.ONE);
+                                    Money.of("1", AssetType.FIAT, "KRW"), BigDecimal.ONE, cmd.fiatCode());
             transaction.addSellEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), 
-                                    cmd.unitPrice(), cmd.exchangeRate(), cmd.averageCost());
+                                    cmd.unitPrice(), cmd.exchangeRate(), cmd.averageCost(), cmd.fiatCode());
         }
 
         transactionRepository.save(transaction);

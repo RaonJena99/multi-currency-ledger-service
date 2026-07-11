@@ -58,28 +58,32 @@ public class TransactionEntry {
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "quantity", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "quantity_asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "quantity_asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "quantity_currency", nullable = false, length = 10))
     })
     private Money quantity;
 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "unit_price", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "unit_price_asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "unit_price_asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "unit_price_currency", nullable = false, length = 10))
     })
     private Money unitPrice;
 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "amount", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "amount_asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "amount_asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "amount_currency", nullable = false, length = 10))
     })
     private Money amount;
 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "realized_pnl", precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "realized_pnl_asset_type", length = 20)) // NOT NULL 제외 (V2 스키마 참고)
+        @AttributeOverride(name = "assetType", column = @Column(name = "realized_pnl_asset_type", length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "realized_pnl_currency", length = 10))
     })
     private Money realizedPnl;
 
@@ -87,7 +91,7 @@ public class TransactionEntry {
     private BigDecimal exchangeRate;
 
     private TransactionEntry(Transaction transaction, UUID accountId, EntryType entryType, String assetCode, 
-                    Money quantity, Money unitPrice, BigDecimal exchangeRate, Money realizedPnl) {
+                    Money quantity, Money unitPrice, BigDecimal exchangeRate, Money realizedPnl, String baseCurrencyCode) {
         this.transaction = transaction;
         this.accountId = accountId;
         this.entryType = entryType;
@@ -97,29 +101,32 @@ public class TransactionEntry {
         this.unitPrice = unitPrice;
         this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
         
+        // 수량(BigDecimal) * 단가(Money) = 외화 가치(Money)
         Money valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
+        // 외화 가치(Money) * 환율(BigDecimal) = 최종 환산 가치(Money)
         Money finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
                                     
-        this.amount = Money.of(finalCalculatedValue.getAmount().toPlainString(), AssetType.FIAT);
+        this.amount = Money.of(finalCalculatedValue.getAmount(), AssetType.FIAT, baseCurrencyCode);
         this.realizedPnl = realizedPnl;
     }
 
     public static TransactionEntry createBuyEntry(
             Transaction transaction, UUID accountId, String assetCode, 
-            Money buyQuantity, Money buyPrice, BigDecimal exchangeRate) {
+            Money buyQuantity, Money buyPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
         
         return new TransactionEntry(
                 transaction, accountId, EntryType.DEBIT, assetCode, 
                 buyQuantity, buyPrice, exchangeRate, 
-                Money.zero(AssetType.FIAT) // NULL 방어용 초기화
+                Money.zero(AssetType.FIAT, baseCurrencyCode),
+                baseCurrencyCode
         );
     }
 
     public static TransactionEntry createSellEntry(
             Transaction transaction, UUID accountId, String assetCode, 
-            Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost) {
+            Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost, String baseCurrencyCode) {
         
-        Money pnl = Money.zero(AssetType.FIAT);
+        Money pnl = Money.zero(AssetType.FIAT, baseCurrencyCode);
         Money costPrice = sellPrice;
         
         if (averageCost != null) {
@@ -132,7 +139,8 @@ public class TransactionEntry {
                 sellQuantity, 
                 costPrice,
                 exchangeRate, 
-                pnl
+                pnl,
+                baseCurrencyCode
         );
     }
 }

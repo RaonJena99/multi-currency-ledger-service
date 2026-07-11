@@ -32,17 +32,17 @@ class ReconciliationResultWriterTest {
     @Test
     @DisplayName("write - 상태에 따른 markAsMatched 로직 분기 테스트")
     void write_statuses() throws Exception {
-        ExternalSettlement pending = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("10", AssetType.FIAT));
+        ExternalSettlement pending = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("10", AssetType.FIAT, "KRW"));
         
-        ExternalSettlement unmatched = ExternalSettlement.create("REF2", "TOSS", OffsetDateTime.now(), "DESC", Money.of("10", AssetType.FIAT));
+        ExternalSettlement unmatched = ExternalSettlement.create("REF2", "TOSS", OffsetDateTime.now(), "DESC", Money.of("10", AssetType.FIAT, "KRW"));
         unmatched.markAsUnmatched();
         
-        ExternalSettlement matched = ExternalSettlement.create("REF3", "TOSS", OffsetDateTime.now(), "DESC", Money.of("10", AssetType.FIAT));
+        ExternalSettlement matched = ExternalSettlement.create("REF3", "TOSS", OffsetDateTime.now(), "DESC", Money.of("10", AssetType.FIAT, "KRW"));
         matched.markAsMatched(UUID.randomUUID());
 
-        MatchedReconciliationResult r1 = new MatchedReconciliationResult(pending, UUID.randomUUID(), Money.zero(AssetType.FIAT));
-        MatchedReconciliationResult r2 = new MatchedReconciliationResult(unmatched, UUID.randomUUID(), Money.zero(AssetType.FIAT));
-        MatchedReconciliationResult r3 = new MatchedReconciliationResult(matched, UUID.randomUUID(), Money.zero(AssetType.FIAT));
+        MatchedReconciliationResult r1 = new MatchedReconciliationResult(pending, UUID.randomUUID(), Money.zero(AssetType.FIAT, "KRW"));
+        MatchedReconciliationResult r2 = new MatchedReconciliationResult(unmatched, UUID.randomUUID(), Money.zero(AssetType.FIAT, "KRW"));
+        MatchedReconciliationResult r3 = new MatchedReconciliationResult(matched, UUID.randomUUID(), Money.zero(AssetType.FIAT, "KRW"));
 
         Chunk<MatchedReconciliationResult> chunk = new Chunk<>(List.of(r1, r2, r3));
 

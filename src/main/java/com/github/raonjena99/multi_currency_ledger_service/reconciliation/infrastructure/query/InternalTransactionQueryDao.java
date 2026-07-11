@@ -49,7 +49,7 @@ public class InternalTransactionQueryDao {
                     transactedAt,
                     rs.getString("description"),
                     Money.of(rs.getBigDecimal("amount").stripTrailingZeros().toPlainString(), 
-                            AssetType.valueOf(rs.getString("asset_type")))
+                            AssetType.valueOf(rs.getString("asset_type")), "KRW")
                 );
             }
         );
