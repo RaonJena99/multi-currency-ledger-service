@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
 
 import jakarta.persistence.CascadeType;
@@ -124,7 +125,7 @@ public class Transaction implements org.springframework.data.domain.Persistable<
             BigDecimal credit = creditBalances.getOrDefault(currency, BigDecimal.ZERO);
             
             if (debit.compareTo(credit) != 0) {
-                throw new IllegalStateException(
+                throw new DoubleEntryImbalanceException(
                     String.format("Double-entry accounting error for currency [%s]: Debits and Credits must balance. (Debit: %s, Credit: %s)", 
                     currency, debit.toPlainString(), credit.toPlainString())
                 );
@@ -136,7 +137,7 @@ public class Transaction implements org.springframework.data.domain.Persistable<
             if (!debitBalances.containsKey(currency)) {
                 BigDecimal credit = creditBalances.get(currency);
                 if (credit.compareTo(BigDecimal.ZERO) != 0) {
-                    throw new IllegalStateException(
+                    throw new DoubleEntryImbalanceException(
                         String.format("Double-entry accounting error for currency [%s]: Credit exists without Debit. (Credit: %s)", 
                         currency, credit.toPlainString())
                     );

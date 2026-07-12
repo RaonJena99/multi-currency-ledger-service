@@ -8,6 +8,7 @@ import org.springframework.data.domain.Persistable;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidSettlementStateException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.SettlementStatus;
 
 import jakarta.persistence.AttributeOverride;
@@ -109,7 +110,7 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
      */
     public void markAsMatched(UUID internalTransactionId) {
         if (this.status != SettlementStatus.PENDING && this.status != SettlementStatus.UNMATCHED) {
-            throw new IllegalStateException("Only specifications in PENDING or UNMATCHED state can transition to MATCHED.");
+            throw new InvalidSettlementStateException("Only settlements in PENDING or UNMATCHED state can transition to MATCHED.");
         }
         this.status = SettlementStatus.MATCHED;
         this.matchedInternalTransactionId = Objects.requireNonNull(internalTransactionId);
@@ -120,7 +121,7 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
      */
     public void markAsUnmatched() {
         if (this.status != SettlementStatus.PENDING) {
-            throw new IllegalStateException("Only specifications in PENDING state can transition to UNMATCHED.");
+            throw new InvalidSettlementStateException("Only settlements in PENDING state can transition to UNMATCHED.");
         }
         this.status = SettlementStatus.UNMATCHED;
     }
@@ -132,7 +133,7 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
      */
     public void resolveManually(UUID internalTransactionId) {
         if (this.status != SettlementStatus.UNMATCHED) {
-            throw new IllegalStateException("Only specifications in UNMATCHED state can be manually resolved.");
+            throw new InvalidSettlementStateException("Only specifications in UNMATCHED state can be manually resolved.");
         }
         this.status = SettlementStatus.MANUALLY_RESOLVED;
         this.matchedInternalTransactionId = Objects.requireNonNull(internalTransactionId);

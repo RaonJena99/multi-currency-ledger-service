@@ -1,5 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.repository;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
@@ -41,7 +43,11 @@ class TransactionRepositoryTest extends IntegrationTestSupport {
 
         // 예외 검증
         assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
-                            .isInstanceOf(Exception.class)
-                            .hasRootCauseInstanceOf(IllegalStateException.class);
+            .satisfies(e -> {
+                boolean isMatch = e instanceof DoubleEntryImbalanceException || 
+                                  (e.getCause() != null && e.getCause() instanceof DoubleEntryImbalanceException) ||
+                                  (e.getCause() != null && e.getCause().getCause() != null && e.getCause().getCause() instanceof DoubleEntryImbalanceException);
+                assertThat(isMatch).isTrue();
+            });
     }
 }
