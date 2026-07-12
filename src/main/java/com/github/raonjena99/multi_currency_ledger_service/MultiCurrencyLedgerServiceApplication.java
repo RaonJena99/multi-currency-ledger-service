@@ -4,6 +4,7 @@ import java.util.TimeZone;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -13,6 +14,7 @@ import jakarta.annotation.PostConstruct;
  * MultiCurrencyLedgerServiceApplication(다중 통화 원장 서비스 애플리케이션)의 루트 실행 클래스입니다.
  * 비동기 처리 및 스케줄링 기능을 활성화합니다.
  */
+@EnableRetry 
 @EnableAsync
 @EnableScheduling
 @SpringBootApplication(excludeName = {

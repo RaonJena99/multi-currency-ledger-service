@@ -73,7 +73,7 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         for (int i = 0; i < threadCount; i++) {
             executorService.execute(() -> {
                 try {
-                    accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
+                    accountTradeService.buyAsset(UUID.randomUUID().toString(), accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
                     successCount.incrementAndGet();
                 } catch (ObjectOptimisticLockingFailureException e) {
                     lockExceptionCount.incrementAndGet();
@@ -88,12 +88,14 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         latch.await();
 
         // then
-        assertThat(successCount.get()).isEqualTo(1);
-        assertThat(lockExceptionCount.get()).isEqualTo(4);
+        // @Retryable 적용으로 인해 재시도가 발생하지만, maxAttempts(3) 초과 시 실패할 수 있으므로
+        // 성공한 횟수(successCount)만큼 잔고가 정확히 증가했는지(Lost Update가 없는지) 검증합니다.
+        int actualSuccesses = successCount.get();
+        assertThat(actualSuccesses).isGreaterThanOrEqualTo(1);
 
         transactionTemplate.execute(status -> {
             MonthlyAccountLedger fetchedBtcLedger = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", currentMonth).orElseThrow();
-            assertThat(fetchedBtcLedger.getBalance().getAmount()).isEqualByComparingTo("1");
+            assertThat(fetchedBtcLedger.getBalance().getAmount()).isEqualByComparingTo(String.valueOf(actualSuccesses));
             return null;
         });
     }
