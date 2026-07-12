@@ -5,12 +5,19 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.IdempotencyRecord;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.IdempotencyRecordRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DuplicateTradeRequestException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 
@@ -28,11 +35,13 @@ public class AccountTradeService {
     private final MonthlyLedgerResolver ledgerResolver; 
     private final ApplicationEventPublisher eventPublisher;
     private final ExchangeRateProvider exchangeRateProvider;
+    private final IdempotencyRecordRepository idempotencyRepository;
 
     /**
      * 특정 Account(계좌)에서 자산을 매수(Buy)하는 처리를 수행합니다.
      * 지정된 결제 통화(paymentCurrency) 잔고를 차감하고 대상 자산의 잔고와 평균 단가를 갱신한 뒤, TradeExecutedEvent(이벤트)를 발행합니다.
      *
+     * @param idempotencyKey 중복 방지를 위한 키
      * @param accountId 계좌 ID
      * @param targetAssetCode 매수할 대상 자산 코드
      * @param targetAssetType 매수할 대상 자산 유형
@@ -41,9 +50,20 @@ public class AccountTradeService {
      * @param unitPrice 매입 단가
      * @return 생성된 거래의 고유 식별자(Trade ID)
      */
+    @Retryable(
+        retryFor = OptimisticLockingFailureException.class, 
+        maxAttempts = 3, 
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
     @Transactional
-    public UUID buyAsset(UUID accountId, String targetAssetCode, AssetType targetAssetType, 
+    public UUID buyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
                         String paymentCurrency, Money buyQuantity, Money unitPrice) {
+
+        try {
+            idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
+        } catch (DataIntegrityViolationException e) {
+            throw new DuplicateTradeRequestException("이미 처리 중이거나 완료된 결제 요청입니다.");
+        }
         
         BigDecimal exchangeRate = BigDecimal.ONE;
         OffsetDateTime transactedAt = OffsetDateTime.now();
@@ -87,6 +107,11 @@ public class AccountTradeService {
      * @param sellUnitPrice 매도 단가
      * @return 생성된 거래의 고유 식별자(Trade ID)
      */
+    @Retryable(
+        retryFor = OptimisticLockingFailureException.class, 
+        maxAttempts = 3, 
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
     @Transactional
     public UUID sellAsset(UUID accountId, String targetAssetCode, AssetType targetAssetType, 
                         String paymentCurrency, Money sellQuantity, Money sellUnitPrice) {

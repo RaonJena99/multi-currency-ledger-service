@@ -59,7 +59,7 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         Money unitPrice = Money.of("100000000", AssetType.FIAT, "KRW"); 
 
         // when
-        UUID tradeId = accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
+        UUID tradeId = accountTradeService.buyAsset("idemp-test-1", accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
 
         // then
         transactionTemplate.execute(status -> {
