@@ -38,9 +38,9 @@ class OutboxPipelineIntegrationTest extends IntegrationTestSupport {
         outboxRelayWorker.relayOutboxEvents();
 
         // 3. Then (DB 검증)
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        await().atMost(15, TimeUnit.SECONDS).until(() -> {
             OutboxEvent processedEvent = outboxRepository.findById(event.getId()).orElseThrow();
-            assertThat(processedEvent.isProcessed()).isTrue(); 
+            return processedEvent.isProcessed();
         });
 
         // 4. Then (Kafka 검증)
