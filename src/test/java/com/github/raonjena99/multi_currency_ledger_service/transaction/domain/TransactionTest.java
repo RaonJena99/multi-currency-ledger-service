@@ -1,4 +1,5 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.domain;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,7 +53,7 @@ class TransactionTest {
 
         // when & then
         assertThatThrownBy(transaction::onPersist)
-            .isInstanceOf(IllegalStateException.class)
+            .isInstanceOf(DoubleEntryImbalanceException.class)
             .hasMessageContaining("Double-entry accounting error");
     }
 

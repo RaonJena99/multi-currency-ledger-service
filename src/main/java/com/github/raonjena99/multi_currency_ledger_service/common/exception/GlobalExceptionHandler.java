@@ -55,4 +55,43 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                 .body(new ErrorResponse("DOMAIN_RULE_VIOLATION", e.getMessage()));
     }
+
+    /**
+     * 계좌 상태가 유효하지 않을 때 (HTTP 422)
+     */
+    @ExceptionHandler(InvalidAccountStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAccountState(InvalidAccountStateException e) {
+        log.warn("Invalid account state: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .body(new ErrorResponse("INVALID_ACCOUNT_STATE", e.getMessage()));
+    }
+
+    /**
+     * 멱등성 충돌 - 중복된 결제 요청 시 (HTTP 409)
+     */
+    @ExceptionHandler(DuplicateTradeRequestException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateTradeRequest(DuplicateTradeRequestException e) {
+        log.warn("Duplicate trade request detected: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("DUPLICATE_REQUEST", e.getMessage()));
+    }
+    /**
+     * 정산 매칭 상태 전이 오류 (HTTP 422)
+     */
+    @ExceptionHandler(InvalidSettlementStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSettlementState(InvalidSettlementStateException e) {
+        log.warn("Invalid settlement state transition: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .body(new ErrorResponse("INVALID_SETTLEMENT_STATE", e.getMessage()));
+    }
+    /**
+     * 시스템 크리티컬 오류: 대차 불일치 (HTTP 500)
+     * 이 에러는 매우 심각한 상황이므로 Error 레벨로 로깅하여 모니터링 알람(Slack 등)을 유발해야 합니다.
+     */
+    @ExceptionHandler(DoubleEntryImbalanceException.class)
+    public ResponseEntity<ErrorResponse> handleDoubleEntryImbalance(DoubleEntryImbalanceException e) {
+        log.error("CRITICAL: Double-entry imbalance detected in ledger!", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("SYSTEM_CRITICAL_ERROR", "A fatal system error occurred while processing the ledger."));
+    }
 }
