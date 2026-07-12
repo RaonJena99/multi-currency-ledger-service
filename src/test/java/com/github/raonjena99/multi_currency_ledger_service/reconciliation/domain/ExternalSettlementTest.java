@@ -1,4 +1,5 @@
 package com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidSettlementStateException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.OffsetDateTime;
@@ -15,12 +16,12 @@ class ExternalSettlementTest {
     void state_transition_exceptions() {
         ExternalSettlement settlement = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "DESC", Money.of("1000", AssetType.FIAT, "KRW"));
         assertThatThrownBy(() -> settlement.resolveManually(UUID.randomUUID()))
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOf(InvalidSettlementStateException.class);
         settlement.markAsMatched(UUID.randomUUID());
         assertThatThrownBy(settlement::markAsUnmatched)
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOf(InvalidSettlementStateException.class);
         assertThatThrownBy(() -> settlement.markAsMatched(UUID.randomUUID()))
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOf(InvalidSettlementStateException.class);
     }
     
     @Test
