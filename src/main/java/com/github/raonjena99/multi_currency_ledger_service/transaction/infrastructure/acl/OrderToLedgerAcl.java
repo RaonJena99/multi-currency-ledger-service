@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.EventPublishingException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxEvent;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxMessageEvent;
@@ -62,7 +63,7 @@ public class OrderToLedgerAcl {
             outboxRepository.save(outboxEvent);
         } catch (Exception e) {
             log.error("Failed to translate/serialize TradeExecutedEvent", e);
-            throw new RuntimeException("Outbox serialization error", e);
+            throw new EventPublishingException("Outbox serialization error", e);
         }
     }
 
