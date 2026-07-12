@@ -67,6 +67,18 @@ dependencies {
     // Logback의 로그를 JSON 포맷으로 직렬화 (Longstash Logback Encoder)
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 
+    // 재시도 로직 지원 (Spring Retry)
+    implementation 'org.springframework.retry:spring-retry'
+
+    // AOP 지원 (Spring Aspects)
+    implementation 'org.springframework:spring-aspects'
+
+    // 분산 환경에서의 스케줄링 동기화 (ShedLock)
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:5.10.0'
+
+    // ShedLock의 JDBC Template 기반 구현체
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.10.0'
+
     // 핵심 테스트 프레임워크 (Boot Test)
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
