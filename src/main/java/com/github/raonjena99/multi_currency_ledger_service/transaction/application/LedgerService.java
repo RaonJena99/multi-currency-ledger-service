@@ -1,6 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.application;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -8,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.TransactionRepository;
@@ -70,6 +72,45 @@ public class LedgerService {
                                     cmd.unitPrice(), cmd.exchangeRate(), cmd.averageCost(), cmd.fiatCode());
         }
 
+        // 2. 외환 단수 차이(Rounding Difference) 계산
+        BigDecimal totalDebit = transaction.getEntries().stream()
+            .filter(e -> e.getEntryType() == EntryType.DEBIT)
+            .map(e -> e.getAmount().getAmount())
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalCredit = transaction.getEntries().stream()
+            .filter(e -> e.getEntryType() == EntryType.CREDIT)
+            .map(e -> e.getAmount().getAmount())
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+        // (매도 시) 대변에 함께 기록된 실현 손익(Realized PnL)도 대변 합계에 합산
+        BigDecimal totalRealizedPnl = transaction.getEntries().stream()
+            .filter(e -> e.getRealizedPnl() != null && !e.getRealizedPnl().isZero())
+            .map(e -> e.getRealizedPnl().getAmount())
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+        totalCredit = totalCredit.add(totalRealizedPnl);
+        // 차액 = 차변 - 대변
+        BigDecimal difference = totalDebit.subtract(totalCredit);
+        // 시스템 고유 계좌 ID
+        UUID systemAccountId = new UUID(0, 0); 
+
+        // 3. 차액이 발생한 경우 시스템 계정으로 Plug-in
+        if (difference.compareTo(BigDecimal.ZERO) > 0) {
+            // 차변 > 대변: 시스템 환차익 발생 -> 대변(Sell) 엔트리로 SYSTEM_FX_GAIN 추가
+            Money differenceMoney = Money.of(difference.toPlainString(), AssetType.FIAT, cmd.fiatCode());
+            transaction.addSellEntry(systemAccountId, "SYSTEM_FX_GAIN", differenceMoney,
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), BigDecimal.ONE, 
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), cmd.fiatCode());
+                                    
+        } else if (difference.compareTo(BigDecimal.ZERO) < 0) {
+            // 차변 < 대변: 시스템 환차손 발생 -> 차변(Buy) 엔트리로 SYSTEM_FX_LOSS 추가
+            Money differenceMoney = Money.of(difference.abs().toPlainString(), AssetType.FIAT, cmd.fiatCode());
+            transaction.addBuyEntry(systemAccountId, "SYSTEM_FX_LOSS", differenceMoney,
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), BigDecimal.ONE, cmd.fiatCode());
+        }
+
+        // 4. 트랜잭션 저장
         transactionRepository.save(transaction);
         log.info("Ledger successfully recorded for TradeID: {}", cmd.referenceTradeId());
     }
