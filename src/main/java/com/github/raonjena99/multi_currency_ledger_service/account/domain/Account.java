@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Persistable;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -84,9 +85,8 @@ public class Account extends BaseEntity implements Persistable<UUID> {
      * @throws IllegalStateException 이미 해지된(CLOSED) 계좌일 경우
      */
     public void suspend() {
-        // 이미 해지된 계좌는 상태를 변경할 수 없으므로 예외 발생
         if (this.status == AccountStatus.CLOSED) {
-            throw new IllegalStateException("Cannot suspend an already closed account");
+            throw new InvalidAccountStateException("Cannot suspend an already closed account");
         }
         this.status = AccountStatus.SUSPENDED;
     }
@@ -97,9 +97,8 @@ public class Account extends BaseEntity implements Persistable<UUID> {
      * @throws IllegalStateException 이미 해지된(CLOSED) 계좌일 경우
      */
     public void activate() {
-        // 이미 해지된 계좌는 복구할 수 없으므로 예외 발생
         if (this.status == AccountStatus.CLOSED) {
-            throw new IllegalStateException("Cannot reactivate a closed account");
+            throw new InvalidAccountStateException("Cannot reactivate a closed account");
         }
         this.status = AccountStatus.ACTIVE;
     }
