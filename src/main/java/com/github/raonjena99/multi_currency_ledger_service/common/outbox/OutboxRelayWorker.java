@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 
 /**
  * 데이터베이스에 저장된 OutboxEvent(아웃박스 이벤트)를 주기적으로 읽어와 메시지 브로커(Kafka)로 릴레이(Relay)하는 워커(Worker) 클래스입니다.
@@ -27,6 +28,7 @@ public class OutboxRelayWorker {
      * SKIP LOCKED를 사용하여 다중 인스턴스 환경에서도 데이터 경합 없이 안전하게 이벤트를 가져옵니다.
      */
     @Scheduled(fixedDelay = 5000)
+    @SchedulerLock(name = "outbox_relay_task", lockAtLeastFor = "PT2S", lockAtMostFor = "PT10S")
     @Transactional
     public void relayOutboxEvents() {
         // 미처리된 이벤트 중 최대 100건을 데이터베이스 락을 통해 선점하여 가져옴
