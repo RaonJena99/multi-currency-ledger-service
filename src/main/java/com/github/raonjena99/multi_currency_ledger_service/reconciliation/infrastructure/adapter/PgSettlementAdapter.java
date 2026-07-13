@@ -28,8 +28,8 @@ public class PgSettlementAdapter {
      * @return 외부 정산 데이터 DTO (ExternalSettlementDto)
      */
     @Timed(value = "external.api.pg_settlement.response", description = "Time taken to fetch settlement from PG")
-    @CircuitBreaker(name = "pgSettlementApi")
-    @Retry(name = "pgSettlementApi")
+    @CircuitBreaker(name = "pgSettlementApi", fallbackMethod = "fallbackSettlement")
+    @Retry(name = "pgSettlementApi", fallbackMethod = "fallbackSettlement")
     public ExternalSettlementDto fetchSettlement(String transactionId) {
         log.debug("외부 PG 정산망 데이터 Fetch 시도: {}", transactionId);
         
