@@ -62,10 +62,12 @@ resilience4j:
       # 1. 실시간 환율 및 시세 API 서킷 브레이커
       exchangeRateApi:
         registerHealthIndicator: true
-        slidingWindowType: COUNT_BASED
+        slidingWindowType: TIME_BASED
         slidingWindowSize: 10
         minimumNumberOfCalls: 5
         failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000ms
         waitDurationInOpenState: 5s
         permittedNumberOfCallsInHalfOpenState: 2
         automaticTransitionFromOpenToHalfOpenEnabled: true
@@ -73,10 +75,12 @@ resilience4j:
       # 2. PG사 정산 대사 API 서킷 브레이커
       pgSettlementApi:
         registerHealthIndicator: true
-        slidingWindowType: COUNT_BASED
-        slidingWindowSize: 50
-        minimumNumberOfCalls: 20
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
         failureRateThreshold: 30
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000ms
         waitDurationInOpenState: 30s
         permittedNumberOfCallsInHalfOpenState: 5
         automaticTransitionFromOpenToHalfOpenEnabled: true
