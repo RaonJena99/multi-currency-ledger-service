@@ -28,7 +28,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
 @DisplayName("동시성 테스트: AccountTradeService (낙관적 락 @Version 검증)")
 class AccountTradeConcurrencyTest extends IntegrationTestSupport {
 
-    @Autowired private AccountTradeService accountTradeService;
+    @Autowired private AccountTradeFacade accountTradeFacade;
     @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     @Autowired private AccountRepository accountRepository;
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -73,7 +73,7 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         for (int i = 0; i < threadCount; i++) {
             executorService.execute(() -> {
                 try {
-                    accountTradeService.buyAsset(UUID.randomUUID().toString(), accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
+                    accountTradeFacade.buyAsset(UUID.randomUUID().toString(), accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
                     successCount.incrementAndGet();
                 } catch (ObjectOptimisticLockingFailureException e) {
                     lockExceptionCount.incrementAndGet();

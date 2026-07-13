@@ -28,6 +28,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
 class AccountTradeServiceTest extends IntegrationTestSupport {
 
     @Autowired private AccountTradeService accountTradeService;
+    @Autowired private AccountTradeFacade accountTradeFacade;
     @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     @Autowired private AccountRepository accountRepository;
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -59,7 +60,7 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         Money unitPrice = Money.of("100000000", AssetType.FIAT, "KRW"); 
 
         // when
-        UUID tradeId = accountTradeService.buyAsset("idemp-test-1", accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
+        UUID tradeId = accountTradeFacade.buyAsset("idemp-test-1", accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
 
         // then
         transactionTemplate.execute(status -> {
@@ -100,7 +101,7 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW"); 
 
         // when
-        UUID tradeId = accountTradeService.sellAsset(accountId, "BTC", AssetType.CRYPTO, "KRW", sellQuantity, unitPrice);
+        UUID tradeId = accountTradeFacade.sellAsset("idemp-test-2", accountId, "BTC", AssetType.CRYPTO, "KRW", sellQuantity, unitPrice);
 
         // then
         transactionTemplate.execute(status -> {
