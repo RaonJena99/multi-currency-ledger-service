@@ -1,12 +1,16 @@
 package com.github.raonjena99.multi_currency_ledger_service.common.infrastructure.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +24,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,10 +60,12 @@ class LiveExchangeRateAdapterTest {
     }
 
     @Test
-    @DisplayName("getExchangeRate - API 500 에러 시 폴백되어 Redis에서 캐시 데이터 가져옴")
-    void testGetExchangeRate_FallbackToRedis() {
+    @DisplayName("getExchangeRate - API 500 에러 시 폴백되어 Redis에서 5분 이내 캐시 데이터 가져옴")
+    void testGetExchangeRate_FallbackToRedis() throws Exception {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn("3000000");
+        
+        String validCache = "3000000|" + Instant.now().toEpochMilli();
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(validCache);
 
         mockServer.expect(requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))
                 .andRespond(withServerError());
@@ -87,7 +94,7 @@ class LiveExchangeRateAdapterTest {
                 
         // Mock Redis exception
         org.mockito.Mockito.doThrow(new RuntimeException("Redis down"))
-            .when(valueOperations).set("ledger:exchange-rate:ETH:KRW", "3000000", java.time.Duration.ofDays(1));
+            .when(valueOperations).set(eq("ledger:exchange-rate:ETH:KRW"), anyString(), eq(java.time.Duration.ofDays(1)));
 
         ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
         
@@ -108,6 +115,20 @@ class LiveExchangeRateAdapterTest {
     }
 
     @Test
+    @DisplayName("fallbackExchangeRate - 5분이 지난 캐시는 ArbitrageRiskException을 던지며 차단된다")
+    void testFallbackExchangeRate_StaleCache_ThrowsException() throws Exception {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        String staleCache = "3000000|" + Instant.now().minus(Duration.ofMinutes(10)).toEpochMilli();
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(staleCache);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> {
+            adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
+        })
+        .isInstanceOf(ArbitrageRiskException.class);
+    }
+
+    @Test
     @DisplayName("fallbackExchangeRate - Redis 읽기 실패 시 1 반환")
     void testFallbackExchangeRate_RedisReadException() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -121,9 +142,11 @@ class LiveExchangeRateAdapterTest {
 
     @Test
     @DisplayName("getExchangeRate - API 응답이 null일 때 Fallback 호출")
-    void testGetExchangeRate_EmptyApiResponse() {
+    void testGetExchangeRate_EmptyApiResponse() throws Exception {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn("3000000");
+        
+        String validCache = "3000000|" + Instant.now().toEpochMilli();
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(validCache);
 
         // Return empty body
         mockServer.expect(requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))

@@ -2,12 +2,14 @@ package com.github.raonjena99.multi_currency_ledger_service.common.infrastructur
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.Instant;
 
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -25,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class LiveExchangeRateAdapter implements ExchangeRateProvider {
-
+    
     private final RestClient restClient;
     private final StringRedisTemplate redisTemplate;
 
@@ -35,10 +37,6 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
     /**
      * 외부 API를 호출하여 두 자산 간의 환율을 조회합니다.
      * API 호출 실패 시 Resilience4j의 설정에 따라 재시도(Retry)하며, 최종 실패 시 폴백(Fallback)을 실행합니다.
-     *
-     * @param baseAsset   기준 자산 코드
-     * @param targetAsset 대상 자산 코드
-     * @return 실시간 환율 정보를 담은 ExchangeRate(환율) 레코드
      */
     @Override
     @Timed(value = "external.api.exchange_rate.response", description = "Time taken to fetch exchange rate")
@@ -59,8 +57,9 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
 
         if (rate != null) {
             try {
-                // API 응답 성공 시, 성능 향상 및 장애 대비를 위해 Redis에 환율 값을 캐싱 (TTL 적용)
-                redisTemplate.opsForValue().set(cacheKey, rate.toPlainString(), CACHE_TTL);
+                // API 응답 성공 시, 성능 향상 및 장애 대비를 위해 Redis에 환율 값과 타임스탬프를 캐싱 (TTL 적용)
+                String cacheValue = rate.toPlainString() + "|" + Instant.now().toEpochMilli();
+                redisTemplate.opsForValue().set(cacheKey, cacheValue, CACHE_TTL);
             } catch (Exception e) {
                 // Redis 캐시 저장 실패는 핵심 비즈니스 로직에 영향을 주지 않으므로 에러 로그만 남김
                 log.error("Redis 분산 스토어 쓰기 실패 (인프라 글리치): {}", e.getMessage());
@@ -72,12 +71,6 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
 
     /**
      * 외부 API 호출 실패 시 동작하는 최후의 복원력 방어선(Fallback) 메서드입니다.
-     * Redis 캐시에서 과거의 환율 데이터를 가져와 제한적인 성능 저하(Graceful Degradation) 모드로 동작합니다.
-     *
-     * @param baseAsset   기준 자산 코드
-     * @param targetAsset 대상 자산 코드
-     * @param t           발생한 예외 객체
-     * @return 캐시된 환율 정보 또는 기본값을 담은 ExchangeRate(환율) 레코드 (isStale = true)
      */
     public ExchangeRate fallbackExchangeRate(String baseAsset, String targetAsset, Throwable t) {
         String cacheKey = CACHE_KEY_PREFIX + baseAsset + ":" + targetAsset;
@@ -87,9 +80,23 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
         try {
             // API 장애 시 Redis에 저장된 최신 캐시 데이터를 조회하여 시스템 마비를 방지함
             String cachedValue = redisTemplate.opsForValue().get(cacheKey);
-            if (cachedValue != null) {
+            if (cachedValue != null && cachedValue.contains("|")) {
+                String[] parts = cachedValue.split("\\|");
+                BigDecimal cachedRate = new BigDecimal(parts[0]);
+                Instant cachedAt = Instant.ofEpochMilli(Long.parseLong(parts[1]));
+    
+                // 캐시된 지 5분이 넘었는지 검사 (Hard-Limit)
+                if (Duration.between(cachedAt, Instant.now()).toMinutes() > 5) {
+                    throw new ArbitrageRiskException("환율 데이터 만료(5분 초과). 재정적 손실 방지를 위해 거래를 원천 차단합니다.");
+                }
+
+                return new ExchangeRate(cachedRate, true);
+            } else if (cachedValue != null) {
+                // 구버전 캐시 데이터 호환성 (타임스탬프 없는 데이터)
                 return new ExchangeRate(new BigDecimal(cachedValue), true);
             }
+        } catch (ArbitrageRiskException e) {
+            throw e; 
         } catch (Exception e) {
             log.error("Redis 분산 스토어 읽기 실패 (Redis 클러스터 다운): {}", e.getMessage());
         }
