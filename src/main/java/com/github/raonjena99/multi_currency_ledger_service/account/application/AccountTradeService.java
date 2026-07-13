@@ -32,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AccountTradeService {
     
-    private final MonthlyLedgerResolver ledgerResolver; 
     private final ApplicationEventPublisher eventPublisher;
     private final ExchangeRateProvider exchangeRateProvider;
     private final IdempotencyRecordRepository idempotencyRepository;
@@ -56,8 +55,9 @@ public class AccountTradeService {
         backoff = @Backoff(delay = 100, multiplier = 2.0)
     )
     @Transactional
-    public UUID buyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                        String paymentCurrency, Money buyQuantity, Money unitPrice) {
+    public UUID executeBuyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
+                                String paymentCurrency, Money buyQuantity, Money unitPrice, 
+                                MonthlyAccountLedger targetAssetLedger, MonthlyAccountLedger fiatLedger) {
 
         try {
             idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
@@ -66,11 +66,6 @@ public class AccountTradeService {
         }
         
         BigDecimal exchangeRate = BigDecimal.ONE;
-        OffsetDateTime transactedAt = OffsetDateTime.now();
-
-        // 매수할 자산과 결제 수단인 법정 화폐에 대한 당월 MonthlyAccountLedger(월별 계좌 원장) 조회 혹은 초기화
-        MonthlyAccountLedger targetAssetLedger = ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, transactedAt);
-        MonthlyAccountLedger fiatLedger = ledgerResolver.resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, transactedAt);
 
         // 결제에 필요한 법정 화폐 금액 계산 = 매입 단가 * 매수 수량
         Money requiredFiatAmount = unitPrice.multiply(buyQuantity.getAmount()); 
@@ -113,14 +108,15 @@ public class AccountTradeService {
         backoff = @Backoff(delay = 100, multiplier = 2.0)
     )
     @Transactional
-    public UUID sellAsset(UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                        String paymentCurrency, Money sellQuantity, Money sellUnitPrice) {
-        
-        OffsetDateTime transactedAt = OffsetDateTime.now();
-        
-        // 매도할 자산과 수익금을 반영할 법정 화폐에 대한 당월 MonthlyAccountLedger(월별 계좌 원장) 조회 혹은 초기화
-        MonthlyAccountLedger targetAssetLedger = ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, transactedAt);
-        MonthlyAccountLedger fiatLedger = ledgerResolver.resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, transactedAt);
+    public UUID executeSellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
+                                 String paymentCurrency, Money sellQuantity, Money sellUnitPrice,
+                                 MonthlyAccountLedger targetAssetLedger, MonthlyAccountLedger fiatLedger) {
+                
+        try {
+            idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
+        } catch (DataIntegrityViolationException e) {
+            throw new DuplicateTradeRequestException("이미 처리 중이거나 완료된 매도 요청입니다.");
+        }
 
         // 매도 자산 잔고 차감 및 당시 평균 단가 계산
         Money averageCost = targetAssetLedger.subtractBalance(sellQuantity);
