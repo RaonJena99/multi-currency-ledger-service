@@ -3,6 +3,11 @@ package com.github.raonjena99.multi_currency_ledger_service.common.infrastructur
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -52,9 +57,17 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
         try {
             // 외부 API 호출 전, Redis 캐시를 먼저 조회하여 불필요한 네트워크 통신 최소화
             String cachedValue = redisTemplate.opsForValue().get(cacheKey);
+
             if (cachedValue != null && cachedValue.contains("|")) {
                 String[] parts = cachedValue.split("\\|");
-                return new ExchangeRate(new BigDecimal(parts[0]), false);
+                Instant cachedAt = Instant.ofEpochMilli(Long.parseLong(parts[1]));
+
+                // 5분 이내 데이터인 경우
+                if (Duration.between(cachedAt, Instant.now()).toMinutes() <= 5) {
+                    return new ExchangeRate(new BigDecimal(parts[0]), false);
+                }
+
+                log.info("캐시된 환율 데이터가 5분 이상 지연되었습니다. 실시간 API를 재조회합니다.");
             } else if (cachedValue != null) {
                 return new ExchangeRate(new BigDecimal(cachedValue), false);
             }
@@ -114,15 +127,15 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
             log.error("Redis 분산 스토어 읽기 실패 (Redis 클러스터 다운): {}", e.getMessage());
         }
 
-        // 캐시 데이터마저 없을 경우, 최후의 수단으로 1:1 비율을 반환하여 시스템 에러를 방지
-        return new ExchangeRate(BigDecimal.ONE, true);
+        log.error("외부 환율 API 다운 및 Redis 캐시 고갈");
+        throw new IllegalStateException("환율 데이터를 확보할 수 없습니다: " + targetAsset);
     }
 
     @Override
-    public java.util.Map<String, ExchangeRate> getExchangeRates(java.util.List<String> targetAssets, String baseAsset) {
-        java.util.Map<String, ExchangeRate> resultMap = new java.util.HashMap<>();
-        java.util.List<String> missingTargets = new java.util.ArrayList<>();
-        java.util.List<String> cacheKeys = new java.util.ArrayList<>();
+    public Map<String, ExchangeRate> getExchangeRates(List<String> targetAssets, String baseAsset) {
+        Map<String, ExchangeRate> resultMap = new HashMap<>();
+        List<String> missingTargets = new ArrayList<>();
+        List<String> cacheKeys = new ArrayList<>();
 
         for (String target : targetAssets) {
             if (baseAsset.equals(target)) {
@@ -134,9 +147,9 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
         }
 
         try {
-            java.util.List<String> keysToFetch = cacheKeys.stream().filter(java.util.Objects::nonNull).toList();
+            List<String> keysToFetch = cacheKeys.stream().filter(Objects::nonNull).toList();
             if (!keysToFetch.isEmpty()) {
-                java.util.List<String> cachedValues = redisTemplate.opsForValue().multiGet(keysToFetch);
+                List<String> cachedValues = redisTemplate.opsForValue().multiGet(keysToFetch);
                 int fetchIndex = 0;
                 for (int i = 0; i < targetAssets.size(); i++) {
                     String target = targetAssets.get(i);

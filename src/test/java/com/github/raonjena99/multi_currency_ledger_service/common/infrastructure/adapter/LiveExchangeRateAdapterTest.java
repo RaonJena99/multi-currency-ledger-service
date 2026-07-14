@@ -103,15 +103,15 @@ class LiveExchangeRateAdapterTest {
     }
 
     @Test
-    @DisplayName("fallbackExchangeRate - 캐시가 비어있으면 1 반환")
+    @DisplayName("fallbackExchangeRate - 캐시가 비어있으면 IllegalStateException 발생")
     void testFallbackExchangeRate_EmptyCache() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(null);
 
-        ExchangeRate result = adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
-
-        assertThat(result.rate()).isEqualByComparingTo(BigDecimal.ONE);
-        assertThat(result.isStale()).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> {
+            adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
+        })
+        .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -129,15 +129,15 @@ class LiveExchangeRateAdapterTest {
     }
 
     @Test
-    @DisplayName("fallbackExchangeRate - Redis 읽기 실패 시 1 반환")
+    @DisplayName("fallbackExchangeRate - Redis 읽기 실패 시 IllegalStateException 발생")
     void testFallbackExchangeRate_RedisReadException() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenThrow(new RuntimeException("Redis read down"));
 
-        ExchangeRate result = adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
-
-        assertThat(result.rate()).isEqualByComparingTo(BigDecimal.ONE);
-        assertThat(result.isStale()).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> {
+            adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
+        })
+        .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
