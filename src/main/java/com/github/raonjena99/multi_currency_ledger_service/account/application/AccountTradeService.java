@@ -2,6 +2,7 @@ package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -20,6 +21,7 @@ import com.github.raonjena99.multi_currency_ledger_service.account.infrastructur
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.DuplicateTradeRequestException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 
 import lombok.RequiredArgsConstructor;
@@ -46,10 +48,10 @@ public class AccountTradeService {
      * @param accountId 계좌 ID
      * @param targetAssetCode 매수할 대상 자산 코드
      * @param targetAssetType 매수할 대상 자산 유형
-     * @param paymentCurrency 결제에 사용할 법정 화폐 코드 (예: USD, KRW)
+     * @param paymentCurrency 결제에 사용할 법정 화폐 코드
      * @param buyQuantity 매수 수량
      * @param unitPrice 매입 단가
-     * @return 생성된 거래의 고유 식별자(Trade ID)
+     * @return 생성된 거래의 고유 식별자
      */
     @Retryable(
         retryFor = OptimisticLockingFailureException.class, 
@@ -58,8 +60,7 @@ public class AccountTradeService {
     )
     @Transactional
     public UUID executeBuyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                                String paymentCurrency, Money buyQuantity, Money unitPrice, 
-                                MonthlyAccountLedger targetAssetLedger, MonthlyAccountLedger fiatLedger) {
+                                String paymentCurrency, Money buyQuantity, Money unitPrice, OffsetDateTime transactedAt) {
 
         try {
             idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
@@ -67,7 +68,18 @@ public class AccountTradeService {
             throw new DuplicateTradeRequestException("이미 처리 중이거나 완료된 결제 요청입니다.");
         }
         
-        BigDecimal exchangeRate = BigDecimal.ONE;
+        String targetMonth = transactedAt.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+
+        // 최신 버전 원장 조회
+        MonthlyAccountLedger targetAssetLedger = monthlyAccountLedgerRepository
+        .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, targetAssetCode, targetMonth)
+        .orElseThrow();
+        MonthlyAccountLedger fiatLedger = monthlyAccountLedgerRepository
+        .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, paymentCurrency, targetMonth)
+        .orElseThrow();
+
+        var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
+        BigDecimal exchangeRate = rateInfo.rate();
 
         // 결제에 필요한 법정 화폐 금액 계산 = 매입 단가 * 매수 수량
         Money requiredFiatAmount = unitPrice.multiply(buyQuantity.getAmount()); 
@@ -81,12 +93,10 @@ public class AccountTradeService {
 
         UUID tradeId = UUID.randomUUID();
 
-        var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
-
         // 잔고 반영 후 거래 성공 이벤트 생성 및 발행
         TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, 
-            buyQuantity.getAmount(), unitPrice.getAmount(), rateInfo.rate(), BigDecimal.ZERO,
+            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, TradeType.BUY, 
+            buyQuantity.getAmount(), unitPrice.getAmount(), exchangeRate, BigDecimal.ZERO,
             rateInfo.isStale(), OffsetDateTime.now()
         );
         eventPublisher.publishEvent(event);
@@ -102,10 +112,10 @@ public class AccountTradeService {
      * @param accountId 계좌 ID
      * @param targetAssetCode 매도할 대상 자산 코드
      * @param targetAssetType 매도할 대상 자산 유형
-     * @param paymentCurrency 결제로 받을 법정 화폐 코드 (예: USD, KRW)
+     * @param paymentCurrency 결제로 받을 법정 화폐 코드
      * @param sellQuantity 매도 수량
      * @param sellUnitPrice 매도 단가
-     * @return 생성된 거래의 고유 식별자(Trade ID)
+     * @return 생성된 거래의 고유 식별자
      */
     @Retryable(
         retryFor = OptimisticLockingFailureException.class, 
@@ -114,14 +124,23 @@ public class AccountTradeService {
     )
     @Transactional
     public UUID executeSellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                                 String paymentCurrency, Money sellQuantity, Money sellUnitPrice,
-                                 MonthlyAccountLedger targetAssetLedger, MonthlyAccountLedger fiatLedger) {
+                                 String paymentCurrency, Money sellQuantity, Money sellUnitPrice, OffsetDateTime transactedAt) {
                 
         try {
             idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
         } catch (DataIntegrityViolationException e) {
             throw new DuplicateTradeRequestException("이미 처리 중이거나 완료된 매도 요청입니다.");
         }
+
+        String targetMonth = transactedAt.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+
+        // 최신 버전 원장 조회
+        MonthlyAccountLedger targetAssetLedger = monthlyAccountLedgerRepository
+        .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, targetAssetCode, targetMonth)
+        .orElseThrow();
+        MonthlyAccountLedger fiatLedger = monthlyAccountLedgerRepository
+        .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, paymentCurrency, targetMonth)
+        .orElseThrow();
 
         // 매도 자산 잔고 차감 및 당시 평균 단가 계산
         Money averageCost = targetAssetLedger.subtractBalance(sellQuantity);
@@ -132,7 +151,7 @@ public class AccountTradeService {
             AssetType.FIAT,
             paymentCurrency
         );
-        // 수익금을 법정 화폐 원장에 반영 (법정 화폐이므로 단가는 1)
+        // 수익금을 법정 화폐 원장에 반영
         fiatLedger.addBalance(earnedFiatAmount, Money.of("1", AssetType.FIAT, paymentCurrency));
 
         monthlyAccountLedgerRepository.save(fiatLedger);
@@ -144,7 +163,7 @@ public class AccountTradeService {
 
         // 잔고 반영 후 거래 성공 이벤트 생성 및 발행
         TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.SELL, 
+            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, TradeType.SELL, 
             sellQuantity.getAmount(), sellUnitPrice.getAmount(), rateInfo.rate(), averageCost.getAmount(),
             rateInfo.isStale(), OffsetDateTime.now()
         );

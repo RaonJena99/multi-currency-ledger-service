@@ -32,8 +32,10 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
     @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     @Autowired private AccountRepository accountRepository;
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
-    
     @Autowired private TransactionTemplate transactionTemplate;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider exchangeRateProvider;
 
     @AfterEach
     void tearDown() {
@@ -68,6 +70,9 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
 
         Money buyQuantity = Money.of("1", AssetType.CRYPTO, "BTC");
         Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW");
+
+        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));
 
         // when
         for (int i = 0; i < threadCount; i++) {
