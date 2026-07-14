@@ -55,6 +55,9 @@ public class OutboxEvent extends BaseEntity{
     @Column(name = "dead_letter", nullable = false)
     private boolean deadLetter = false;
 
+    @Column(name = "correlation_id", length = 100)
+    private String correlationId;
+
     /**
      * OutboxEvent 객체를 생성합니다.
      *
@@ -62,12 +65,14 @@ public class OutboxEvent extends BaseEntity{
      * @param aggregateId   애그리거트의 고유 식별자
      * @param eventType     이벤트 유형(토픽 이름 등)
      * @param payload       전송할 JSON 또는 직렬화된 이벤트 데이터
+     * @param correlationId 상호 연관성 있는 이벤트 식별자
      */
-    public OutboxEvent(String aggregateType, String aggregateId, String eventType, String payload) {
+    public OutboxEvent(String aggregateType, String aggregateId, String eventType, String payload, String correlationId) {
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.payload = payload;
+        this.correlationId = correlationId;
     }
 
     /**
