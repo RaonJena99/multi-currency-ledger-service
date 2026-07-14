@@ -36,6 +36,9 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
     
     @Autowired private TransactionTemplate transactionTemplate;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider exchangeRateProvider;
+
     @AfterEach
     void tearDown() {
         jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transactions, transaction_entries, monthly_account_ledgers, accounts CASCADE");
@@ -58,6 +61,9 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
 
         Money buyQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
         Money unitPrice = Money.of("100000000", AssetType.FIAT, "KRW"); 
+
+        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));
 
         // when
         UUID tradeId = accountTradeFacade.buyAsset("idemp-test-1", accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
@@ -99,6 +105,9 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
 
         Money sellQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
         Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW"); 
+
+        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));
 
         // when
         UUID tradeId = accountTradeFacade.sellAsset("idemp-test-2", accountId, "BTC", AssetType.CRYPTO, "KRW", sellQuantity, unitPrice);

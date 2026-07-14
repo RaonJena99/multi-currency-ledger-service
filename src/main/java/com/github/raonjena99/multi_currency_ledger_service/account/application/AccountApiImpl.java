@@ -11,6 +11,9 @@ import com.github.raonjena99.multi_currency_ledger_service.account.infrastructur
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * 이 클래스는 계좌의 기본 통화 정보를 조회하는 기능을 담당합니다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
