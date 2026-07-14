@@ -31,7 +31,7 @@ class OutboxPipelineIntegrationTest extends IntegrationTestSupport {
     @DisplayName("아웃박스 이벤트가 발행되면 워커가 이를 읽어 Kafka로 전송하고 완료 처리한다")
     void shouldRelayOutboxEventToKafkaAndMarkAsProcessed() {
         // 1. Given
-        OutboxEvent event = new OutboxEvent("Account", "ACC-1234", "ACCOUNT_CREATED", "{\"status\":\"ACTIVE\"}");
+        OutboxEvent event = new OutboxEvent("Account", "ACC-1234", "ACCOUNT_CREATED", "{\"status\":\"ACTIVE\"}", "test-corr-id");
         outboxRepository.save(event);
 
         // 2. When
