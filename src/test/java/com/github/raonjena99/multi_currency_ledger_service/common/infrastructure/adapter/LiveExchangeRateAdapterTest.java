@@ -146,10 +146,10 @@ class LiveExchangeRateAdapterTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         
         String validCache = "3000000|" + Instant.now().toEpochMilli();
-        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(validCache);
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(null, validCache);
 
-        // Return empty body
-        mockServer.expect(requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))
+        // Return empty body (allow multiple due to retry)
+        mockServer.expect(org.springframework.test.web.client.ExpectedCount.manyTimes(), org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))
                 .andRespond(withSuccess("", MediaType.APPLICATION_JSON));
 
         ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
