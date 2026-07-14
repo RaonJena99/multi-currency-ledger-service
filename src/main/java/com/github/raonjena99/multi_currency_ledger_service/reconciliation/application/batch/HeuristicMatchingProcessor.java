@@ -3,10 +3,8 @@ package com.github.raonjena99.multi_currency_ledger_service.reconciliation.appli
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
@@ -49,19 +47,6 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     }
 
     private List<InternalTransactionCandidate> getCandidatesForDate(LocalDate date) {
-        // 캐시 OOM 방지를 위해, 가장 최근 처리한 일자 기준으로 ±5일 범위를 벗어나는 오래된/너무 미래의 캐시는 삭제합니다.
-        if (latestTargetDate == null || date.isAfter(latestTargetDate) || date.isBefore(latestTargetDate)) {
-            latestTargetDate = date;
-            
-            List<LocalDate> keysToRemove = new ArrayList<>();
-            for (LocalDate k : dailyCandidatesCache.keySet()) {
-                if (k.isBefore(latestTargetDate.minusDays(5)) || k.isAfter(latestTargetDate.plusDays(5))) {
-                    keysToRemove.add(k);
-                }
-            }
-            keysToRemove.forEach(dailyCandidatesCache::remove);
-        }
-
         return dailyCandidatesCache.computeIfAbsent(date, d -> {
             log.debug("Lazy loading internal transaction candidates for date: {}", d);
             OffsetDateTime startOfDay = d.atStartOfDay().atOffset(java.time.ZoneOffset.UTC);
@@ -82,6 +67,18 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     public MatchedReconciliationResult process(ExternalSettlement external) {
 
         LocalDate targetDate = external.getSettlementDate().toLocalDate();
+
+        if (latestTargetDate == null || !targetDate.equals(latestTargetDate)) {
+            latestTargetDate = targetDate;
+            List<LocalDate> keysToRemove = new ArrayList<>();
+            for (LocalDate k : dailyCandidatesCache.keySet()) {
+                if (k.isBefore(latestTargetDate.minusDays(5)) || k.isAfter(latestTargetDate.plusDays(5))) {
+                    keysToRemove.add(k);
+                }
+            }
+            keysToRemove.forEach(dailyCandidatesCache::remove);
+        }
+        
         List<InternalTransactionCandidate> searchSpace = new ArrayList<>();
 
         // 대상 일자의 전후 3일(총 7일) 범위 내에 있는 거래 후보들을 검색 공간(searchSpace)으로 구성합니다.

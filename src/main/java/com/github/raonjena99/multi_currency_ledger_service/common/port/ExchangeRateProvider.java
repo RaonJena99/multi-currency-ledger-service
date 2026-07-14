@@ -1,6 +1,9 @@
 package com.github.raonjena99.multi_currency_ledger_service.common.port;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 외부 환율 API 연동 및 시스템 복원력(Resilience4j) 적용을 위한 ExchangeRateProvider(환율 제공자) 포트(Port) 인터페이스입니다.
@@ -23,8 +26,8 @@ public interface ExchangeRateProvider {
      * @param baseAsset 기준 자산 코드
      * @return 각 자산 코드별 환율 정보 Map
      */
-    default java.util.Map<String, ExchangeRate> getExchangeRates(java.util.List<String> targetAssets, String baseAsset) {
-        java.util.Map<String, ExchangeRate> resultMap = new java.util.HashMap<>();
+    default Map<String, ExchangeRate> getExchangeRates(List<String> targetAssets, String baseAsset) {
+        java.util.Map<String, ExchangeRate> resultMap = new HashMap<>();
         for (String target : targetAssets) {
             resultMap.put(target, getExchangeRate(baseAsset, target));
         }
