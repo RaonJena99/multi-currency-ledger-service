@@ -21,7 +21,7 @@ class KafkaProducerListenerTest {
         when(template.send(anyString(), anyString())).thenReturn(future);
 
         KafkaProducerListener listener = new KafkaProducerListener(template);
-        listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload"));
+        listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload", "test-corr-id"));
 
         verify(template).send("topic", "payload");
     }
@@ -34,7 +34,7 @@ class KafkaProducerListenerTest {
         when(template.send(anyString(), anyString())).thenReturn(future);
 
         KafkaProducerListener listener = new KafkaProducerListener(template);
-        assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload")))
+        assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload", "test-corr-id")))
             .isInstanceOf(RuntimeException.class);
     }
 
@@ -46,7 +46,7 @@ class KafkaProducerListenerTest {
         when(future.get(3, java.util.concurrent.TimeUnit.SECONDS)).thenThrow(new InterruptedException());
 
         KafkaProducerListener listener = new KafkaProducerListener(template);
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload")))
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload", "test-corr-id")))
             .isInstanceOf(RuntimeException.class);
     }
 }

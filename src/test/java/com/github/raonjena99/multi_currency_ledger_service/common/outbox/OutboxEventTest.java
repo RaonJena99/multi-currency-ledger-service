@@ -8,7 +8,7 @@ class OutboxEventTest {
 
     @Test
     void recordFailure_variousBranches() {
-        OutboxEvent event = new OutboxEvent("Type", "ID", "Event", "Payload");
+        OutboxEvent event = new OutboxEvent("Type", "ID", "Event", "Payload", "test-corr-id");
         
         // Branch 1: error == null
         event.recordFailure(null);
