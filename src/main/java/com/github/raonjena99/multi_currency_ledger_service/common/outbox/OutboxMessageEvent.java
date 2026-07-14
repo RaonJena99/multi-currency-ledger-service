@@ -5,5 +5,6 @@ package com.github.raonjena99.multi_currency_ledger_service.common.outbox;
  *
  * @param eventType 목적지 토픽 또는 이벤트 유형
  * @param payload   발행할 실제 메시지 내용
+ * @param correlationId 상호 연관성 있는 이벤트 식별자
  */
-public record OutboxMessageEvent(String eventType, String payload) {}
+public record OutboxMessageEvent(String eventType, String payload, String correlationId) {}

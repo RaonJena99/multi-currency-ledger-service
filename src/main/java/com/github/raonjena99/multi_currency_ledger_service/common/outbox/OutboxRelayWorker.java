@@ -37,7 +37,7 @@ public class OutboxRelayWorker {
         for (OutboxEvent event : events) {
             try {
                 // Spring 내부 이벤트를 통해 Kafka 프로듀서 리스너로 전달하여 실제 발행 수행
-                eventPublisher.publishEvent(new OutboxMessageEvent(event.getEventType(), event.getPayload()));
+                eventPublisher.publishEvent(new OutboxMessageEvent(event.getEventType(), event.getPayload(), event.getCorrelationId()));
                 // 발행이 성공하면 이벤트 상태를 처리됨(Processed)으로 변경
                 event.markAsProcessed();
             } catch (Exception e) {

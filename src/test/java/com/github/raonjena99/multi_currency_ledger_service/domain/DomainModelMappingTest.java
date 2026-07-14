@@ -38,7 +38,7 @@ class DomainModelMappingTest extends IntegrationTestSupport {
         assertThat(account.getCreatedAt()).isNotNull();
 
         // 2. OutboxEvent (Sequence 검증 및 BaseEntity 상속 확인)
-        OutboxEvent outboxEvent = new OutboxEvent("Account", account.getId().toString(), "CREATED", "{}");
+        OutboxEvent outboxEvent = new OutboxEvent("Account", account.getId().toString(), "CREATED", "{}", "test-corr-id");
         em.persist(outboxEvent);
         em.flush();
         assertThat(outboxEvent.getId()).isNotNull();

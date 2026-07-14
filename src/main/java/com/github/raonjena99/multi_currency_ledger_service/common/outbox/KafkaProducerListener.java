@@ -4,6 +4,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.slf4j.MDC;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,10 @@ public class KafkaProducerListener {
         log.info("Initiating Kafka message dispatch. Topic: [{}], Payload Size: {}", topic, payload.length());
 
         try {
+            if (event.correlationId() != null) {
+                MDC.put("correlationId", event.correlationId());
+            }
+
             // Kafka 프로듀서 전송 결과를 최대 3초 대기하여, 인프라 이슈로 인한 무한 블로킹을 방지
             kafkaTemplate.send(topic, payload).get(3, TimeUnit.SECONDS);
             log.info("Successfully dispatched message to Kafka topic [{}]", topic);
@@ -46,6 +51,8 @@ public class KafkaProducerListener {
             // 네트워크 순단 혹은 브로커 응답 지연 발생 시 Outbox 릴레이 루프에서 재시도할 수 있도록 예외 전파
             log.error("Critical connection or broker timeout during Kafka send on topic [{}]", topic, e);
             throw new RuntimeException("Triggering outbox failure logging due to Kafka infrastructure error", e);
+        } finally {
+            MDC.remove("correlationId"); 
         }
     }
 }
