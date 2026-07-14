@@ -47,7 +47,7 @@ public class PgSettlementAdapter {
         
         // 프로메테우스 지표 수집: 폴백 카운트 증가
         meterRegistry.counter("external.api.fallback.count", "api", "pgSettlement").increment();
-        // 빈(Empty) 형태의 DTO를 반환하여 대사 매칭 실패(Dead Letter)로 자연스럽게 라우팅 유도
-        return new ExternalSettlementDto(transactionId, null, null, null, "FALLBACK_STATUS", null);
+
+        throw new RuntimeException("PG API 호출 실패로 인한 Fallback", t);
     }
 }
