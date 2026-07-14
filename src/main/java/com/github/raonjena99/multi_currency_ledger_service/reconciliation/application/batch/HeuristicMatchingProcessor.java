@@ -36,7 +36,8 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     private final List<MatchingRule> rules;
     private final String startOfMonthStr;
 
-    private Map<LocalDate, List<InternalTransactionCandidate>> monthlyCandidatesCache;
+    private Map<LocalDate, List<InternalTransactionCandidate>> dailyCandidatesCache = new java.util.HashMap<>();
+    private LocalDate latestTargetDate = null;
 
     public HeuristicMatchingProcessor(
             InternalTransactionQueryDao queryDao,
@@ -47,17 +48,26 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         this.startOfMonthStr = startOfMonthStr;
     }
 
-    private void initCacheIfNeeded() {
-        if (this.monthlyCandidatesCache == null) {
-            log.info("Initializing monthly candidates cache for month: {}", startOfMonthStr);
-            // JobParameter로 전달받은 월 시작일을 기준으로 한 달(1개월) 범위의 내부 거래 후보들을 조회합니다.
-            OffsetDateTime startOfMonth = OffsetDateTime.parse(startOfMonthStr);
-            OffsetDateTime endOfMonth = startOfMonth.plusMonths(1);
-            List<InternalTransactionCandidate> rawCandidates = queryDao.fetchCandidatesForPeriod(startOfMonth, endOfMonth);
-            // 조회된 후보들을 거래 발생 일자(LocalDate) 기준으로 그룹화하여 캐싱 맵을 생성합니다.
-            this.monthlyCandidatesCache = rawCandidates.stream()
-                .collect(Collectors.groupingBy(c -> c.transactedAt().toLocalDate()));
+    private List<InternalTransactionCandidate> getCandidatesForDate(LocalDate date) {
+        // 캐시 OOM 방지를 위해, 가장 최근 처리한 일자 기준으로 ±5일 범위를 벗어나는 오래된/너무 미래의 캐시는 삭제합니다.
+        if (latestTargetDate == null || date.isAfter(latestTargetDate) || date.isBefore(latestTargetDate)) {
+            latestTargetDate = date;
+            
+            List<LocalDate> keysToRemove = new ArrayList<>();
+            for (LocalDate k : dailyCandidatesCache.keySet()) {
+                if (k.isBefore(latestTargetDate.minusDays(5)) || k.isAfter(latestTargetDate.plusDays(5))) {
+                    keysToRemove.add(k);
+                }
+            }
+            keysToRemove.forEach(dailyCandidatesCache::remove);
         }
+
+        return dailyCandidatesCache.computeIfAbsent(date, d -> {
+            log.debug("Lazy loading internal transaction candidates for date: {}", d);
+            OffsetDateTime startOfDay = d.atStartOfDay().atOffset(java.time.ZoneOffset.UTC);
+            OffsetDateTime endOfDay = startOfDay.plusDays(1);
+            return queryDao.fetchCandidatesForPeriod(startOfDay, endOfDay);
+        });
     }
 
     /**
@@ -70,14 +80,13 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
      */
     @Override
     public MatchedReconciliationResult process(ExternalSettlement external) {
-        initCacheIfNeeded();
 
         LocalDate targetDate = external.getSettlementDate().toLocalDate();
         List<InternalTransactionCandidate> searchSpace = new ArrayList<>();
 
         // 대상 일자의 전후 3일(총 7일) 범위 내에 있는 거래 후보들을 검색 공간(searchSpace)으로 구성합니다.
         for (int i = -3; i <= 3; i++) {
-            searchSpace.addAll(monthlyCandidatesCache.getOrDefault(targetDate.plusDays(i), Collections.emptyList()));
+            searchSpace.addAll(getCandidatesForDate(targetDate.plusDays(i)));
         }
 
         InternalTransactionCandidate bestMatch = null;
