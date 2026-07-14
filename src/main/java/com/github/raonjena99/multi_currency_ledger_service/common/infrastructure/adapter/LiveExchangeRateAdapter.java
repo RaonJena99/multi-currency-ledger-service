@@ -49,6 +49,19 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
 
         String cacheKey = CACHE_KEY_PREFIX + baseAsset + ":" + targetAsset;
 
+        try {
+            // 외부 API 호출 전, Redis 캐시를 먼저 조회하여 불필요한 네트워크 통신 최소화
+            String cachedValue = redisTemplate.opsForValue().get(cacheKey);
+            if (cachedValue != null && cachedValue.contains("|")) {
+                String[] parts = cachedValue.split("\\|");
+                return new ExchangeRate(new BigDecimal(parts[0]), false);
+            } else if (cachedValue != null) {
+                return new ExchangeRate(new BigDecimal(cachedValue), false);
+            }
+        } catch (Exception e) {
+            log.warn("Redis 캐시 읽기 실패. 실시간 API 조회를 시도합니다: {}", e.getMessage());
+        }
+
         // 외부 API를 통해 실시간 시장 환율 데이터를 조회
         BigDecimal rate = restClient.get()
                 .uri("/api/v1/market-data/rates?base={base}&target={target}", baseAsset, targetAsset)
@@ -103,5 +116,56 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
 
         // 캐시 데이터마저 없을 경우, 최후의 수단으로 1:1 비율을 반환하여 시스템 에러를 방지
         return new ExchangeRate(BigDecimal.ONE, true);
+    }
+
+    @Override
+    public java.util.Map<String, ExchangeRate> getExchangeRates(java.util.List<String> targetAssets, String baseAsset) {
+        java.util.Map<String, ExchangeRate> resultMap = new java.util.HashMap<>();
+        java.util.List<String> missingTargets = new java.util.ArrayList<>();
+        java.util.List<String> cacheKeys = new java.util.ArrayList<>();
+
+        for (String target : targetAssets) {
+            if (baseAsset.equals(target)) {
+                resultMap.put(target, new ExchangeRate(BigDecimal.ONE, false));
+                cacheKeys.add(null);
+            } else {
+                cacheKeys.add(CACHE_KEY_PREFIX + baseAsset + ":" + target);
+            }
+        }
+
+        try {
+            java.util.List<String> keysToFetch = cacheKeys.stream().filter(java.util.Objects::nonNull).toList();
+            if (!keysToFetch.isEmpty()) {
+                java.util.List<String> cachedValues = redisTemplate.opsForValue().multiGet(keysToFetch);
+                int fetchIndex = 0;
+                for (int i = 0; i < targetAssets.size(); i++) {
+                    String target = targetAssets.get(i);
+                    if (baseAsset.equals(target)) continue;
+
+                    String cachedValue = cachedValues.get(fetchIndex++);
+                    if (cachedValue != null && cachedValue.contains("|")) {
+                        String[] parts = cachedValue.split("\\|");
+                        resultMap.put(target, new ExchangeRate(new BigDecimal(parts[0]), false));
+                    } else if (cachedValue != null) {
+                        resultMap.put(target, new ExchangeRate(new BigDecimal(cachedValue), false));
+                    } else {
+                        missingTargets.add(target);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis multiGet 실패. 개별 조회를 시도합니다: {}", e.getMessage());
+            for (String target : targetAssets) {
+                if (!baseAsset.equals(target) && !resultMap.containsKey(target)) {
+                    missingTargets.add(target);
+                }
+            }
+        }
+
+        for (String missingTarget : missingTargets) {
+            resultMap.put(missingTarget, getExchangeRate(baseAsset, missingTarget));
+        }
+
+        return resultMap;
     }
 }
