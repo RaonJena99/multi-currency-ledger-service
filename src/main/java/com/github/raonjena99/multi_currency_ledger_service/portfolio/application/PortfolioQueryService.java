@@ -48,9 +48,12 @@ public class PortfolioQueryService {
         
         List<AssetDetailDto> dtos = new ArrayList<>(portfolios.size());
 
+        List<String> targetAssets = portfolios.stream().map(CurrentPortfolio::getAssetCode).toList();
+        java.util.Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
+
         for (CurrentPortfolio p : portfolios) {
-            // 현재 시장 환율 정보를 조회하여 자산의 현재 가치를 계산합니다.
-            var rateInfo = exchangeRateProvider.getExchangeRate(p.getAssetCode(), baseCurrency);
+            // 미리 조회한 시장 환율 정보를 사용하여 자산의 현재 가치를 계산합니다.
+            var rateInfo = exchangeRates.get(p.getAssetCode());
             BigDecimal currentMarketPrice = rateInfo.rate();
 
             // 총 가치(Total Value) 및 미실현 손익(Unrealized PnL) 계산

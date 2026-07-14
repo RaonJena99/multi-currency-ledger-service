@@ -57,10 +57,10 @@ class PortfolioQueryServiceTest {
 
         when(portfolioQueryRepository.findAllByAccountId(accountId)).thenReturn(List.of(btc, eth));
 
-        when(exchangeRateProvider.getExchangeRate("BTC", "KRW"))
-                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), false));
-        when(exchangeRateProvider.getExchangeRate("ETH", "KRW"))
-                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("3000000"), false));
+        java.util.Map<String, ExchangeRateProvider.ExchangeRate> mockRates = new java.util.HashMap<>();
+        mockRates.put("BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), false));
+        mockRates.put("ETH", new ExchangeRateProvider.ExchangeRate(new BigDecimal("3000000"), false));
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC", "ETH"), "KRW")).thenReturn(mockRates);
 
         // when
         PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
@@ -90,8 +90,9 @@ class PortfolioQueryServiceTest {
 
         when(portfolioQueryRepository.findAllByAccountId(accountId)).thenReturn(List.of(btc));
 
-        when(exchangeRateProvider.getExchangeRate("BTC", "KRW"))
-                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), true));
+        java.util.Map<String, ExchangeRateProvider.ExchangeRate> mockRates = new java.util.HashMap<>();
+        mockRates.put("BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), true));
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC"), "KRW")).thenReturn(mockRates);
 
         PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
 
