@@ -16,6 +16,7 @@ import com.github.raonjena99.multi_currency_ledger_service.account.domain.Idempo
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.IdempotencyRecordRepository;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.DuplicateTradeRequestException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
@@ -35,6 +36,7 @@ public class AccountTradeService {
     private final ApplicationEventPublisher eventPublisher;
     private final ExchangeRateProvider exchangeRateProvider;
     private final IdempotencyRecordRepository idempotencyRepository;
+    private final MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
 
     /**
      * 특정 Account(계좌)에서 자산을 매수(Buy)하는 처리를 수행합니다.
@@ -74,6 +76,9 @@ public class AccountTradeService {
         fiatLedger.subtractBalance(requiredFiatAmount);
         targetAssetLedger.addBalance(buyQuantity, unitPrice);
 
+        monthlyAccountLedgerRepository.save(fiatLedger);
+        monthlyAccountLedgerRepository.save(targetAssetLedger);
+
         UUID tradeId = UUID.randomUUID();
 
         var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
@@ -81,7 +86,7 @@ public class AccountTradeService {
         // 잔고 반영 후 거래 성공 이벤트 생성 및 발행
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, 
-            buyQuantity.getAmount(), unitPrice.getAmount(), exchangeRate, BigDecimal.ZERO,
+            buyQuantity.getAmount(), unitPrice.getAmount(), rateInfo.rate(), BigDecimal.ZERO,
             rateInfo.isStale(), OffsetDateTime.now()
         );
         eventPublisher.publishEvent(event);
@@ -129,6 +134,9 @@ public class AccountTradeService {
         );
         // 수익금을 법정 화폐 원장에 반영 (법정 화폐이므로 단가는 1)
         fiatLedger.addBalance(earnedFiatAmount, Money.of("1", AssetType.FIAT, paymentCurrency));
+
+        monthlyAccountLedgerRepository.save(fiatLedger);
+        monthlyAccountLedgerRepository.save(targetAssetLedger);
 
         UUID tradeId = UUID.randomUUID();
 
