@@ -2,8 +2,8 @@ package com.github.raonjena99.multi_currency_ledger_service.transaction.infrastr
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -14,22 +14,27 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.event.ReconciliationFeeAdjustedEvent;
-import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService;
+
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 class ReconciliationToLedgerAclTest {
-    @Mock private LedgerService ledgerService;
+    @Mock private OutboxRepository outboxRepository;
+    @Mock private JsonMapper jsonMapper;
     @InjectMocks private ReconciliationToLedgerAcl acl;
 
     @Test
-    void handle_firesRecordDoubleEntry() {
+    void handle_firesRecordDoubleEntry() throws Exception {
         UUID settlementId = UUID.randomUUID();
         Money feeDifference = Money.of("10", AssetType.FIAT, "KRW");
         ReconciliationFeeAdjustedEvent event = ReconciliationFeeAdjustedEvent.of(settlementId, UUID.randomUUID(), UUID.randomUUID(), feeDifference);
         
+        when(jsonMapper.writeValueAsString(any())).thenReturn("{}");
+
         acl.handle(event);
         
-        verify(ledgerService).recordDoubleEntry(any());
+        verify(outboxRepository).save(any());
     }
 }
