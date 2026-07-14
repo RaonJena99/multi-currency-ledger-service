@@ -152,12 +152,21 @@ public class Transaction implements org.springframework.data.domain.Persistable<
         verifyDoubleEntry();
     }
 
+    @jakarta.persistence.Transient
+    private boolean isNew = true;
+
+    @jakarta.persistence.PostPersist
+    @jakarta.persistence.PostLoad
+    protected void markNotNew() {
+        this.isNew = false;
+    }
+
     /**
      * 엔티티가 새로운 상태인지 여부를 반환합니다.
-     * @return 항상 true 반환
+     * @return isNew 필드 상태
      */
     @Override
     public boolean isNew() {
-        return true;
+        return isNew;
     }
 }
