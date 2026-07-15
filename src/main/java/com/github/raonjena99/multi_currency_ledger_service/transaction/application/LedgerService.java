@@ -70,16 +70,28 @@ public class LedgerService {
             // 대변(Credit): 매도한 자산 감소 기록
             transaction.addSellEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), 
                                     cmd.unitPrice(), cmd.exchangeRate(), cmd.averageCost(), cmd.fiatCode());
+        } else if ("FEE_DEDUCTION".equals(cmd.tradeType())) {
+            // 수수료 차감 로직
+            UUID systemFeeAccountId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+            
+            // 대변(Credit): 사용자(또는 시스템) 계좌에서 수수료 지불
+            transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), cmd.quantity(), 
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), BigDecimal.ONE, 
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), cmd.fiatCode());
+            
+            // 차변(Debit): 수수료 수익 계좌로 입금
+            transaction.addBuyEntry(systemFeeAccountId, cmd.fiatCode(), cmd.quantity(), 
+                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), BigDecimal.ONE, cmd.fiatCode());
         }
 
         // 2. 외환 단수 차이(Rounding Difference) 계산
         BigDecimal totalDebit = transaction.getEntries().stream()
-            .filter(e -> e.getEntryType() == EntryType.DEBIT)
+            .filter(e -> e.getEntryType() == EntryType.DEBIT && e.getAmount().getCurrencyCode().equals(cmd.fiatCode()))
             .map(e -> e.getAmount().getAmount())
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalCredit = transaction.getEntries().stream()
-            .filter(e -> e.getEntryType() == EntryType.CREDIT)
+            .filter(e -> e.getEntryType() == EntryType.CREDIT && e.getAmount().getCurrencyCode().equals(cmd.fiatCode()))
             .map(e -> e.getAmount().getAmount())
             .reduce(BigDecimal.ZERO, BigDecimal::add);
             

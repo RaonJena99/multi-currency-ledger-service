@@ -37,7 +37,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
             tradeId, accountId, "BTC", "KRW", "BUY", 
             Money.of("1", AssetType.CRYPTO, "KRW"), 
             Money.of("100000000", AssetType.FIAT, "KRW"), 
-            BigDecimal.ONE, 
+            new BigDecimal("100000000"),
             Money.zero(AssetType.FIAT, "KRW"),
             false
         );

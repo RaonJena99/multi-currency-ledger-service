@@ -24,7 +24,7 @@ public class OrderToLedgerAcl {
      * Kafka 메시지를 수신하여 원장 기록을 수행합니다.
      * @param payload
      */
-    @KafkaListener(topics = "Ledger", groupId = "ledger-recording-group")
+    @KafkaListener(topics = "LedgerRecordingCommand", groupId = "ledger-recording-group")
     public void consumeLedgerCommand(String payload) {
 
         log.info("Kafka Consumer: Received Ledger message: {}", payload);
