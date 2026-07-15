@@ -18,12 +18,12 @@ class KafkaProducerListenerTest {
     void handleOutboxMessageEvent_success() {
         KafkaTemplate<String, String> template = mock(KafkaTemplate.class);
         CompletableFuture<SendResult<String, String>> future = CompletableFuture.completedFuture(null);
-        when(template.send(anyString(), anyString())).thenReturn(future);
+        when(template.send(anyString(), anyString(), anyString())).thenReturn(future);
 
         KafkaProducerListener listener = new KafkaProducerListener(template);
-        listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload", "test-corr-id"));
+        listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "key123", "payload", "test-corr-id"));
 
-        verify(template).send("topic", "payload");
+        verify(template).send("topic", "key123", "payload");
     }
 
     @Test
@@ -31,10 +31,10 @@ class KafkaProducerListenerTest {
         KafkaTemplate<String, String> template = mock(KafkaTemplate.class);
         CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
         future.completeExceptionally(new RuntimeException("failed"));
-        when(template.send(anyString(), anyString())).thenReturn(future);
+        when(template.send(anyString(), anyString(), anyString())).thenReturn(future);
 
         KafkaProducerListener listener = new KafkaProducerListener(template);
-        assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload", "test-corr-id")))
+        assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "key123", "payload", "test-corr-id")))
             .isInstanceOf(RuntimeException.class);
     }
 
@@ -42,11 +42,11 @@ class KafkaProducerListenerTest {
     void handleOutboxMessageEvent_interruptedException() throws Exception {
         KafkaTemplate<String, String> template = mock(KafkaTemplate.class);
         CompletableFuture<SendResult<String, String>> future = mock(CompletableFuture.class);
-        when(template.send(anyString(), anyString())).thenReturn(future);
+        when(template.send(anyString(), anyString(), anyString())).thenReturn(future);
         when(future.get(3, java.util.concurrent.TimeUnit.SECONDS)).thenThrow(new InterruptedException());
 
         KafkaProducerListener listener = new KafkaProducerListener(template);
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "payload", "test-corr-id")))
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> listener.handleOutboxMessageEvent(new OutboxMessageEvent("topic", "key123", "payload", "test-corr-id")))
             .isInstanceOf(RuntimeException.class);
     }
 }

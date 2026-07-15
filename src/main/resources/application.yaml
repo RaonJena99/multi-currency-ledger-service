@@ -103,6 +103,7 @@ resilience4j:
         ignoreExceptions:
           - org.springframework.web.client.HttpClientErrorException.BadRequest
           - org.springframework.web.client.HttpClientErrorException.Unauthorized
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException
 
       # PG사 정산 대사 API 리트라이
       pgSettlementApi:
