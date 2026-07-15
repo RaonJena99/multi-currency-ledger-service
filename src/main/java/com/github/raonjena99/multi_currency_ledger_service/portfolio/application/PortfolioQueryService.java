@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,14 +14,12 @@ import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse.AssetDetailDto;
+import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioCacheDto;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 포트폴리오 조회를 담당하는 PortfolioQueryService(포트폴리오 조회 서비스) 클래스입니다.
- */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,72 +28,66 @@ public class PortfolioQueryService {
     private final PortfolioQueryRepository portfolioQueryRepository;
     private final ExchangeRateProvider exchangeRateProvider;
     private final AccountApi accountApi;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    private final StringRedisTemplate redisTemplate;
-
-    /**
-     * 특정 계좌의 포트폴리오 요약 정보를 조회합니다.
-     * @param accountId 조회할 계좌 ID
-     * @return 조회된 PortfolioSummaryResponse(포트폴리오 요약 응답) 객체
-     */
     public PortfolioSummaryResponse getPortfolioSummary(UUID accountId) {
         String baseCurrency = accountApi.getBaseCurrency(accountId);
+        String redisKey = "portfolio:account:" + accountId;
 
-        List<CurrentPortfolio> portfolios = portfolioQueryRepository.findAllByAccountId(accountId);
-        if (portfolios.isEmpty()) {
-            return new PortfolioSummaryResponse(accountId, BigDecimal.ZERO, BigDecimal.ZERO, false, List.of());
-        }
-
+        PortfolioCacheDto cachedDto = (PortfolioCacheDto) redisTemplate.opsForValue().get(redisKey);
+        
+        List<AssetDetailDto> dtos = new ArrayList<>();
         BigDecimal totalAssetValue = BigDecimal.ZERO;
         BigDecimal totalUnrealizedPnl = BigDecimal.ZERO;
         boolean finalStaleFlag = false;
 
-        String dirtyKey = "portfolio:dirty:" + accountId.toString();
-        String isAccountDirty = redisTemplate.opsForValue().get(dirtyKey);
+        if (cachedDto != null && cachedDto.getBalances() != null) {
+            List<String> targetAssets = cachedDto.getBalances().stream().map(PortfolioCacheDto.AssetBalance::getAssetCode).toList();
+            Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
 
-        if ("true".equals(isAccountDirty)) {
-            finalStaleFlag = true;
+            for (PortfolioCacheDto.AssetBalance p : cachedDto.getBalances()) {
+                var rateInfo = exchangeRates.get(p.getAssetCode());
+                if(rateInfo == null) continue;
+
+                BigDecimal currentMarketPrice = rateInfo.rate();
+                BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
+
+                var quoteRateInfo = exchangeRateProvider.getExchangeRate(p.getQuoteCurrency(), baseCurrency);
+                BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteRateInfo.rate());
+                BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
+
+                dtos.add(new AssetDetailDto(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), currentMarketPrice, totalValue, unrealizedPnl, rateInfo.isStale()));
+                totalAssetValue = totalAssetValue.add(totalValue);
+                totalUnrealizedPnl = totalUnrealizedPnl.add(unrealizedPnl);
+                if (rateInfo.isStale()) finalStaleFlag = true;
+            }
+        } else {
+            List<CurrentPortfolio> portfolios = portfolioQueryRepository.findAllByAccountId(accountId);
+            if (portfolios.isEmpty()) {
+                return new PortfolioSummaryResponse(accountId, BigDecimal.ZERO, BigDecimal.ZERO, false, List.of());
+            }
+
+            List<String> targetAssets = portfolios.stream().map(CurrentPortfolio::getAssetCode).toList();
+            Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
+
+            for (CurrentPortfolio p : portfolios) {
+                var rateInfo = exchangeRates.get(p.getAssetCode());
+                if(rateInfo == null) continue;
+
+                BigDecimal currentMarketPrice = rateInfo.rate();
+                BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
+                
+                var quoteRateInfo = exchangeRateProvider.getExchangeRate(p.getQuoteCurrency(), baseCurrency);
+                BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteRateInfo.rate());
+                BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
+
+                dtos.add(new AssetDetailDto(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), currentMarketPrice, totalValue, unrealizedPnl, rateInfo.isStale()));
+                totalAssetValue = totalAssetValue.add(totalValue);
+                totalUnrealizedPnl = totalUnrealizedPnl.add(unrealizedPnl);
+                if (rateInfo.isStale()) finalStaleFlag = true;
+            }
         }
         
-        List<AssetDetailDto> dtos = new ArrayList<>(portfolios.size());
-
-        List<String> targetAssets = portfolios.stream().map(CurrentPortfolio::getAssetCode).toList();
-        Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
-
-        for (CurrentPortfolio p : portfolios) {
-            // 미리 조회한 시장 환율 정보를 사용하여 자산의 현재 가치를 계산합니다.
-            var rateInfo = exchangeRates.get(p.getAssetCode());
-
-            if(rateInfo == null) {
-                throw new IllegalStateException("Missing exchange rate for asset: " + p.getAssetCode());
-            }
-            
-            BigDecimal currentMarketPrice = rateInfo.rate();
-
-            // 총 가치(Total Value) 및 미실현 손익(Unrealized PnL) 계산
-            BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
-            
-            // 매입 통화(Quote Currency)와 기준 통화(Base Currency) 간의 환율을 추가로 조회
-            var quoteRateInfo = exchangeRateProvider.getExchangeRate(p.getQuoteCurrency(), baseCurrency);
-            BigDecimal quoteToBaseRate = quoteRateInfo.rate();
-
-            // 매입 평균 단가를 기준 통화 단위로 환산
-            BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteToBaseRate);
-
-            // 단위를 맞춘 후 미실현 손익을 계산
-            BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
-
-            dtos.add(new AssetDetailDto(
-                    p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(),
-                    currentMarketPrice, totalValue, unrealizedPnl, rateInfo.isStale()
-            ));
-
-            totalAssetValue = totalAssetValue.add(totalValue);
-            totalUnrealizedPnl = totalUnrealizedPnl.add(unrealizedPnl);
-            
-            if (rateInfo.isStale()) finalStaleFlag = true;
-        }
-
         return new PortfolioSummaryResponse(
                 accountId, totalAssetValue, totalUnrealizedPnl, finalStaleFlag, dtos
         );

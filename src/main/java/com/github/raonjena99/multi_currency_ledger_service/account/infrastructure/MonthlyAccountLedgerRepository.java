@@ -71,4 +71,21 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
      */
     @Query("SELECT DISTINCT m.assetCode FROM MonthlyAccountLedger m WHERE m.balance.assetType = 'FIAT'")
     java.util.List<String> findDistinctFiatCodes();
+
+    /**
+     * 특정 계좌의 모든 자산에 대한 가장 최신 장부 기록을 조회합니다.
+     */
+    @Query("""
+        SELECT m 
+        FROM MonthlyAccountLedger m 
+        WHERE m.id IN (
+            SELECT MAX(m2.id) 
+            FROM MonthlyAccountLedger m2 
+            WHERE m2.accountId = :accountId 
+            GROUP BY m2.assetCode
+        )
+    """)
+    java.util.List<MonthlyAccountLedger> findLatestBalancesByAccountId(
+        @org.springframework.data.repository.query.Param("accountId") UUID accountId
+    );
 }

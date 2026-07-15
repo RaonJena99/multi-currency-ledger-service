@@ -21,10 +21,23 @@ public class AccountApiImpl implements AccountApi {
 
     private final AccountRepository accountRepository;
 
+    private final com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
+
     @Override
     public String getBaseCurrency(UUID accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         return account.getBaseCurrency();
+    }
+
+    @Override
+    public java.util.List<AccountBalanceDto> getBalances(UUID accountId) {
+        return monthlyAccountLedgerRepository.findLatestBalancesByAccountId(accountId).stream()
+                .map(ledger -> new AccountBalanceDto(
+                        ledger.getAssetCode(),
+                        ledger.getBalance().getAmount(),
+                        ledger.getAverageUnitPrice().getAmount(),
+                        ledger.getAverageUnitPrice().getCurrencyCode()
+                )).toList();
     }
 }
