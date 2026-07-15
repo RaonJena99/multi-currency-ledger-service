@@ -27,7 +27,6 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
      * @param ledgerMonth 대상 월
      * @return 해당하는 MonthlyAccountLedger(월별 계좌 원장) 객체 (Optional)
      */
-    @Lock(LockModeType.OPTIMISTIC)
     Optional<MonthlyAccountLedger> findByAccountIdAndAssetCodeAndLedgerMonth(
         UUID accountId, String assetCode, String ledgerMonth
     );

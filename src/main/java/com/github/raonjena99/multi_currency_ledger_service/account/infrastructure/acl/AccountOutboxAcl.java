@@ -1,9 +1,8 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.acl;
 
 import org.slf4j.MDC;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
@@ -41,7 +40,7 @@ public class AccountOutboxAcl {
      * TradeExecutedEvent(거래 실행 이벤트)를 수신하여 OutboxEvent(아웃박스 이벤트)로 변환 후 저장합니다.
      * @param externalEvent
      */
-    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    @EventListener
     public void persistOutboxEvent(TradeExecutedEvent externalEvent) {
 
         log.info("Account ACL: Persisting OutboxEvent for TradeID: {}", externalEvent.tradeId());

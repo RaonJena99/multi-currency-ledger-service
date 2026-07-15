@@ -11,6 +11,9 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * 이 클래스는 계좌의 자산 매수 및 매도 거래를 처리하는 Facade(중재자) 역할을 수행합니다.
+ */
 @Component
 @RequiredArgsConstructor
 public class AccountTradeFacade {
@@ -27,17 +30,13 @@ public class AccountTradeFacade {
         // 트랜잭션 진입 전 현재 시각 기록
         OffsetDateTime transactedAt = OffsetDateTime.now();
         
-        // 1. 트랜잭션 외부에서 원장 초기화를 수행합니다. (커넥션 풀 데드락 방지)
-        MonthlyAccountLedger targetAssetLedger = ledgerResolver.resolveOrInitializeLedger(
-                accountId, targetAssetCode, targetAssetType, transactedAt);
-                
-        MonthlyAccountLedger fiatLedger = ledgerResolver.resolveOrInitializeLedger(
-                accountId, paymentCurrency, AssetType.FIAT, transactedAt);
+        // 1. 트랜잭션 외부에서 원장 존재 여부 보장 (커넥션 풀 데드락 방지)
+        ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, transactedAt);
+        ledgerResolver.resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, transactedAt);
 
-        // 2. 초기화된 원장 객체를 파라미터로 넘겨주며 실제 본 거래 로직을 실행합니다.
+        // 2. transactedAt을 넘겨서 호출
         return tradeService.executeBuyAsset(idempotencyKey, accountId, targetAssetCode, targetAssetType, 
-                                            paymentCurrency, buyQuantity, unitPrice, 
-                                            targetAssetLedger, fiatLedger);
+                                        paymentCurrency, buyQuantity, unitPrice, transactedAt);
     }
 
     public UUID sellAsset(String idempotencyKey, 
@@ -46,16 +45,12 @@ public class AccountTradeFacade {
         
         OffsetDateTime transactedAt = OffsetDateTime.now();
         
-        // 1. 트랜잭션 외부에서 원장 초기화를 수행
-        MonthlyAccountLedger targetAssetLedger = ledgerResolver.resolveOrInitializeLedger(
-                accountId, targetAssetCode, targetAssetType, transactedAt);
-                
-        MonthlyAccountLedger fiatLedger = ledgerResolver.resolveOrInitializeLedger(
-                accountId, paymentCurrency, AssetType.FIAT, transactedAt);
+        // 1. 트랜잭션 외부에서 원장 존재 여부 보장 (커넥션 풀 데드락 방지)
+        ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, transactedAt);
+        ledgerResolver.resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, transactedAt);
 
-        // 2. 본 거래 로직 실행
+        // 2. transactedAt을 넘겨서 호출
         return tradeService.executeSellAsset(idempotencyKey, accountId, targetAssetCode, targetAssetType, 
-                                             paymentCurrency, sellQuantity, sellUnitPrice, 
-                                             targetAssetLedger, fiatLedger);
+                                             paymentCurrency, sellQuantity, sellUnitPrice,transactedAt); 
     }
 }
