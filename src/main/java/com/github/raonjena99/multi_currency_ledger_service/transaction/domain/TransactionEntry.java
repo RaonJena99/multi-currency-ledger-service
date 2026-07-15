@@ -19,20 +19,29 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Index;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 원장의 개별 분개 항목을 나타내는 TransactionEntry(트랜잭션 엔트리) 엔티티입니다.
+ */
 @Entity
-@Table(name = "transaction_entries")
+@Table(name = "transaction_entries", indexes = {
+    @Index(name = "idx_transaction_id", columnList = "transaction_id"),
+    @Index(name = "idx_account_id", columnList = "account_id")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TransactionEntry {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "tx_entry_seq")
+    @SequenceGenerator(name = "tx_entry_seq", sequenceName = "transaction_entry_seq", allocationSize = 50)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -52,28 +61,32 @@ public class TransactionEntry {
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "quantity", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "quantity_asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "quantity_asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "quantity_currency", nullable = false, length = 10))
     })
     private Money quantity;
 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "unit_price", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "unit_price_asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "unit_price_asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "unit_price_currency", nullable = false, length = 10))
     })
     private Money unitPrice;
 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "amount", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "amount_asset_type", nullable = false, length = 20))
+        @AttributeOverride(name = "assetType", column = @Column(name = "amount_asset_type", nullable = false, length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "amount_currency", nullable = false, length = 10))
     })
     private Money amount;
 
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "amount", column = @Column(name = "realized_pnl", precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "realized_pnl_asset_type", length = 20)) // NOT NULL 제외 (V2 스키마 참고)
+        @AttributeOverride(name = "assetType", column = @Column(name = "realized_pnl_asset_type", length = 20)),
+        @AttributeOverride(name = "currencyCode", column = @Column(name = "realized_pnl_currency", length = 10))
     })
     private Money realizedPnl;
 
@@ -81,7 +94,7 @@ public class TransactionEntry {
     private BigDecimal exchangeRate;
 
     private TransactionEntry(Transaction transaction, UUID accountId, EntryType entryType, String assetCode, 
-                    Money quantity, Money unitPrice, BigDecimal exchangeRate, Money realizedPnl) {
+                    Money quantity, Money unitPrice, BigDecimal exchangeRate, Money realizedPnl, String baseCurrencyCode) {
         this.transaction = transaction;
         this.accountId = accountId;
         this.entryType = entryType;
@@ -91,36 +104,70 @@ public class TransactionEntry {
         this.unitPrice = unitPrice;
         this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
         
+        // 수량(BigDecimal) * 단가(Money) = 외화 가치(Money) 계산
         Money valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
+        // 외화 가치(Money) * 환율(BigDecimal) = 최종 환산 가치(Money) 계산
         Money finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
                                     
-        this.amount = Money.of(finalCalculatedValue.getAmount().toPlainString(), AssetType.FIAT);
+        this.amount = Money.of(finalCalculatedValue.getAmount(), AssetType.FIAT, baseCurrencyCode);
         this.realizedPnl = realizedPnl;
     }
 
+    /**
+     * 차변(Debit)에 기록되는 매수(Buy) 엔트리를 생성합니다.
+     * @param transaction 부모 Transaction(트랜잭션)
+     * @param accountId 계좌 ID
+     * @param assetCode 자산 코드
+     * @param buyQuantity 매수 수량
+     * @param buyPrice 매수 단가
+     * @param exchangeRate 환율
+     * @param baseCurrencyCode 기준 통화 코드
+     * @return 생성된 차변 TransactionEntry(트랜잭션 엔트리) 객체
+     */
     public static TransactionEntry createBuyEntry(
             Transaction transaction, UUID accountId, String assetCode, 
-            Money buyQuantity, Money buyPrice, BigDecimal exchangeRate) {
+            Money buyQuantity, Money buyPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
         
         return new TransactionEntry(
                 transaction, accountId, EntryType.DEBIT, assetCode, 
                 buyQuantity, buyPrice, exchangeRate, 
-                Money.zero(AssetType.FIAT) // NULL 방어용 초기화
+                Money.zero(AssetType.FIAT, baseCurrencyCode),
+                baseCurrencyCode
         );
     }
 
+    /**
+     * 대변(Credit)에 기록되는 매도(Sell) 엔트리를 생성합니다.
+     * 실현 손익(Realized PnL)도 함께 계산됩니다.
+     * @param transaction 부모 Transaction(트랜잭션)
+     * @param accountId 계좌 ID
+     * @param assetCode 자산 코드
+     * @param sellQuantity 매도 수량
+     * @param sellPrice 매도 단가
+     * @param exchangeRate 환율
+     * @param averageCost 평균 단가
+     * @param baseCurrencyCode 기준 통화 코드
+     * @return 생성된 대변 TransactionEntry(트랜잭션 엔트리) 객체
+     */
     public static TransactionEntry createSellEntry(
             Transaction transaction, UUID accountId, String assetCode, 
-            Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost) {
+            Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost, String baseCurrencyCode) {
         
-        Money pnl = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount());
+        Money pnl = Money.zero(AssetType.FIAT, baseCurrencyCode);
+        Money costPrice = sellPrice;
+        
+        if (averageCost != null) {
+            pnl = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount());
+            costPrice = averageCost;
+        }
         
         return new TransactionEntry(
                 transaction, accountId, EntryType.CREDIT, assetCode, 
                 sellQuantity, 
-                averageCost,
+                costPrice,
                 exchangeRate, 
-                pnl
+                pnl,
+                baseCurrencyCode
         );
     }
 }

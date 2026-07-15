@@ -17,7 +17,7 @@ class MonthlyAccountLedgerTest {
     @DisplayName("최초로 자산을 매수할 때 정상적으로 월차 원장이 초기화된다.")
     void initialize_new_ledger() {
         UUID accountId = UUID.randomUUID();
-        MonthlyAccountLedger ledger = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, "2026-05");
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, "2026-05", "KRW");
 
         assertThat(ledger.getAccountId()).isEqualTo(accountId);
         assertThat(ledger.getLedgerMonth()).isEqualTo("2026-05");
@@ -30,8 +30,8 @@ class MonthlyAccountLedgerTest {
     void carry_forward_logic() {
         // given
         UUID accountId = UUID.randomUUID();
-        MonthlyAccountLedger prevLedger = new MonthlyAccountLedger(accountId, "ETH", AssetType.CRYPTO, "2026-04");
-        prevLedger.addBalance(Money.of("10", AssetType.CRYPTO), Money.of("3000000", AssetType.FIAT));
+        MonthlyAccountLedger prevLedger = MonthlyAccountLedger.initialize(accountId, "ETH", AssetType.CRYPTO, "2026-04", "KRW");
+        prevLedger.addBalance(Money.of("10", AssetType.CRYPTO, "ETH"), Money.of("3000000", AssetType.FIAT, "KRW"));
 
         // when
         MonthlyAccountLedger newLedger = MonthlyAccountLedger.carryForwardFrom(prevLedger, "2026-05");
@@ -41,5 +41,55 @@ class MonthlyAccountLedgerTest {
         assertThat(newLedger.isCarriedForward()).isTrue(); // 이월 플래그 활성화 검증
         assertThat(newLedger.getBalance().getAmount()).isEqualByComparingTo("10"); // 잔액 유지 검증
         assertThat(newLedger.getAverageUnitPrice().getAmount()).isEqualByComparingTo("3000000"); // 평단가 유지 검증
+    }
+
+    @Test
+    @DisplayName("addBalance - 잘못된 파라미터 예외 발생")
+    void addBalance_exceptions() {
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(UUID.randomUUID(), "BTC", AssetType.CRYPTO, "2026-05", "KRW");
+        
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.addBalance(null, Money.of("10", AssetType.FIAT, "KRW")))
+            .isInstanceOf(IllegalArgumentException.class);
+            
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.addBalance(Money.of("-1", AssetType.CRYPTO, "BTC"), Money.of("10", AssetType.FIAT, "KRW")))
+            .isInstanceOf(IllegalArgumentException.class);
+            
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.addBalance(Money.of("0", AssetType.CRYPTO, "BTC"), Money.of("10", AssetType.FIAT, "KRW")))
+            .isInstanceOf(IllegalArgumentException.class);
+            
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.addBalance(Money.of("1", AssetType.CRYPTO, "BTC"), null))
+            .isInstanceOf(IllegalArgumentException.class);
+            
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.addBalance(Money.of("1", AssetType.CRYPTO, "BTC"), Money.of("-1", AssetType.FIAT, "KRW")))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("subtractBalance - 잘못된 파라미터 및 잔액 부족 예외 발생")
+    void subtractBalance_exceptions() {
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(UUID.randomUUID(), "BTC", AssetType.CRYPTO, "2026-05", "KRW");
+        ledger.addBalance(Money.of("10", AssetType.CRYPTO, "BTC"), Money.of("100", AssetType.FIAT, "KRW"));
+        
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.subtractBalance(Money.of("-1", AssetType.CRYPTO, "BTC")))
+            .isInstanceOf(IllegalArgumentException.class);
+            
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.subtractBalance(Money.of("0", AssetType.CRYPTO, "BTC")))
+            .isInstanceOf(IllegalArgumentException.class);
+            
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.subtractBalance(Money.of("20", AssetType.CRYPTO, "BTC")))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("subtractBalance - 전량 매도 시 평균 단가 초기화 검증")
+    void subtractBalance_fullSell() {
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(UUID.randomUUID(), "BTC", AssetType.CRYPTO, "2026-05", "KRW");
+        ledger.addBalance(Money.of("10", AssetType.CRYPTO, "BTC"), Money.of("100", AssetType.FIAT, "KRW"));
+        
+        Money lastAvg = ledger.subtractBalance(Money.of("10", AssetType.CRYPTO, "BTC"));
+        
+        assertThat(lastAvg.getAmount()).isEqualByComparingTo("100");
+        assertThat(ledger.getBalance().isZero()).isTrue();
+        assertThat(ledger.getAverageUnitPrice().isZero()).isTrue();
     }
 }

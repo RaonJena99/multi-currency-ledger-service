@@ -26,7 +26,7 @@ class OutboxRepositoryTest extends IntegrationTestSupport {
         OutboxEvent pendingEvent = null;
 
         // 생성자를 사용하되, 파라미터가 4개 이상인 경우
-        pendingEvent = new OutboxEvent("Account", aggregateId, "TradeExecutedEvent", "{\"tradeId\":\"" + aggregateId + "\"}");
+        pendingEvent = new OutboxEvent("Account", aggregateId, "TradeExecutedEvent", "{\"tradeId\":\"" + aggregateId + "\"}", "test-corr-id");
         
         // when
         outboxRepository.saveAndFlush(pendingEvent);

@@ -31,14 +31,14 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER", "KRW"));
         
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "BTC", "KRW", "BUY", 
-            Money.of("1", AssetType.CRYPTO), 
-            Money.of("100000000", AssetType.FIAT), 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
-            Money.zero(AssetType.FIAT),
+            Money.zero(AssetType.FIAT, "KRW"),
             false
         );
 
@@ -58,11 +58,11 @@ class LedgerServiceTest extends IntegrationTestSupport {
         UUID tradeId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER_2"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_2", "KRW"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
             tradeId, accountId, "ETH", "KRW", "BUY", 
-            Money.of("1", AssetType.CRYPTO), Money.of("3000000", AssetType.FIAT), BigDecimal.ONE, Money.zero(AssetType.FIAT),
+            Money.of("1", AssetType.CRYPTO, "KRW"), Money.of("3000000", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.zero(AssetType.FIAT, "KRW"),
             false
         );
 
@@ -71,5 +71,65 @@ class LedgerServiceTest extends IntegrationTestSupport {
 
         long count = transactionRepository.count();
         assertThat(count).isGreaterThanOrEqualTo(1); 
+    }
+
+    @Test
+    @DisplayName("SELL 커맨드 및 staleRate가 true일 때의 로직 검증")
+    void recordDoubleEntry_sell_with_staleRate() {
+        UUID tradeId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_3", "KRW"));
+
+        LedgerRecordingCommand command = new LedgerRecordingCommand(
+            tradeId, accountId, "BTC", "KRW", "SELL", 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
+            BigDecimal.ONE, 
+            Money.of("50000000", AssetType.FIAT, "KRW"), // averageCost
+            true // isStaleRate
+        );
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
+        
+        assertThat(savedTx.getTransactionType()).isEqualTo("SELL");
+        assertThat(savedTx.getEntries()).hasSize(2);
+        assertThat(savedTx.getDescription()).contains("[APPLIED_FALLBACK_RATE=TRUE]");
+    }
+
+    @Test
+    @DisplayName("SELL 커맨드 및 averageCost가 null일 때 (realizedPnl == null) - 분기 커버리지용")
+    void recordDoubleEntry_sell_with_null_averageCost() {
+        UUID tradeId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_4", "KRW"));
+
+        LedgerRecordingCommand command = new LedgerRecordingCommand(
+            tradeId, accountId, "BTC", "KRW", "SELL", 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
+            BigDecimal.ONE, 
+            null, // averageCost == null
+            false 
+        );
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
+        assertThat(savedTx.getTransactionType()).isEqualTo("SELL");
+        
+        // OTHER type test (not BUY and not SELL)
+        LedgerRecordingCommand command2 = new LedgerRecordingCommand(
+            UUID.randomUUID(), accountId, "BTC", "KRW", "DEPOSIT", 
+            Money.of("1", AssetType.CRYPTO, "KRW"), 
+            Money.of("100000000", AssetType.FIAT, "KRW"), 
+            BigDecimal.ONE, 
+            null,
+            false 
+        );
+        ledgerService.recordDoubleEntry(command2);
     }
 }

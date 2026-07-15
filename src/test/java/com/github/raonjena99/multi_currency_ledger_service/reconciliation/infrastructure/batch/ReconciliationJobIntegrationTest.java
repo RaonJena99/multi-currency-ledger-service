@@ -14,7 +14,6 @@ import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
-import org.springframework.batch.test.JobLauncherTestUtils;
 import org.springframework.batch.test.JobOperatorTestUtils;
 import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,7 +64,7 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
         successSettlementDate = OffsetDateTime.parse("2026-06-15T10:00:00Z");
         ExternalSettlement successExt = ExternalSettlement.create(
                 "REF_SUCCESS_01", "TOSS", successSettlementDate,
-                "TOSS_PAYMENTS", Money.of("1000", AssetType.FIAT)
+                "TOSS_PAYMENTS", Money.of("1000", AssetType.FIAT, "KRW")
         );
         successSettlementId = successExt.getId();
         settlementRepository.save(successExt); 
@@ -79,17 +78,17 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
         
         jdbcTemplate.update("INSERT INTO transaction_entries (" +
                 "transaction_id, account_id, entry_type, asset_code, " +
-                "quantity_asset_type, quantity, " +
-                "unit_price, unit_price_asset_type, " +
-                "amount, amount_asset_type, " +
-                "realized_pnl, realized_pnl_asset_type) " +
-                "VALUES (?, ?, 'CREDIT', 'KRW', 'FIAT', 1000, 1, 'FIAT', 1000, 'FIAT', 0, 'FIAT')", 
+                "quantity_asset_type, quantity, quantity_currency, " +
+                "unit_price, unit_price_asset_type, unit_price_currency, " +
+                "amount, amount_asset_type, amount_currency, " +
+                "realized_pnl, realized_pnl_asset_type, realized_pnl_currency) " +
+                "VALUES (?, ?, 'CREDIT', 'KRW', 'FIAT', 1000, 'KRW', 1, 'FIAT', 'KRW', 1000, 'FIAT', 'KRW', 0, 'FIAT', 'KRW')", 
                 tId, accountId);
 
         failSettlementDate = OffsetDateTime.parse("2026-06-25T10:00:00Z");
         ExternalSettlement failExt = ExternalSettlement.create(
                 "REF_FAIL_02", "TOSS", failSettlementDate,
-                "GHOST_PAY", Money.of("99999", AssetType.FIAT)
+                "GHOST_PAY", Money.of("99999", AssetType.FIAT, "KRW")
         );
         failSettlementId = failExt.getId();
         settlementRepository.save(failExt);

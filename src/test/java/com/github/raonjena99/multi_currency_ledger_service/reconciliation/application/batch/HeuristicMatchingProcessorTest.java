@@ -40,7 +40,7 @@ class HeuristicMatchingProcessorTest {
         processor = new HeuristicMatchingProcessor(queryDao, rules, "2026-06-01T00:00:00Z");
         
         InternalTransactionCandidate cand = new InternalTransactionCandidate(
-                UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY", Money.of("1000", AssetType.FIAT)
+                UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY", Money.of("1000", AssetType.FIAT, "KRW")
         );
         lenient().when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(List.of(cand));
     }
@@ -50,7 +50,7 @@ class HeuristicMatchingProcessorTest {
     void process_Success() {
         ExternalSettlement ext = ExternalSettlement.create(
                 "REF_SUCCESS", "TOSS", OffsetDateTime.parse("2026-06-15T10:00:00Z"),
-                "TOSS PAY", Money.of("1000", AssetType.FIAT)
+                "TOSS PAY", Money.of("1000", AssetType.FIAT, "KRW")
         );
 
         MatchedReconciliationResult result = processor.process(ext);
@@ -59,6 +59,10 @@ class HeuristicMatchingProcessorTest {
         assertThat(result.externalSettlement()).isEqualTo(ext);
         assertThat(result.matchedTransactionId()).isNotNull();
         assertThat(ext.getStatus()).isNotEqualTo(SettlementStatus.MATCHED); 
+
+        // Call again to hit the cache branch
+        MatchedReconciliationResult result2 = processor.process(ext);
+        assertThat(result2).isNotNull();
     }
 
     @Test
@@ -66,11 +70,36 @@ class HeuristicMatchingProcessorTest {
     void process_Fail_AmountMismatch() {
         ExternalSettlement ext = ExternalSettlement.create(
                 "REF_FAIL", "TOSS", OffsetDateTime.parse("2026-06-15T10:00:00Z"),
-                "TOSS PAY", Money.of("1200", AssetType.FIAT)
+                "TOSS PAY", Money.of("1200", AssetType.FIAT, "KRW")
         );
 
         assertThatThrownBy(() -> processor.process(ext))
                 .isInstanceOf(UnmatchableSettlementException.class)
                 .hasMessage("AMOUNT_MISMATCH");
+    }
+
+    @Test
+    @DisplayName("[Processor] 여러 개의 후보 중 점수가 가장 높은 것을 선택한다")
+    void process_MultipleCandidates_SelectsHighestScore() {
+        // First candidate: exact match (score 100 on text)
+        InternalTransactionCandidate cand1 = new InternalTransactionCandidate(
+                UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY", Money.of("1000", AssetType.FIAT, "KRW")
+        );
+        // Second candidate: partial text match, lower score but still >= 75
+        InternalTransactionCandidate cand2 = new InternalTransactionCandidate(
+                UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY 1", Money.of("1000", AssetType.FIAT, "KRW")
+        );
+        
+        lenient().when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(List.of(cand1, cand2));
+        // Reset processor to re-initialize cache
+        processor = new HeuristicMatchingProcessor(queryDao, List.of(new TimeToleranceRule(), new AmountToleranceRule(), new FuzzyTextMatchingRule()), "2026-06-01T00:00:00Z");
+
+        ExternalSettlement ext = ExternalSettlement.create(
+                "REF_SUCCESS", "TOSS", OffsetDateTime.parse("2026-06-15T10:00:00Z"),
+                "TOSS PAY", Money.of("1000", AssetType.FIAT, "KRW")
+        );
+
+        MatchedReconciliationResult result = processor.process(ext);
+        assertThat(result.matchedTransactionId()).isEqualTo(cand1.transactionId());
     }
 }

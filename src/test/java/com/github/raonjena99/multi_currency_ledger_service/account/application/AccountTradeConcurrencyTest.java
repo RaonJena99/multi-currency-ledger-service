@@ -28,16 +28,18 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
 @DisplayName("동시성 테스트: AccountTradeService (낙관적 락 @Version 검증)")
 class AccountTradeConcurrencyTest extends IntegrationTestSupport {
 
-    @Autowired private AccountTradeService accountTradeService;
+    @Autowired private AccountTradeFacade accountTradeFacade;
     @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     @Autowired private AccountRepository accountRepository;
-    
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     @Autowired private TransactionTemplate transactionTemplate;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider exchangeRateProvider;
 
     @AfterEach
     void tearDown() {
-        monthlyAccountLedgerRepository.deleteAllInBatch();
-        accountRepository.deleteAllInBatch();
+        jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transactions, transaction_entries, monthly_account_ledgers, accounts CASCADE");
     }
 
     @Test
@@ -48,13 +50,13 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
         transactionTemplate.execute(status -> {
-            accountRepository.save(new Account(accountId, "TEST_USER"));
+            accountRepository.save(Account.open(accountId, "TEST_USER", "KRW"));
 
-            MonthlyAccountLedger fiatLedger = new MonthlyAccountLedger(accountId, "KRW", AssetType.FIAT, currentMonth);
-            fiatLedger.addBalance(Money.of("10000000000", AssetType.FIAT), Money.of("1", AssetType.FIAT));
+            MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
+            fiatLedger.addBalance(Money.of("10000000000", AssetType.FIAT, "KRW"), Money.of("1", AssetType.FIAT, "KRW"));
             monthlyAccountLedgerRepository.save(fiatLedger);
 
-            MonthlyAccountLedger btcLedger = new MonthlyAccountLedger(accountId, "BTC", AssetType.CRYPTO, currentMonth);
+            MonthlyAccountLedger btcLedger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, currentMonth, "KRW");
             monthlyAccountLedgerRepository.save(btcLedger);
             return null;
         });
@@ -66,14 +68,17 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger lockExceptionCount = new AtomicInteger(0);
 
-        Money buyQuantity = Money.of("1", AssetType.CRYPTO);
-        Money unitPrice = Money.of("50000000", AssetType.FIAT);
+        Money buyQuantity = Money.of("1", AssetType.CRYPTO, "BTC");
+        Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW");
+
+        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));
 
         // when
         for (int i = 0; i < threadCount; i++) {
             executorService.execute(() -> {
                 try {
-                    accountTradeService.buyAsset(accountId, "BTC", AssetType.CRYPTO, buyQuantity, unitPrice);
+                    accountTradeFacade.buyAsset(UUID.randomUUID().toString(), accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
                     successCount.incrementAndGet();
                 } catch (ObjectOptimisticLockingFailureException e) {
                     lockExceptionCount.incrementAndGet();
@@ -88,12 +93,14 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         latch.await();
 
         // then
-        assertThat(successCount.get()).isEqualTo(1);
-        assertThat(lockExceptionCount.get()).isEqualTo(4);
+        // @Retryable 적용으로 인해 재시도가 발생하지만, maxAttempts(3) 초과 시 실패할 수 있으므로
+        // 성공한 횟수(successCount)만큼 잔고가 정확히 증가했는지(Lost Update가 없는지) 검증합니다.
+        int actualSuccesses = successCount.get();
+        assertThat(actualSuccesses).isGreaterThanOrEqualTo(1);
 
         transactionTemplate.execute(status -> {
             MonthlyAccountLedger fetchedBtcLedger = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", currentMonth).orElseThrow();
-            assertThat(fetchedBtcLedger.getBalance().getAmount()).isEqualByComparingTo("1");
+            assertThat(fetchedBtcLedger.getBalance().getAmount()).isEqualByComparingTo(String.valueOf(actualSuccesses));
             return null;
         });
     }

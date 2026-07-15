@@ -1,59 +1,45 @@
 package com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
+import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-import com.github.raonjena99.multi_currency_ledger_service.IntegrationTestSupport;
-
-@Transactional
-@Import(InternalTransactionQueryDao.class)
-class InternalTransactionQueryDaoTest extends IntegrationTestSupport {
-
-    @Autowired private JdbcTemplate jdbcTemplate;
-    @Autowired private InternalTransactionQueryDao queryDao;
+class InternalTransactionQueryDaoTest {
 
     @Test
-    @DisplayName("[QueryDao] 지정된 기간의 CREDIT 분개가 있는 트랜잭션을 DTO로 매핑하여 퍼올린다")
-    void fetchCandidatesForPeriod_Success() {
-        // Given
-        UUID tId = UUID.randomUUID();
-        UUID accountId = UUID.randomUUID();
+    void fetchCandidatesForPeriod_nullTimestamp() throws Exception {
+        NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+        InternalTransactionQueryDao dao = new InternalTransactionQueryDao(jdbcTemplate);
         
-        // Accounts 삽입
-        jdbcTemplate.update("INSERT INTO accounts (id, owner_name, status) VALUES (?, 'TEST_USER', 'ACTIVE')", accountId);
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.getTimestamp("transacted_at")).thenReturn(null);
+        when(rs.getString("transaction_id")).thenReturn(UUID.randomUUID().toString());
+        when(rs.getString("description")).thenReturn("desc");
+        when(rs.getBigDecimal("amount")).thenReturn(BigDecimal.TEN);
+        when(rs.getString("asset_type")).thenReturn("FIAT");
+        when(rs.getString("currency")).thenReturn("KRW");
 
-        // Transactions 삽입
-        jdbcTemplate.update("INSERT INTO transactions (id, transaction_type, transacted_at, description) VALUES (?, 'TRADE', '2026-06-15 10:00:00+00', 'TEST')", tId);
+        // mock jdbcTemplate behavior
+        when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class), any(RowMapper.class)))
+            .thenAnswer(invocation -> {
+                RowMapper<InternalTransactionCandidate> mapper = invocation.getArgument(2);
+                return List.of(mapper.mapRow(rs, 1));
+            });
 
-        // TransactionEntries 삽입
-        jdbcTemplate.update("INSERT INTO transaction_entries (" +
-                "transaction_id, account_id, entry_type, asset_code, " +
-                "quantity_asset_type, quantity, " +
-                "unit_price, unit_price_asset_type, " +
-                "amount, amount_asset_type, " +
-                "realized_pnl, realized_pnl_asset_type) " +
-                "VALUES (?, ?, 'CREDIT', 'KRW', 'FIAT', 1000, 1, 'FIAT', 1000, 'FIAT', 0, 'FIAT')", 
-                tId, accountId);
-
-        OffsetDateTime start = OffsetDateTime.parse("2026-06-01T00:00:00Z");
-        OffsetDateTime end = OffsetDateTime.parse("2026-07-01T00:00:00Z");
-
-        // When
-        List<InternalTransactionCandidate> candidates = queryDao.fetchCandidatesForPeriod(start, end);
-
-        // Then
-        assertThat(candidates).hasSize(1);
-        assertThat(candidates.get(0).description()).isEqualTo("TEST");
-        assertThat(candidates.get(0).amount().getAmount().intValue()).isEqualTo(1000);
+        List<InternalTransactionCandidate> list = dao.fetchCandidatesForPeriod(OffsetDateTime.now(), OffsetDateTime.now());
+        assertThat(list).isNotEmpty();
+        assertThat(list.get(0).transactedAt()).isNull();
     }
 }

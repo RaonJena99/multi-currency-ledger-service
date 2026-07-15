@@ -26,20 +26,28 @@ class PortfolioViewRefresherTest {
     private PortfolioViewRefresher portfolioViewRefresher;
 
     @Test
-    @DisplayName("트랜잭션 커밋 직후 TradeExecutedEvent가 수신되면 Lock-free 방식으로 뷰를 갱신한다.")
+    @DisplayName("이벤트 수신 시 더티 플래그를 설정하고, 스케줄러가 플래그를 감지하여 뷰를 갱신한다.")
     void trigger_materialized_view_refresh() {
         // given
         TradeExecutedEvent mockEvent = new TradeExecutedEvent(
-            UUID.randomUUID(), UUID.randomUUID(), "BTC", "CRYPTO", "KRW", "BUY",
+            UUID.randomUUID(), UUID.randomUUID(), "BTC", com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType.CRYPTO, "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY,
             new BigDecimal("1"), new BigDecimal("50000000"), BigDecimal.ONE, BigDecimal.ZERO,
-            false
+            false, java.time.OffsetDateTime.now()
         );
 
-        // when
-        portfolioViewRefresher.handleTradeExecuted(mockEvent);
+        // 플래그 설정 안된 상태에서의 스케줄러 실행 검증 (쿼리 실행 안 됨)
+        portfolioViewRefresher.scheduledRefresh();
+        org.mockito.Mockito.verifyNoInteractions(jdbcTemplate);
 
-        // then
-        // 백그라운드 스레드에서 정확히 CONCURRENTLY 옵션을 포함한 리프레시 쿼리가 실행되었는지 검증
+        // when (이벤트 수신 -> 더티 플래그 ON)
+        portfolioViewRefresher.markAsDirty(mockEvent);
+
+        // then (스케줄러 실행 -> 플래그 감지 후 쿼리 실행)
+        portfolioViewRefresher.scheduledRefresh();
         verify(jdbcTemplate).execute("REFRESH MATERIALIZED VIEW CONCURRENTLY current_portfolio_view");
+
+        // 다시 스케줄러 실행 -> 플래그 OFF 상태이므로 쿼리 추가 실행 안 됨 (호출 횟수 1 유지)
+        portfolioViewRefresher.scheduledRefresh();
+        verify(jdbcTemplate, org.mockito.Mockito.times(1)).execute("REFRESH MATERIALIZED VIEW CONCURRENTLY current_portfolio_view");
     }
 }

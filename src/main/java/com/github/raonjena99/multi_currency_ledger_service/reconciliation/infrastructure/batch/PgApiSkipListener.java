@@ -4,18 +4,22 @@ import org.springframework.batch.core.listener.SkipListener;
 import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
-import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionCandidate;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 외부 PG API 호출 실패 등으로 인해 Spring Batch 아이템이 스킵될 때 호출되는 리스너(SkipListener)입니다.
+ * 주로 로깅(Logging) 목적으로 사용됩니다.
+ */
 @Slf4j
 @Component
-public class PgApiSkipListener implements SkipListener<InternalTransactionCandidate, MatchedReconciliationResult> {
+public class PgApiSkipListener implements SkipListener<ExternalSettlement, MatchedReconciliationResult> {
 
     @Override
-    public void onSkipInProcess(InternalTransactionCandidate item, Throwable t) {
-        log.warn("[Batch Skip] PG 데이터 Fetch 실패로 대사 검증이 다음 주기로 이관됩니다. InternalTxID: {} | 사유: {}", 
-                item.transactionId(), t.getMessage());
+    public void onSkipInProcess(ExternalSettlement item, Throwable t) {
+        log.warn("[Batch Skip] PG 데이터 Fetch 실패로 대사 검증이 다음 주기로 이관됩니다. ExternalReferenceID: {} | 사유: {}", 
+                item.getExternalReferenceId(), t.getMessage());
     }
     
     @Override

@@ -1,5 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.repository;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
@@ -30,18 +32,22 @@ class TransactionRepositoryTest extends IntegrationTestSupport {
     void persist_fails_due_to_pre_persist_validation() {
         UUID accountId = UUID.randomUUID();
         // FK 방어
-        accountRepository.saveAndFlush(new Account(accountId, "TEST_USER"));
+        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER", "KRW"));
 
-        Transaction transaction = new Transaction(UUID.randomUUID(), "BUY", "Hack");
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "BUY", "Hack");
         
         // 차변: 2 * 50,000 = 100,000
-        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO), Money.of("50000", AssetType.FIAT), BigDecimal.ONE);
+        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO, "KRW"), Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, "KRW");
         // 대변: 1 * 50,000 = 50,000
-        transaction.addSellEntry(accountId, "KRW", Money.of("1", AssetType.FIAT), Money.of("50000", AssetType.FIAT), BigDecimal.ONE, Money.zero(AssetType.FIAT));
+        transaction.addSellEntry(accountId, "KRW", Money.of("1", AssetType.FIAT, "KRW"), Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.zero(AssetType.FIAT, "KRW"), "KRW");
 
         // 예외 검증
         assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))
-                            .isInstanceOf(Exception.class)
-                            .hasRootCauseInstanceOf(IllegalStateException.class);
+            .satisfies(e -> {
+                boolean isMatch = e instanceof DoubleEntryImbalanceException || 
+                                  (e.getCause() != null && e.getCause() instanceof DoubleEntryImbalanceException) ||
+                                  (e.getCause() != null && e.getCause().getCause() != null && e.getCause().getCause() instanceof DoubleEntryImbalanceException);
+                assertThat(isMatch).isTrue();
+            });
     }
 }
