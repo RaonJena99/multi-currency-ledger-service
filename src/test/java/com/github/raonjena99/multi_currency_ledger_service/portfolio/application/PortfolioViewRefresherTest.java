@@ -1,6 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -12,6 +13,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
 
@@ -21,6 +24,12 @@ class PortfolioViewRefresherTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
 
     @InjectMocks
     private PortfolioViewRefresher portfolioViewRefresher;
@@ -35,19 +44,20 @@ class PortfolioViewRefresherTest {
             false, java.time.OffsetDateTime.now()
         );
 
-        // 플래그 설정 안된 상태에서의 스케줄러 실행 검증 (쿼리 실행 안 됨)
-        portfolioViewRefresher.scheduledRefresh();
-        org.mockito.Mockito.verifyNoInteractions(jdbcTemplate);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        // when (이벤트 수신 -> 더티 플래그 ON)
-        portfolioViewRefresher.markAsDirty(mockEvent);
-
-        // then (스케줄러 실행 -> 플래그 감지 후 쿼리 실행)
+        // 스케줄러 실행 검증 (쿼리 실행 및 Redis 시간 갱신됨)
         portfolioViewRefresher.scheduledRefresh();
         verify(jdbcTemplate).execute("REFRESH MATERIALIZED VIEW CONCURRENTLY current_portfolio_view");
+        verify(valueOperations).set(org.mockito.ArgumentMatchers.eq("portfolio:last_refresh_time"), org.mockito.ArgumentMatchers.anyString());
 
-        // 다시 스케줄러 실행 -> 플래그 OFF 상태이므로 쿼리 추가 실행 안 됨 (호출 횟수 1 유지)
+        // when (이벤트 수신 -> 더티 플래그 ON 및 Redis dirty 30초 세팅)
+        portfolioViewRefresher.markAsDirty(mockEvent);
+
+        verify(valueOperations).set("portfolio:dirty:" + mockEvent.accountId().toString(), "true", java.time.Duration.ofSeconds(30));
+
+        // then (다시 스케줄러 실행 -> 쿼리 1번 더 실행)
         portfolioViewRefresher.scheduledRefresh();
-        verify(jdbcTemplate, org.mockito.Mockito.times(1)).execute("REFRESH MATERIALIZED VIEW CONCURRENTLY current_portfolio_view");
+        verify(jdbcTemplate, org.mockito.Mockito.times(2)).execute("REFRESH MATERIALIZED VIEW CONCURRENTLY current_portfolio_view");
     }
 }

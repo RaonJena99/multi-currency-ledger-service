@@ -3,17 +3,19 @@ package com.github.raonjena99.multi_currency_ledger_service.portfolio.applicatio
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse.AssetDetailDto;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository;
-import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +30,8 @@ public class PortfolioQueryService {
     private final PortfolioQueryRepository portfolioQueryRepository;
     private final ExchangeRateProvider exchangeRateProvider;
     private final AccountApi accountApi;
+
+    private final StringRedisTemplate redisTemplate;
 
     /**
      * 특정 계좌의 포트폴리오 요약 정보를 조회합니다.
@@ -45,20 +49,41 @@ public class PortfolioQueryService {
         BigDecimal totalAssetValue = BigDecimal.ZERO;
         BigDecimal totalUnrealizedPnl = BigDecimal.ZERO;
         boolean finalStaleFlag = false;
+
+        String dirtyKey = "portfolio:dirty:" + accountId.toString();
+        String isAccountDirty = redisTemplate.opsForValue().get(dirtyKey);
+
+        if ("true".equals(isAccountDirty)) {
+            finalStaleFlag = true;
+        }
         
         List<AssetDetailDto> dtos = new ArrayList<>(portfolios.size());
 
         List<String> targetAssets = portfolios.stream().map(CurrentPortfolio::getAssetCode).toList();
-        java.util.Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
+        Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
 
         for (CurrentPortfolio p : portfolios) {
             // 미리 조회한 시장 환율 정보를 사용하여 자산의 현재 가치를 계산합니다.
             var rateInfo = exchangeRates.get(p.getAssetCode());
+
+            if(rateInfo == null) {
+                throw new IllegalStateException("Missing exchange rate for asset: " + p.getAssetCode());
+            }
+            
             BigDecimal currentMarketPrice = rateInfo.rate();
 
             // 총 가치(Total Value) 및 미실현 손익(Unrealized PnL) 계산
             BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
-            BigDecimal unrealizedPnl = currentMarketPrice.subtract(p.getAvgUnitPrice()).multiply(p.getTotalQuantity());
+            
+            // 매입 통화(Quote Currency)와 기준 통화(Base Currency) 간의 환율을 추가로 조회
+            var quoteRateInfo = exchangeRateProvider.getExchangeRate(p.getQuoteCurrency(), baseCurrency);
+            BigDecimal quoteToBaseRate = quoteRateInfo.rate();
+
+            // 매입 평균 단가를 기준 통화 단위로 환산
+            BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteToBaseRate);
+
+            // 단위를 맞춘 후 미실현 손익을 계산
+            BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
 
             dtos.add(new AssetDetailDto(
                     p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(),
