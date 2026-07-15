@@ -4,9 +4,12 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
@@ -36,7 +39,18 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     private final List<MatchingRule> rules;
     private final String startOfMonthStr;
 
-    private Map<LocalDate, List<InternalTransactionCandidate>> dailyCandidatesCache = new java.util.HashMap<>();
+    private final Set<UUID> matchedTransactionIds = ConcurrentHashMap.newKeySet();
+
+    private final Map<LocalDate, List<InternalTransactionCandidate>> dailyCandidatesCache = 
+        Collections.synchronizedMap(
+            new LinkedHashMap<LocalDate, List<InternalTransactionCandidate>>(16, 0.75f, true) {
+
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<LocalDate, List<InternalTransactionCandidate>> eldest) {
+                    return size() > 14; 
+                }
+            }
+        );
     private LocalDate latestTargetDate = null;
 
     public HeuristicMatchingProcessor(
@@ -49,19 +63,6 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     }
 
     private List<InternalTransactionCandidate> getCandidatesForDate(LocalDate date) {
-        // 캐시 OOM 방지를 위해, 가장 최근 처리한 일자 기준으로 ±5일 범위를 벗어나는 오래된/너무 미래의 캐시는 삭제합니다.
-        if (latestTargetDate == null || date.isAfter(latestTargetDate) || date.isBefore(latestTargetDate)) {
-            latestTargetDate = date;
-            
-            List<LocalDate> keysToRemove = new ArrayList<>();
-            for (LocalDate k : dailyCandidatesCache.keySet()) {
-                if (k.isBefore(latestTargetDate.minusDays(5)) || k.isAfter(latestTargetDate.plusDays(5))) {
-                    keysToRemove.add(k);
-                }
-            }
-            keysToRemove.forEach(dailyCandidatesCache::remove);
-        }
-
         return dailyCandidatesCache.computeIfAbsent(date, d -> {
             log.debug("Lazy loading internal transaction candidates for date: {}", d);
             OffsetDateTime startOfDay = d.atStartOfDay().atOffset(java.time.ZoneOffset.UTC);
@@ -82,6 +83,7 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     public MatchedReconciliationResult process(ExternalSettlement external) {
 
         LocalDate targetDate = external.getSettlementDate().toLocalDate();
+        
         List<InternalTransactionCandidate> searchSpace = new ArrayList<>();
 
         // 대상 일자의 전후 3일(총 7일) 범위 내에 있는 거래 후보들을 검색 공간(searchSpace)으로 구성합니다.
@@ -95,6 +97,11 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
 
         // 검색 공간의 모든 후보들을 순회하면서 규칙들을 평가합니다.
         for (InternalTransactionCandidate candidate : searchSpace) {
+
+            if (matchedTransactionIds.contains(candidate.transactionId())) {
+                continue;
+            }
+
             boolean allPassed = true;
             int totalScore = 0;
 
@@ -118,14 +125,12 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         }
 
         if (bestMatch != null) {
-            // 가장 적합한 후보가 발견된 경우, 외부 정산 금액과 내부 거래 금액의 차액을 계산하여 결과를 반환합니다.
-            Money feeDifference = external.getAmount().subtract(bestMatch.amount());
+            if (!matchedTransactionIds.add(bestMatch.transactionId())) {
+                throw new UnmatchableSettlementException("CONCURRENT_MATCH_CONFLICT", external.getId().toString());
+            }
             
-            return new MatchedReconciliationResult(
-                external, 
-                bestMatch.transactionId(),
-                feeDifference
-            );
+            Money feeDifference = external.getAmount().subtract(bestMatch.amount());
+            return new MatchedReconciliationResult(external, bestMatch.transactionId(), feeDifference);
         }
 
         throw new UnmatchableSettlementException(lastFailReason, external.getId().toString());

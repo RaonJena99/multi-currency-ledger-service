@@ -4,8 +4,8 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.infrastructure.item.database.JpaPagingItemReader;
-import org.springframework.batch.infrastructure.item.database.builder.JpaPagingItemReaderBuilder;
+import org.springframework.batch.infrastructure.item.database.JpaCursorItemReader;
+import org.springframework.batch.infrastructure.item.database.builder.JpaCursorItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,9 +21,6 @@ import jakarta.persistence.EntityManagerFactory;
  */
 @Configuration
 public class ReconciliationReaderConfig {
-
-    private static final int CHUNK_SIZE = 1000;
-
     /**
      * JPA 페이징 기반으로 외부 정산 데이터를 읽어오는 리더(ItemReader)를 생성합니다.
      * 
@@ -33,27 +30,26 @@ public class ReconciliationReaderConfig {
      */
     @Bean
     @StepScope
-    public JpaPagingItemReader<ExternalSettlement> externalSettlementReader(
-            EntityManagerFactory entityManagerFactory,
-            @Value("#{jobParameters['startOfMonth']}") String startOfMonthStr) {
+    public JpaCursorItemReader<ExternalSettlement> externalSettlementReader(
+        EntityManagerFactory entityManagerFactory,
+        @Value("#{jobParameters['startOfMonth']}") String startOfMonthStr) {
         
         // Job Parameter로 받은 시작일(startOfMonthStr)을 바탕으로 조회 범위(해당 월의 1일 ~ 말일)를 계산합니다.
         OffsetDateTime startOfMonth = OffsetDateTime.parse(startOfMonthStr);
         OffsetDateTime endOfMonth = startOfMonth.plusMonths(1);
 
-        // 지정된 월 범위에 속하며, 상태가 PENDING인 외부 정산 내역을 일자순으로 정렬하여 조회합니다.
-        return new JpaPagingItemReaderBuilder<ExternalSettlement>()
-                .name("externalSettlementReader")
-                .entityManagerFactory(entityManagerFactory)
-                .pageSize(CHUNK_SIZE)
-                .queryString("SELECT e FROM ExternalSettlement e " +
-                            "WHERE e.status = :status " +
-                            "AND e.settlementDate >= :start AND e.settlementDate < :end " +
-                            "ORDER BY e.settlementDate ASC")
-                .parameterValues(Map.of(
-                        "status", SettlementStatus.PENDING,
-                        "start", startOfMonth, 
-                        "end", endOfMonth))
-                .build();
-    }
+        
+        return new JpaCursorItemReaderBuilder<ExternalSettlement>()
+            .name("externalSettlementReader")
+            .entityManagerFactory(entityManagerFactory)
+            .queryString("SELECT e FROM ExternalSettlement e " +
+                        "WHERE e.status = :status " +
+                        "AND e.settlementDate >= :start AND e.settlementDate < :end " +
+                        "ORDER BY e.settlementDate ASC")
+            .parameterValues(Map.of(
+                    "status", SettlementStatus.PENDING,
+                    "start", startOfMonth, 
+                    "end", endOfMonth))
+            .build();
+        }
 }
