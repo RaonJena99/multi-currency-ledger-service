@@ -120,6 +120,9 @@ classDiagram
     +UUID executeBuyAsset(String, UUID, String, AssetType, String, Money, Money, OffsetDateTime)
     +UUID executeSellAsset(String, UUID, String, AssetType, String, Money, Money, OffsetDateTime)
   }
+  class IdempotencyCleanupWorker {
+    +void cleanupOldRecords()
+  }
   class MonthlyLedgerInitializer {
     +void initializeInNewTransaction(UUID, String, AssetType, String)
   }
@@ -181,6 +184,7 @@ classDiagram
   }
   class IdempotencyRecordRepository {
     <<Interface>>
+    + int deleteByCreatedAtBefore(OffsetDateTime)
   }
   class MonthlyAccountLedgerRepository {
     <<Interface>>
@@ -330,6 +334,7 @@ classDiagram
   }
   class OutboxMessageEvent {
     +String eventType()
+    +String aggregateId()
     +String payload()
     +String correlationId()
   }
@@ -410,6 +415,8 @@ classDiagram
   }
   class HeuristicMatchingProcessor {
     +MatchedReconciliationResult process(ExternalSettlement)
+  }
+  class HeuristicMatchingProcessor_1 {
   }
   class MatchedReconciliationResult {
     +ExternalSettlement externalSettlement()
@@ -524,7 +531,7 @@ classDiagram
     +Step reconciliationStep()
   }
   class ReconciliationReaderConfig {
-    +JpaPagingItemReader~ExternalSettlement~ externalSettlementReader(EntityManagerFactory, String)
+    +JpaCursorItemReader~ExternalSettlement~ externalSettlementReader(EntityManagerFactory, String)
   }
   class ReconciliationSkipListener {
     +void onSkipInProcess(ExternalSettlement, Throwable)
@@ -618,6 +625,7 @@ classDiagram
   AccountTradeService --> MonthlyAccountLedgerRepository
   AccountTradeService --> IdempotencyRecordRepository
   AccountTradeService --> ExchangeRateProvider
+  IdempotencyCleanupWorker --> IdempotencyRecordRepository
   MonthlyLedgerInitializer --> MonthlyAccountLedgerRepository
   MonthlyLedgerInitializer --> AccountRepository
   MonthlyLedgerResolver --> MonthlyLedgerInitializer
