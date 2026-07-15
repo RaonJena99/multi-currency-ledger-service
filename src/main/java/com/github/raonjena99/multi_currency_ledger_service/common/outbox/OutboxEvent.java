@@ -1,5 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.common.outbox;
 
+import java.time.OffsetDateTime;
+
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -58,6 +60,9 @@ public class OutboxEvent extends BaseEntity{
     @Column(name = "correlation_id", length = 100)
     private String correlationId;
 
+    @Column(name = "locked_at")
+    private OffsetDateTime lockedAt;
+
     /**
      * OutboxEvent 객체를 생성합니다.
      *
@@ -98,5 +103,15 @@ public class OutboxEvent extends BaseEntity{
             this.deadLetter = true;
             this.processed = true; 
         }
+    }
+
+    // 잠금 처리
+    public void lock(){
+        this.lockedAt = OffsetDateTime.now();
+    }
+
+    // 잠금 해제
+    public void unlock(){
+        this.lockedAt = null;
     }
 }
