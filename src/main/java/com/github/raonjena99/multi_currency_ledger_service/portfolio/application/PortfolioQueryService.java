@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,8 @@ public class PortfolioQueryService {
     private final ExchangeRateProvider exchangeRateProvider;
     private final AccountApi accountApi;
 
+    private final StringRedisTemplate redisTemplate;
+
     /**
      * 특정 계좌의 포트폴리오 요약 정보를 조회합니다.
      * @param accountId 조회할 계좌 ID
@@ -46,6 +49,13 @@ public class PortfolioQueryService {
         BigDecimal totalAssetValue = BigDecimal.ZERO;
         BigDecimal totalUnrealizedPnl = BigDecimal.ZERO;
         boolean finalStaleFlag = false;
+
+        String dirtyKey = "portfolio:dirty:" + accountId.toString();
+        String isAccountDirty = redisTemplate.opsForValue().get(dirtyKey);
+
+        if ("true".equals(isAccountDirty)) {
+            finalStaleFlag = true;
+        }
         
         List<AssetDetailDto> dtos = new ArrayList<>(portfolios.size());
 
@@ -64,7 +74,16 @@ public class PortfolioQueryService {
 
             // 총 가치(Total Value) 및 미실현 손익(Unrealized PnL) 계산
             BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
-            BigDecimal unrealizedPnl = currentMarketPrice.subtract(p.getAvgUnitPrice()).multiply(p.getTotalQuantity());
+            
+            // 매입 통화(Quote Currency)와 기준 통화(Base Currency) 간의 환율을 추가로 조회
+            var quoteRateInfo = exchangeRateProvider.getExchangeRate(p.getQuoteCurrency(), baseCurrency);
+            BigDecimal quoteToBaseRate = quoteRateInfo.rate();
+
+            // 매입 평균 단가를 기준 통화 단위로 환산
+            BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteToBaseRate);
+
+            // 단위를 맞춘 후 미실현 손익을 계산
+            BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
 
             dtos.add(new AssetDetailDto(
                     p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(),

@@ -104,11 +104,19 @@ public class TransactionEntry {
         this.unitPrice = unitPrice;
         this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
         
-        // 수량(BigDecimal) * 단가(Money) = 외화 가치(Money) 계산
+        // 수량(BigDecimal) * 단가(Money) = 단가를 기준으로 계산된 가치(Money)
         Money valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
-        // 외화 가치(Money) * 환율(BigDecimal) = 최종 환산 가치(Money) 계산
-        Money finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
-                                    
+
+        Money finalCalculatedValue;
+        // 단가의 통화가 이미 최종 기준 통화와 같다면 환율을 곱하지 않음
+        if (valueBeforeExchange.getCurrencyCode().equals(baseCurrencyCode)) {
+            finalCalculatedValue = valueBeforeExchange;
+            this.exchangeRate = BigDecimal.ONE; 
+        } else {
+            // 단가가 외화 기준일 경우에만 환율을 곱해 원화 환산
+            finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
+        }
+
         this.amount = Money.of(finalCalculatedValue.getAmount(), AssetType.FIAT, baseCurrencyCode);
         this.realizedPnl = realizedPnl;
     }

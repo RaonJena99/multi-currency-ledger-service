@@ -2,6 +2,7 @@ package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -9,7 +10,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -22,6 +26,7 @@ import com.github.raonjena99.multi_currency_ledger_service.account.infrastructur
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 
 @RecordApplicationEvents
 @DisplayName("서비스 통합 테스트: AccountTradeService (실제 흐름 및 이벤트 발행 검증)")
@@ -31,13 +36,13 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
     @Autowired private AccountTradeFacade accountTradeFacade;
     @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     @Autowired private AccountRepository accountRepository;
-    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private ApplicationEvents applicationEvents;
     
     @Autowired private TransactionTemplate transactionTemplate;
 
-    @org.springframework.test.context.bean.override.mockito.MockitoBean
-    private com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider exchangeRateProvider;
+    @MockitoBean
+    private ExchangeRateProvider exchangeRateProvider;
 
     @AfterEach
     void tearDown() {
@@ -62,8 +67,8 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         Money buyQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
         Money unitPrice = Money.of("100000000", AssetType.FIAT, "KRW"); 
 
-        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
-            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));
+        Mockito.when(exchangeRateProvider.getExchangeRate(Mockito.anyString(), Mockito.anyString()))
+            .thenReturn(new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false));
 
         // when
         UUID tradeId = accountTradeFacade.buyAsset("idemp-test-1", accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
@@ -106,8 +111,8 @@ class AccountTradeServiceTest extends IntegrationTestSupport {
         Money sellQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
         Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW"); 
 
-        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
-            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));
+        Mockito.when(exchangeRateProvider.getExchangeRate(Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(new ExchangeRateProvider.ExchangeRate(new java.math.BigDecimal("50000000"), false));
 
         // when
         UUID tradeId = accountTradeFacade.sellAsset("idemp-test-2", accountId, "BTC", AssetType.CRYPTO, "KRW", sellQuantity, unitPrice);

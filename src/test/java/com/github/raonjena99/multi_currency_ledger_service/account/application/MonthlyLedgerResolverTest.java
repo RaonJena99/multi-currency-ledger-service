@@ -2,7 +2,6 @@ package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,9 +18,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
-import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
-import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,7 +50,7 @@ class MonthlyLedgerResolverTest {
         MonthlyAccountLedger result = resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, now);
 
         assertThat(result).isEqualTo(ledger);
-        verify(ledgerRepository, never()).save(any());
+        verify(ledgerRepository, never()).saveAndFlush(any());
     }
 
     @Test

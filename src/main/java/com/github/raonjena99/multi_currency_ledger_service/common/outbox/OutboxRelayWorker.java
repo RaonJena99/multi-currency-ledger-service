@@ -37,13 +37,16 @@ public class OutboxRelayWorker {
         for (OutboxEvent event : events) {
             try {
                 // Spring 내부 이벤트를 통해 Kafka 프로듀서 리스너로 전달하여 실제 발행 수행
-                eventPublisher.publishEvent(new OutboxMessageEvent(event.getAggregateType(), event.getPayload(), event.getCorrelationId()));
+                eventPublisher.publishEvent(new OutboxMessageEvent(event.getEventType(), event.getAggregateId(), event.getPayload(), event.getCorrelationId()));
+                
                 // 발행이 성공하면 이벤트 상태를 처리됨(Processed)으로 변경
                 event.markAsProcessed();
             } catch (Exception e) {
-                // 발행 중 오류가 발생하면 실패 처리를 수행하고 다음 이벤트 처리로 넘어감
+                // 발행 중 오류가 발생하면 실패 처리를 수행하고 다음 건 처리
                 log.error("Failed to process OutboxEvent ID: {}. Triggering Failure Logic.", event.getId(), e);
                 event.recordFailure(e.getMessage());
+
+                continue;
             }
         }
     }

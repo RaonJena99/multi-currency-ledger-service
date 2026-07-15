@@ -13,13 +13,16 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.IdempotencyRecord;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.IdempotencyRecordRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.DuplicateTradeRequestException;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
@@ -124,7 +127,7 @@ public class AccountTradeService {
     )
     @Transactional
     public UUID executeSellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                                 String paymentCurrency, Money sellQuantity, Money sellUnitPrice, OffsetDateTime transactedAt) {
+                                String paymentCurrency, Money sellQuantity, Money sellUnitPrice, OffsetDateTime transactedAt) {
                 
         try {
             idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));

@@ -40,31 +40,23 @@ public class MonthlyLedgerInitializer {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void initializeInNewTransaction(UUID accountId, String assetCode, AssetType assetType, String targetMonth) {
-        try {
-            // 다른 트랜잭션에 의해 이미 초기화되었는지 재확인 (Double-check)
-            if (ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, assetCode, targetMonth).isPresent()) {
-                return; 
-            }
 
-            // 가장 최근의 이전 달 MonthlyAccountLedger(원장) 조회
-            ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, assetCode)
-                .ifPresentOrElse(
-                    // 전월 장부가 있을 경우, 해당 잔고 및 평균 단가 정보를 기반으로 당월로 이월(Carry-forward)
-                    prevLedger -> {
-                        MonthlyAccountLedger rolledOver = MonthlyAccountLedger.carryForwardFrom(prevLedger, targetMonth);
-                        ledgerRepository.save(rolledOver); // flush 없이 순수 save
-                    },
-                    // 전월 장부가 없는 경우, 잔고가 0인 새로운 원장으로 초기화
-                    () -> {
-                        Account account = accountRepository.findById(accountId)
-                                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
-                        MonthlyAccountLedger newLedger = MonthlyAccountLedger.initialize(accountId, assetCode, assetType, targetMonth, account.getBaseCurrency()); 
-                        ledgerRepository.save(newLedger); // flush 없이 순수 save
-                    }
-                );
-        } catch (DataIntegrityViolationException e) {
-            // 여러 스레드가 동시에 초기화를 시도하다 발생한 중복 생성(Unique Constraint) 예외 처리
-            log.debug("Ledger uniquely initialized by another thread for {} - {}", accountId, assetCode);
+        if (ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, assetCode, targetMonth).isPresent()) {
+            return; 
         }
+
+        ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, assetCode)
+        .ifPresentOrElse(
+            prevLedger -> {
+                MonthlyAccountLedger rolledOver = MonthlyAccountLedger.carryForwardFrom(prevLedger, targetMonth);
+                ledgerRepository.save(rolledOver);
+            },
+            () -> {
+                Account account = accountRepository.findById(accountId)
+                        .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+                MonthlyAccountLedger newLedger = MonthlyAccountLedger.initialize(accountId, assetCode, assetType, targetMonth, account.getBaseCurrency()); 
+                ledgerRepository.save(newLedger);
+            }
+        );
     }
 }

@@ -20,6 +20,8 @@ import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeR
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("애플리케이션 단위 테스트: PortfolioQueryService (CQRS 조회 및 집계 로직 검증)")
@@ -34,6 +36,12 @@ class PortfolioQueryServiceTest {
     @Mock
     private ExchangeRateProvider exchangeRateProvider;
 
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
     @InjectMocks
     private PortfolioQueryService portfolioQueryService;
 
@@ -47,11 +55,13 @@ class PortfolioQueryServiceTest {
 
         CurrentPortfolio btc = mock(CurrentPortfolio.class);
         when(btc.getAssetCode()).thenReturn("BTC");
+        when(btc.getQuoteCurrency()).thenReturn("KRW");
         when(btc.getTotalQuantity()).thenReturn(new BigDecimal("2"));
         when(btc.getAvgUnitPrice()).thenReturn(new BigDecimal("50000000"));
 
         CurrentPortfolio eth = mock(CurrentPortfolio.class);
         when(eth.getAssetCode()).thenReturn("ETH");
+        when(eth.getQuoteCurrency()).thenReturn("KRW");
         when(eth.getTotalQuantity()).thenReturn(new BigDecimal("10"));
         when(eth.getAvgUnitPrice()).thenReturn(new BigDecimal("4000000"));
 
@@ -61,6 +71,10 @@ class PortfolioQueryServiceTest {
         mockRates.put("BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), false));
         mockRates.put("ETH", new ExchangeRateProvider.ExchangeRate(new BigDecimal("3000000"), false));
         when(exchangeRateProvider.getExchangeRates(List.of("BTC", "ETH"), "KRW")).thenReturn(mockRates);
+        when(exchangeRateProvider.getExchangeRate("KRW", "KRW")).thenReturn(new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false));
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("portfolio:dirty:" + accountId)).thenReturn(null);
 
         // when
         PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
@@ -85,6 +99,7 @@ class PortfolioQueryServiceTest {
 
         CurrentPortfolio btc = mock(CurrentPortfolio.class);
         when(btc.getAssetCode()).thenReturn("BTC");
+        when(btc.getQuoteCurrency()).thenReturn("KRW");
         when(btc.getTotalQuantity()).thenReturn(new BigDecimal("2"));
         when(btc.getAvgUnitPrice()).thenReturn(new BigDecimal("50000000"));
 
@@ -93,6 +108,10 @@ class PortfolioQueryServiceTest {
         java.util.Map<String, ExchangeRateProvider.ExchangeRate> mockRates = new java.util.HashMap<>();
         mockRates.put("BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), true));
         when(exchangeRateProvider.getExchangeRates(List.of("BTC"), "KRW")).thenReturn(mockRates);
+        when(exchangeRateProvider.getExchangeRate("KRW", "KRW")).thenReturn(new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false));
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("portfolio:dirty:" + accountId)).thenReturn("true");
 
         PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
 

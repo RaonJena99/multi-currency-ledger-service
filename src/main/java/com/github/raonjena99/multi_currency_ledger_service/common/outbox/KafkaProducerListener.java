@@ -31,6 +31,7 @@ public class KafkaProducerListener {
     @EventListener
     public void handleOutboxMessageEvent(OutboxMessageEvent event) {
         String topic = event.eventType();
+        String key = event.aggregateId();
         String payload = event.payload();
 
         log.info("Initiating Kafka message dispatch. Topic: [{}], Payload Size: {}", topic, payload.length());
@@ -40,8 +41,7 @@ public class KafkaProducerListener {
                 MDC.put("correlationId", event.correlationId());
             }
 
-            // Kafka 프로듀서 전송 결과를 최대 3초 대기하여, 인프라 이슈로 인한 무한 블로킹을 방지
-            kafkaTemplate.send(topic, payload).get(3, TimeUnit.SECONDS);
+            kafkaTemplate.send(topic, key, payload).get(3, TimeUnit.SECONDS);
             log.info("Successfully dispatched message to Kafka topic [{}]", topic);
         } catch (InterruptedException e) {
             // 현재 스레드의 인터럽트 상태를 복구하고 실행 중지

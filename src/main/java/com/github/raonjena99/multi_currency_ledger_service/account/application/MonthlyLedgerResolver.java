@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,21 +40,21 @@ public class MonthlyLedgerResolver {
      * @return 해당하는 MonthlyAccountLedger(월별 계좌 원장)
      * @throws IllegalStateException 원장 초기화 후에도 장부를 불러오지 못한 경우
      */
-    @Transactional
     public MonthlyAccountLedger resolveOrInitializeLedger(UUID accountId, String assetCode, AssetType assetType, OffsetDateTime transactedAt) {
         String targetMonth = transactedAt.format(MONTH_FORMATTER);
 
-        // 현재 트랜잭션에서 대상 월의 원장(Ledger)을 우선 조회
         return ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, assetCode, targetMonth)
                 .orElseGet(() -> {
-                    // 원장이 없을 경우, 새로운 트랜잭션을 열어 이월 및 초기화 작업 수행
-                    ledgerInitializer.initializeInNewTransaction(accountId, assetCode, assetType, targetMonth);
+                    try {
+                        // 원장이 없을 경우, 새로운 트랜잭션을 열어 초기화 작업 수행
+                        ledgerInitializer.initializeInNewTransaction(accountId, assetCode, assetType, targetMonth);
+                    } catch (DataIntegrityViolationException e) {
+                        log.debug("다른 스레드가 이미 이번 달 원장을 생성했습니다. 새로 생성된 원장을 재조회합니다.");
+                    }
                     
-                    // 초기화 완료 후 다시 원장을 조회하여 반환
+                    // 초기화 완료 또는 타 스레드 생성 완료 후 다시 원장을 조회하여 반환
                     return ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, assetCode, targetMonth)
                             .orElseThrow(() -> new IllegalStateException("Failed to load ledger after initialization"));
                 });
     }
-
-    
 }

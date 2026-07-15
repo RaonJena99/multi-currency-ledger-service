@@ -162,7 +162,7 @@ public class Money {
         BigDecimal remainder = this.amount.subtract(lowResult.multiply(targetBd));
         
         // 자투리 금액이 최소 단위 몇 개로 이루어져 있는지 몫을 구함 (이 개수만큼 1원씩 더 분배)
-        int remainderCount = remainder.divide(minimumUnit, 0, RoundingMode.HALF_UP).intValue();
+        int remainderCount = Math.abs(remainder.divide(minimumUnit, 0, RoundingMode.HALF_UP).intValue());
 
         // 앞쪽의 remainderCount 명에게는 +1단위(High)를 주고, 나머지는 기본(Low) 금액 할당
         for (int i = 0; i < targets; i++) {
