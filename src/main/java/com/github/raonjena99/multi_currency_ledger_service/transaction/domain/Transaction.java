@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.data.domain.Persistable;
+
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
@@ -17,9 +19,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,7 +37,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "transactions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Transaction implements org.springframework.data.domain.Persistable<UUID> {
+public class Transaction implements Persistable<UUID> {
 
     @Id
     private UUID id;
@@ -152,11 +157,11 @@ public class Transaction implements org.springframework.data.domain.Persistable<
         verifyDoubleEntry();
     }
 
-    @jakarta.persistence.Transient
+    @Transient
     private boolean isNew = true;
 
-    @jakarta.persistence.PostPersist
-    @jakarta.persistence.PostLoad
+    @PostPersist
+    @PostLoad
     protected void markNotNew() {
         this.isNew = false;
     }

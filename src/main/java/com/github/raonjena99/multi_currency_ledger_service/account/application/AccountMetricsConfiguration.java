@@ -1,6 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.context.annotation.Configuration;
 
@@ -23,9 +24,9 @@ public class AccountMetricsConfiguration {
 
     @PostConstruct
     public void initializeMetrics() {
-        java.util.List<String> fiatCodes = ledgerRepository.findDistinctFiatCodes();
+        List<String> fiatCodes = ledgerRepository.findDistinctFiatCodes();
         if (fiatCodes.isEmpty()) {
-            fiatCodes = java.util.List.of("KRW", "USD"); // 기본 모니터링 대상
+            fiatCodes = List.of("KRW", "USD"); // 기본 모니터링 대상
         }
 
         for (String fiatCode : fiatCodes) {
