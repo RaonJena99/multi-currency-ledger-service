@@ -4,13 +4,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
-
-import jakarta.persistence.LockModeType;
 
 /**
  * MonthlyAccountLedger(월별 계좌 원장) 엔티티에 대한 데이터 접근을 담당하는 Repository 인터페이스입니다.
@@ -61,7 +59,7 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
         )
     """)
     java.math.BigDecimal sumLatestBalanceByAssetCode(
-        @org.springframework.data.repository.query.Param("assetCode") String assetCode
+        @Param("assetCode") String assetCode
     );
 
     /**
@@ -74,6 +72,9 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
 
     /**
      * 특정 계좌의 모든 자산에 대한 가장 최신 장부 기록을 조회합니다.
+     * 
+     * @param accountId 계좌 ID
+     * @return 해당 계좌의 모든 자산에 대한 최신 MonthlyAccountLedger(월별 계좌 원장) 리스트
      */
     @Query("""
         SELECT m 
@@ -86,6 +87,6 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
         )
     """)
     java.util.List<MonthlyAccountLedger> findLatestBalancesByAccountId(
-        @org.springframework.data.repository.query.Param("accountId") UUID accountId
+        @Param("accountId") UUID accountId
     );
 }

@@ -48,7 +48,7 @@ public class MonthlyAccountLedger extends BaseEntity {
     @Column(name = "asset_code", nullable = false, length = 20)
     private String assetCode;
 
-    // 원장의 귀속 월 (예: "2023-10")
+    // 원장의 귀속 월
     @Column(name = "ledger_month", nullable = false, length = 7)
     private String ledgerMonth;
 
@@ -92,20 +92,20 @@ public class MonthlyAccountLedger extends BaseEntity {
      * @param accountId 계좌 ID
      * @param assetCode 자산 코드
      * @param assetType 자산 유형
-     * @param ledgerMonth 귀속 월 (예: "2023-10")
-     * @param baseCurrency 기준 통화 (예: "KRW")
-     * @return 생성된 MonthlyAccountLedger(월별 계좌 원장) 객체
+     * @param ledgerMonth 귀속 월
+     * @param baseCurrency 기준 통화
+     * @return 생성된 MonthlyAccountLedger 객체
      */
     public static MonthlyAccountLedger initialize(UUID accountId, String assetCode, AssetType assetType, String ledgerMonth, String baseCurrency) {
         return new MonthlyAccountLedger(accountId, assetCode, assetType, ledgerMonth, baseCurrency);
     }
 
     /**
-     * 이전 달의 MonthlyAccountLedger(월별 계좌 원장) 데이터를 기반으로 당월 장부로 이월(Carry-forward)합니다.
-     *
+     * 이전 달의 MonthlyAccountLedger(월별 계좌 원장) 데이터를 기반으로 당월 장부로 이월합니다.
+     * 
      * @param prev 이전 달의 MonthlyAccountLedger 객체
-     * @param currentMonth 당월 (예: "2023-11")
-     * @return 이월 처리된 당월 MonthlyAccountLedger(월별 계좌 원장) 객체
+     * @param currentMonth 당월
+     * @return 이월 처리된 당월 MonthlyAccountLedger 객체
      */
     public static MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger prev, String currentMonth) {
         MonthlyAccountLedger ledger = new MonthlyAccountLedger();
@@ -122,7 +122,7 @@ public class MonthlyAccountLedger extends BaseEntity {
     }
 
     /**
-     * 자산 매수에 따른 잔고(Balance) 증가 및 평균 단가(Average Unit Price)를 갱신합니다.
+     * 자산 매수에 따른 잔고(Balance) 증가 및 평균 단가를 갱신합니다.
      *
      * @param quantityToAdd 추가할 자산 수량
      * @param unitPrice 매입 단가

@@ -77,6 +77,7 @@ public class AccountTradeService {
         MonthlyAccountLedger targetAssetLedger = monthlyAccountLedgerRepository
         .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, targetAssetCode, targetMonth)
         .orElseThrow();
+        
         MonthlyAccountLedger fiatLedger = monthlyAccountLedgerRepository
         .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, paymentCurrency, targetMonth)
         .orElseThrow();

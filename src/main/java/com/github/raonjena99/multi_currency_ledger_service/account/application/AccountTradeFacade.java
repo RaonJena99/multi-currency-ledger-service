@@ -5,7 +5,6 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
-import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 

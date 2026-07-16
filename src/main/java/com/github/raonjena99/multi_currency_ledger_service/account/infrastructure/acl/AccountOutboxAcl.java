@@ -1,5 +1,8 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.acl;
 
+import java.math.BigDecimal;
+import java.util.UUID;
+
 import org.slf4j.MDC;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -24,14 +27,14 @@ public class AccountOutboxAcl {
     
     // 모듈 간 강결합(Modulith Violation) 방지를 위해 내부 DTO 레코드 선언
     record LedgerRecordingPayload(
-        java.util.UUID tradeId,
-        java.util.UUID accountId,
+        UUID tradeId,
+        UUID accountId,
         String targetAssetCode,
         String paymentCurrency,
         String tradeType,
         Money quantity,
         Money unitPrice,
-        java.math.BigDecimal exchangeRate,
+        BigDecimal exchangeRate,
         Money averageCost,
         boolean isStaleRate
     ) {}

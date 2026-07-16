@@ -1,5 +1,6 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -8,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,7 +23,7 @@ public class AccountApiImpl implements AccountApi {
 
     private final AccountRepository accountRepository;
 
-    private final com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
+    private final MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
 
     @Override
     public String getBaseCurrency(UUID accountId) {
@@ -31,7 +33,7 @@ public class AccountApiImpl implements AccountApi {
     }
 
     @Override
-    public java.util.List<AccountBalanceDto> getBalances(UUID accountId) {
+    public List<AccountBalanceDto> getBalances(UUID accountId) {
         return monthlyAccountLedgerRepository.findLatestBalancesByAccountId(accountId).stream()
                 .map(ledger -> new AccountBalanceDto(
                         ledger.getAssetCode(),

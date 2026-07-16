@@ -104,7 +104,7 @@ public class TransactionEntry {
         this.unitPrice = unitPrice;
         this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
         
-        // 수량(BigDecimal) * 단가(Money) = 단가를 기준으로 계산된 가치(Money)
+        // 수량 * 단가
         Money valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
 
         Money finalCalculatedValue;
