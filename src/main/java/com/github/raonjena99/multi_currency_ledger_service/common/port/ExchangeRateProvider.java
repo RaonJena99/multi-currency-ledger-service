@@ -26,10 +26,10 @@ public interface ExchangeRateProvider {
      * @param baseAsset 기준 자산 코드
      * @return 각 자산 코드별 환율 정보 Map
      */
-    default Map<String, ExchangeRate> getExchangeRates(List<String> targetAssets, String baseAsset) {
+    default Map<String, ExchangeRate> getExchangeRates(List<String> targetAssets, String baseCurrency) {
         java.util.Map<String, ExchangeRate> resultMap = new HashMap<>();
         for (String target : targetAssets) {
-            resultMap.put(target, getExchangeRate(baseAsset, target));
+            resultMap.put(target, getExchangeRate(target, baseCurrency));
         }
         return resultMap;
     }

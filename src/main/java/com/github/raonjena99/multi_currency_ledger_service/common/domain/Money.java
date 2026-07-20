@@ -152,7 +152,7 @@ public class Money {
 
         // 균등하게 분배될 기본 금액을 소수점 버림(DOWN)으로 안전하게 계산
         BigDecimal targetBd = new BigDecimal(targets);
-        BigDecimal lowResult = this.amount.divide(targetBd, scale, RoundingMode.DOWN);
+        BigDecimal lowResult = this.amount.divide(targetBd, scale, RoundingMode.FLOOR);
         Money lowMoney = Money.of(lowResult, this.assetType, this.currencyCode);
         
         // 기본 금액에 최소 단위를 더해 자투리 금액을 받을 수 있는 금액(High) 생성

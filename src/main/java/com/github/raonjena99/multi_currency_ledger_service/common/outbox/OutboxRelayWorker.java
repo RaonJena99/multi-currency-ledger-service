@@ -30,6 +30,12 @@ public class OutboxRelayWorker {
                 eventPublisher.publishEvent(new OutboxMessageEvent(event.getEventType(), event.getAggregateId(), event.getPayload(), event.getCorrelationId()));
                 outboxManager.markAsProcessed(event.getId());
             } catch (Exception e) {
+                // 스레드가 인터럽트(종료)된 상태라면 DB에 접근하지 않고 즉시 루프 탈출
+                if (e instanceof InterruptedException || Thread.currentThread().isInterrupted()) {
+                    log.warn("Worker thread interrupted. Stopping relay safely.");
+                    Thread.currentThread().interrupt(); // 인터럽트 상태 복원
+                    break; 
+                }
                 log.error("Failed to process OutboxEvent ID: {}", event.getId(), e);
                 outboxManager.recordFailure(event.getId(), e.getMessage());
             }
