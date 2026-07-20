@@ -39,8 +39,6 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
     private final List<MatchingRule> rules;
     private final String startOfMonthStr;
 
-    private final Set<UUID> matchedTransactionIds = ConcurrentHashMap.newKeySet();
-
     private final Map<LocalDate, List<InternalTransactionCandidate>> dailyCandidatesCache = 
         Collections.synchronizedMap(
             new LinkedHashMap<LocalDate, List<InternalTransactionCandidate>>(16, 0.75f, true) {
@@ -98,10 +96,6 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         // 검색 공간의 모든 후보들을 순회하면서 규칙들을 평가합니다.
         for (InternalTransactionCandidate candidate : searchSpace) {
 
-            if (matchedTransactionIds.contains(candidate.transactionId())) {
-                continue;
-            }
-
             boolean allPassed = true;
             int totalScore = 0;
 
@@ -125,9 +119,8 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         }
 
         if (bestMatch != null) {
-            if (!matchedTransactionIds.add(bestMatch.transactionId())) {
-                throw new UnmatchableSettlementException("CONCURRENT_MATCH_CONFLICT", external.getId().toString());
-            }
+            final UUID bestMatchId = bestMatch.transactionId();
+            dailyCandidatesCache.values().forEach(list -> list.removeIf(c -> c.transactionId().equals(bestMatchId)));
             
             Money feeDifference = external.getAmount().subtract(bestMatch.amount());
             return new MatchedReconciliationResult(external, bestMatch.transactionId(), feeDifference);

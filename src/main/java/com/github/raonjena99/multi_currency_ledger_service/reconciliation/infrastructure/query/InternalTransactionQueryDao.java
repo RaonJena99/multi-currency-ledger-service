@@ -43,8 +43,10 @@ public class InternalTransactionQueryDao {
                     te.amount_currency AS currency
             FROM transactions t
             INNER JOIN transaction_entries te ON t.id = te.transaction_id
+            LEFT JOIN external_settlement es ON t.id = es.matched_internal_transaction_id
             WHERE te.entry_type = 'CREDIT' 
             AND t.transacted_at >= :start AND t.transacted_at < :end
+            AND es.id IS NULL
         """;
 
         Timestamp startTs = Timestamp.from(start.toInstant());
@@ -67,5 +69,15 @@ public class InternalTransactionQueryDao {
                 );
             }
         );
+    }
+
+    public UUID findAccountIdByTransactionId(UUID transactionId) {
+        String sql = "SELECT account_id FROM transaction_entries WHERE transaction_id = :id AND entry_type = 'CREDIT' LIMIT 1";
+        List<String> results = jdbcTemplate.query(sql, 
+            new MapSqlParameterSource("id", transactionId.toString()), 
+            (rs, rowNum) -> rs.getString("account_id")
+        );
+        if (results.isEmpty()) throw new IllegalArgumentException("Transaction not found");
+        return UUID.fromString(results.get(0));
     }
 }

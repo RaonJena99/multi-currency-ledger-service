@@ -42,7 +42,7 @@ class HeuristicMatchingProcessorTest {
         InternalTransactionCandidate cand = new InternalTransactionCandidate(
                 UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY", Money.of("1000", AssetType.FIAT, "KRW")
         );
-        lenient().when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(List.of(cand));
+        lenient().when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(new java.util.ArrayList<>(List.of(cand)));
     }
 
     @Test
@@ -86,7 +86,7 @@ class HeuristicMatchingProcessorTest {
                 UUID.randomUUID(), OffsetDateTime.parse("2026-06-15T10:00:00Z"), "TOSS PAY 1", Money.of("1000", AssetType.FIAT, "KRW")
         );
         
-        lenient().when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(List.of(cand1, cand2));
+        lenient().when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(new java.util.ArrayList<>(List.of(cand1, cand2)));
         // Reset processor to re-initialize cache
         processor = new HeuristicMatchingProcessor(queryDao, List.of(new TimeToleranceRule(), new AmountToleranceRule(), new FuzzyTextMatchingRule()), "2026-06-01T00:00:00Z");
 

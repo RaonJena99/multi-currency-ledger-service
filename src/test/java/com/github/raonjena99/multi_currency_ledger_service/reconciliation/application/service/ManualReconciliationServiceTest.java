@@ -26,6 +26,7 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ReconciliationDeadLetter;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.event.ReconciliationFeeAdjustedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.ExternalSettlementRepository;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionQueryDao;
 
 @ExtendWith(MockitoExtension.class)
 class ManualReconciliationServiceTest {
@@ -33,6 +34,7 @@ class ManualReconciliationServiceTest {
     @Mock private ReconciliationDeadLetterRepository deadLetterRepository;
     @Mock private ExternalSettlementRepository settlementRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private InternalTransactionQueryDao internalTransactionQueryDao;
 
     @InjectMocks private ManualReconciliationService manualReconciliationService;
 
@@ -48,6 +50,7 @@ class ManualReconciliationServiceTest {
         
         when(deadLetterRepository.findById(deadLetterId)).thenReturn(Optional.of(dlq));
         when(settlementRepository.findByIdWithoutPartitionKey(settlement.getId())).thenReturn(Optional.of(settlement));
+        when(internalTransactionQueryDao.findAccountIdByTransactionId(internalTxId)).thenReturn(UUID.randomUUID());
 
         manualReconciliationService.resolveManually(deadLetterId, internalTxId, Money.of("10", AssetType.FIAT, "KRW"));
 
@@ -70,6 +73,7 @@ class ManualReconciliationServiceTest {
         
         when(deadLetterRepository.findById(deadLetterId)).thenReturn(Optional.of(dlq));
         when(settlementRepository.findByIdWithoutPartitionKey(settlement.getId())).thenReturn(Optional.of(settlement));
+        when(internalTransactionQueryDao.findAccountIdByTransactionId(internalTxId)).thenReturn(UUID.randomUUID());
 
         manualReconciliationService.resolveManually(deadLetterId, internalTxId, Money.of("0", AssetType.FIAT, "KRW"));
 
@@ -91,6 +95,7 @@ class ManualReconciliationServiceTest {
         
         when(deadLetterRepository.findById(deadLetterId)).thenReturn(Optional.of(dlq));
         when(settlementRepository.findByIdWithoutPartitionKey(settlement.getId())).thenReturn(Optional.of(settlement));
+        when(internalTransactionQueryDao.findAccountIdByTransactionId(internalTxId)).thenReturn(UUID.randomUUID());
 
         manualReconciliationService.resolveManually(deadLetterId, internalTxId, null);
 
