@@ -45,7 +45,7 @@ public class MonthlyLedgerInitializer {
             return; 
         }
 
-        ledgerRepository.findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, assetCode)
+        ledgerRepository.findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, assetCode)
         .ifPresentOrElse(
             prevLedger -> {
                 MonthlyAccountLedger rolledOver = MonthlyAccountLedger.carryForwardFrom(prevLedger, targetMonth);

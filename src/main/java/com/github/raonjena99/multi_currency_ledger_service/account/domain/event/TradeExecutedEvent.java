@@ -31,6 +31,7 @@ public record TradeExecutedEvent(
     String assetCode,        
     AssetType assetType,     
     String fiatCode,         
+    String baseCurrency,
     TradeType tradeType,     
     BigDecimal quantity,     
     BigDecimal unitPrice,    
@@ -49,6 +50,7 @@ public record TradeExecutedEvent(
         Objects.requireNonNull(assetCode, "Asset code cannot be null");
         Objects.requireNonNull(assetType, "Asset type cannot be null");
         Objects.requireNonNull(fiatCode, "Fiat code cannot be null");
+        Objects.requireNonNull(baseCurrency, "Base currency cannot be null");
         Objects.requireNonNull(tradeType, "Trade type cannot be null");
         Objects.requireNonNull(quantity, "Quantity cannot be null");
         Objects.requireNonNull(unitPrice, "Unit price cannot be null");
