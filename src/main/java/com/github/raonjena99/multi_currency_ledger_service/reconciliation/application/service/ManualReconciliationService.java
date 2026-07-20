@@ -27,6 +27,7 @@ public class ManualReconciliationService {
     private final ReconciliationDeadLetterRepository deadLetterRepository;
     private final ExternalSettlementRepository settlementRepository;
     private final ApplicationEventPublisher eventPublisher; 
+    private final com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionQueryDao internalTransactionQueryDao;
 
     /**
      * 데드 레터 큐(DLQ)에 있는 특정 실패 건을 특정 내부 거래 ID와 강제로 매칭시켜 수동 해결(Resolve) 처리합니다.
@@ -47,12 +48,20 @@ public class ManualReconciliationService {
         ExternalSettlement settlement = settlementRepository.findByIdWithoutPartitionKey(deadLetter.getExternalSettlementId())
                 .orElseThrow(() -> new IllegalStateException("원천 정산 데이터를 찾을 수 없습니다. ID: " + deadLetter.getExternalSettlementId()));
         
+        // 수동 매핑 1:1 제약조건 확인
+        if (settlementRepository.existsByMatchedInternalTransactionId(targetInternalTransactionId)) {
+            throw new IllegalStateException("해당 내부 거래는 이미 다른 외부 정산과 매칭되었습니다.");
+        }
+
         // 상태 전이 로직 호출 (MANUALLY_RESOLVED)
         settlement.resolveManually(targetInternalTransactionId);
 
+        // 실제 Account ID 조회
+        UUID realAccountId = internalTransactionQueryDao.findAccountIdByTransactionId(targetInternalTransactionId);
+
         // 수동 차액 보정 분개가 필요한 경우 (차액이 0이 아닐 때)
         if (feeDifference != null && !feeDifference.isZero()) {
-            eventPublisher.publishEvent(ReconciliationFeeAdjustedEvent.of(settlement.getId(), targetInternalTransactionId, new java.util.UUID(0,0), feeDifference));
+            eventPublisher.publishEvent(ReconciliationFeeAdjustedEvent.of(settlement.getId(), targetInternalTransactionId, realAccountId, feeDifference));
             log.info("Manual reconciliation completed by admin and auto-journaling event published. Settlement ID: {}", settlement.getId());
         } else {
             log.info("Manual reconciliation completed by admin (no fee adjustment required). Settlement ID: {}", settlement.getId());

@@ -34,4 +34,6 @@ public interface ExternalSettlementRepository extends JpaRepository<ExternalSett
      * @return 조회된 정산 데이터 (Optional<ExternalSettlement>)
      */
     Optional<ExternalSettlement> findByInstitutionCodeAndExternalReferenceId(String institutionCode, String externalReferenceId);
+
+    boolean existsByMatchedInternalTransactionId(UUID matchedInternalTransactionId);
 }
