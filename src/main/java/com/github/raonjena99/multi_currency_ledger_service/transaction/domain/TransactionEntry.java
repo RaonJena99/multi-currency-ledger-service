@@ -111,7 +111,6 @@ public class TransactionEntry {
         // 단가의 통화가 이미 최종 기준 통화와 같다면 환율을 곱하지 않음
         if (valueBeforeExchange.getCurrencyCode().equals(baseCurrencyCode)) {
             finalCalculatedValue = valueBeforeExchange;
-            this.exchangeRate = BigDecimal.ONE; 
         } else {
             // 단가가 외화 기준일 경우에만 환율을 곱해 원화 환산
             finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);

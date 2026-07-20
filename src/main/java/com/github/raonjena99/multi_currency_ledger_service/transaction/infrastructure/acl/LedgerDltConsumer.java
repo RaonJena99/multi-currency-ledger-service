@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class LedgerDltConsumer {
     // 원본 토픽에 ".DLT"가 붙은 토픽을 리스닝
-    @KafkaListener(topics = "Ledger.DLT", groupId = "ledger-dlt-alert-group")
+    @KafkaListener(topics = "LedgerRecordingCommand.DLT", groupId = "ledger-dlt-alert-group")
     public void consumeDlt(
             String payload,
             @Header(KafkaHeaders.EXCEPTION_MESSAGE) String errorMessage,
