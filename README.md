@@ -105,9 +105,17 @@ classDiagram
   class AccountApi {
     <<Interface>>
     + String getBaseCurrency(UUID)
+    + List~AccountBalanceDto~ getBalances(UUID)
+  }
+  class AccountApi_AccountBalanceDto {
+    +String assetCode()
+    +BigDecimal totalQuantity()
+    +BigDecimal avgUnitPrice()
+    +String quoteCurrency()
   }
   class AccountApiImpl {
     +String getBaseCurrency(UUID)
+    +List~AccountBalanceDto~ getBalances(UUID)
   }
   class AccountMetricsConfiguration {
     +void initializeMetrics()
@@ -171,6 +179,7 @@ classDiagram
     +String assetCode()
     +AssetType assetType()
     +String fiatCode()
+    +String baseCurrency()
     +TradeType tradeType()
     +BigDecimal quantity()
     +BigDecimal unitPrice()
@@ -190,8 +199,10 @@ classDiagram
     <<Interface>>
     + Optional~MonthlyAccountLedger~ findByAccountIdAndAssetCodeAndLedgerMonth(UUID, String, String)
     + Optional~MonthlyAccountLedger~ findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
+    + Optional~MonthlyAccountLedger~ findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
     + BigDecimal sumLatestBalanceByAssetCode(String)
     + List~String~ findDistinctFiatCodes()
+    + List~MonthlyAccountLedger~ findLatestBalancesByAccountId(UUID)
   }
   class AccountOutboxAcl {
     +void persistOutboxEvent(TradeExecutedEvent)
@@ -208,12 +219,30 @@ classDiagram
     +Money averageCost()
     +boolean isStaleRate()
   }
+  class AccountTradeController {
+    +ResponseEntity~Void~ buyAsset(UUID, TradeRequestDto)
+    +ResponseEntity~Void~ sellAsset(UUID, TradeRequestDto)
+  }
+  class AccountTradeController_TradeRequestDto {
+    +String idempotencyKey()
+    +String targetAssetCode()
+    +AssetType targetAssetType()
+    +String paymentCurrency()
+    +BigDecimal quantity()
+    +BigDecimal unitPrice()
+  }
   class JpaConfig {
     +DateTimeProvider offsetDateTimeProvider()
+  }
+  class KafkaConfig {
+    +DefaultErrorHandler errorHandler(KafkaOperations~?, ?~)
   }
   class KafkaProducerConfig {
     +ProducerFactory~String, String~ primaryProducerFactory()
     +KafkaTemplate~String, String~ primaryKafkaTemplate()
+  }
+  class RedisConfig {
+    +RedisTemplate~String, Object~ redisTemplate(RedisConnectionFactory)
   }
   class RestClientConfig {
     +RestClient customRestClient(Builder)
@@ -321,6 +350,8 @@ classDiagram
   class OutboxEvent {
     +void markAsProcessed()
     +void recordFailure(String)
+    +void lock()
+    +void unlock()
     +Long getId()
     +String getAggregateType()
     +String getAggregateId()
@@ -331,6 +362,12 @@ classDiagram
     +String getErrorMessage()
     +boolean isDeadLetter()
     +String getCorrelationId()
+    +OffsetDateTime getLockedAt()
+  }
+  class OutboxManager {
+    +List~OutboxEvent~ claimUnprocessedEvents(int)
+    +void markAsProcessed(Long)
+    +void recordFailure(Long, String)
   }
   class OutboxMessageEvent {
     +String eventType()
@@ -343,8 +380,7 @@ classDiagram
   }
   class OutboxRepository {
     <<Interface>>
-    + List~OutboxEvent~ findUnprocessedEventsWithSkipLocked(int)
-    + List~OutboxEvent~ findTop100ByProcessedFalseOrderByCreatedAtAsc()
+    + List~OutboxEvent~ findUnprocessedEventsWithSkipLocked(int, OffsetDateTime)
   }
   class ExchangeRateProvider {
     <<Interface>>
@@ -370,9 +406,29 @@ classDiagram
   class PortfolioQueryService {
     +PortfolioSummaryResponse getPortfolioSummary(UUID)
   }
+  class PortfolioViewRefreshWorker {
+    +void refreshPortfolioView()
+  }
   class PortfolioViewRefresher {
-    +void markAsDirty(TradeExecutedEvent)
-    +void scheduledRefresh()
+    +void updateRedisCache(TradeExecutedEvent)
+  }
+  class PortfolioCacheDto {
+    +UUID getAccountId()
+    +String getBaseCurrency()
+    +List~AssetBalance~ getBalances()
+    +void setAccountId(UUID)
+    +void setBaseCurrency(String)
+    +void setBalances(List~AssetBalance~)
+  }
+  class PortfolioCacheDto_AssetBalance {
+    +String getAssetCode()
+    +BigDecimal getTotalQuantity()
+    +BigDecimal getAvgUnitPrice()
+    +String getQuoteCurrency()
+    +void setAssetCode(String)
+    +void setTotalQuantity(BigDecimal)
+    +void setAvgUnitPrice(BigDecimal)
+    +void setQuoteCurrency(String)
   }
   class PortfolioSummaryResponse {
     +UUID accountId()
@@ -405,6 +461,7 @@ classDiagram
   class PortfolioQueryRepository {
     <<Interface>>
     + List~CurrentPortfolio~ findAllByAccountId(UUID)
+    + void refreshMaterializedView()
   }
   class PortfolioController {
     +ResponseEntity~PortfolioSummaryResponse~ getPortfolioSummary(UUID)
@@ -502,6 +559,7 @@ classDiagram
     <<Interface>>
     + Optional~ExternalSettlement~ findByIdWithoutPartitionKey(UUID)
     + Optional~ExternalSettlement~ findByInstitutionCodeAndExternalReferenceId(String, String)
+    + boolean existsByMatchedInternalTransactionId(UUID)
   }
   class ExternalSettlementDto {
     +String transactionId()
@@ -544,6 +602,7 @@ classDiagram
   }
   class InternalTransactionQueryDao {
     +List~InternalTransactionCandidate~ fetchCandidatesForPeriod(OffsetDateTime, OffsetDateTime)
+    +UUID findAccountIdByTransactionId(UUID)
   }
   class ReconciliationAdminController {
     +ResponseEntity~Void~ resolveDeadLetter(Long, ManualResolutionRequest)
@@ -562,7 +621,9 @@ classDiagram
     +UUID referenceTradeId()
     +UUID accountId()
     +String assetCode()
+    +AssetType assetType()
     +String fiatCode()
+    +String baseCurrency()
     +String tradeType()
     +Money quantity()
     +Money unitPrice()
@@ -599,6 +660,9 @@ classDiagram
     <<Interface>>
     + Optional~Transaction~ findWithEntriesById(UUID)
   }
+  class LedgerDltConsumer {
+    +void consumeDlt(String, String, String)
+  }
   class OrderToLedgerAcl {
     +void consumeLedgerCommand(String)
   }
@@ -618,6 +682,7 @@ classDiagram
     +boolean isStaleRate()
   }
   AccountApiImpl ..|> AccountApi
+  AccountApiImpl --> MonthlyAccountLedgerRepository
   AccountApiImpl --> AccountRepository
   AccountMetricsConfiguration --> MonthlyAccountLedgerRepository
   AccountTradeFacade --> AccountTradeService
@@ -638,14 +703,21 @@ classDiagram
   TradeExecutedEvent --> AssetType
   AccountOutboxAcl --> OutboxRepository
   AccountOutboxAcl_LedgerRecordingPayload --> Money
+  AccountTradeController --> AccountTradeFacade
+  AccountTradeController_TradeRequestDto --> AssetType
   Money --> AssetType
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
   LiveExchangeRateAdapter ..|> ExchangeRateProvider
+  LiveExchangeRateAdapter --> ExchangeRateProvider
   OutboxEvent --|> BaseEntity
-  OutboxRelayWorker --> OutboxRepository
+  OutboxManager --> OutboxRepository
+  OutboxRelayWorker --> OutboxManager
   PortfolioQueryService --> AccountApi
   PortfolioQueryService --> PortfolioQueryRepository
   PortfolioQueryService --> ExchangeRateProvider
+  PortfolioViewRefreshWorker --> PortfolioQueryRepository
+  PortfolioViewRefresher --> AccountApi
+  PortfolioCacheDto --> PortfolioCacheDto_AssetBalance
   PortfolioSummaryResponse --> PortfolioSummaryResponse_AssetDetailDto
   PortfolioController --> PortfolioQueryService
   HeuristicMatchingProcessor --> InternalTransactionQueryDao
@@ -657,6 +729,7 @@ classDiagram
   AmountToleranceRule ..|> MatchingRule
   FuzzyTextMatchingRule ..|> MatchingRule
   TimeToleranceRule ..|> MatchingRule
+  ManualReconciliationService --> InternalTransactionQueryDao
   ManualReconciliationService --> ExternalSettlementRepository
   ManualReconciliationService --> ReconciliationDeadLetterRepository
   ExternalSettlement --|> BaseEntity
@@ -676,6 +749,8 @@ classDiagram
   ReconciliationAdminController --> ManualReconciliationService
   ReconciliationAdminController_ManualResolutionRequest --> AssetType
   LedgerService --> TransactionRepository
+  LedgerService --> ExchangeRateProvider
+  LedgerRecordingCommand --> AssetType
   LedgerRecordingCommand --> Money
   Transaction "0..1" o-- "0..*" TransactionEntry
   TransactionEntry --> EntryType
