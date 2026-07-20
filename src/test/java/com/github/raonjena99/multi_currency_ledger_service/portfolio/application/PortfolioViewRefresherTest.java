@@ -1,9 +1,12 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -12,52 +15,51 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
+import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("인프라 단위 테스트: PortfolioViewRefresher (Materialized View 비동기 갱신 검증)")
+@DisplayName("인프라 단위 테스트: PortfolioViewRefresher")
 class PortfolioViewRefresherTest {
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Mock
-    private StringRedisTemplate redisTemplate;
+    private ValueOperations<String, Object> valueOperations;
 
     @Mock
-    private ValueOperations<String, String> valueOperations;
+    private AccountApi accountApi;
 
     @InjectMocks
     private PortfolioViewRefresher portfolioViewRefresher;
 
     @Test
-    @DisplayName("이벤트 수신 시 더티 플래그를 설정하고, 스케줄러가 플래그를 감지하여 뷰를 갱신한다.")
-    void trigger_materialized_view_refresh() {
+    @DisplayName("이벤트 수신 시 Redis 캐시를 업데이트한다.")
+    void updateRedisCache() {
         // given
         TradeExecutedEvent mockEvent = new TradeExecutedEvent(
-            UUID.randomUUID(), UUID.randomUUID(), "BTC", com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType.CRYPTO, "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY,
+            UUID.randomUUID(), UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "KRW", TradeType.BUY,
             new BigDecimal("1"), new BigDecimal("50000000"), BigDecimal.ONE, BigDecimal.ZERO,
             false, java.time.OffsetDateTime.now()
         );
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
+        when(accountApi.getBalances(any())).thenReturn(List.of());
+        when(accountApi.getBaseCurrency(any())).thenReturn("KRW");
 
-        // 스케줄러 실행 검증 (쿼리 실행 및 Redis 시간 갱신됨)
-        portfolioViewRefresher.scheduledRefresh();
-        verify(jdbcTemplate).execute("REFRESH MATERIALIZED VIEW CONCURRENTLY current_portfolio_view");
-        verify(valueOperations).set(org.mockito.ArgumentMatchers.eq("portfolio:last_refresh_time"), org.mockito.ArgumentMatchers.anyString());
+        // when
+        portfolioViewRefresher.updateRedisCache(mockEvent);
 
-        // when (이벤트 수신 -> 더티 플래그 ON 및 Redis dirty 30초 세팅)
-        portfolioViewRefresher.markAsDirty(mockEvent);
-
-        verify(valueOperations).set("portfolio:dirty:" + mockEvent.accountId().toString(), "true", java.time.Duration.ofSeconds(30));
-
-        // then (다시 스케줄러 실행 -> 쿼리 1번 더 실행)
-        portfolioViewRefresher.scheduledRefresh();
-        verify(jdbcTemplate, org.mockito.Mockito.times(2)).execute("REFRESH MATERIALIZED VIEW CONCURRENTLY current_portfolio_view");
+        // then
+        verify(accountApi).getBalances(mockEvent.accountId());
+        verify(valueOperations).set(anyString(), any(), any());
+        verify(redisTemplate).delete(anyString());
     }
 }

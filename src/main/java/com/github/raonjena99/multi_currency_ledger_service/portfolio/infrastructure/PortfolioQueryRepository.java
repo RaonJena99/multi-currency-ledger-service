@@ -18,4 +18,8 @@ public interface PortfolioQueryRepository extends JpaRepository<CurrentPortfolio
      * @return 해당 계좌의 CurrentPortfolio(현재 포트폴리오) 목록
      */
     List<CurrentPortfolio> findAllByAccountId(UUID accountId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(value = "REFRESH MATERIALIZED VIEW current_portfolio_view", nativeQuery = true)
+    void refreshMaterializedView();
 }

@@ -39,6 +39,21 @@ public class PortfolioViewRefresher {
     public void updateRedisCache(TradeExecutedEvent event) {
         log.debug("Trade committed (TradeID: {}). Updating Redis Cache for account: {}", event.tradeId(), event.accountId());
         
+        String lockKey = "lock:portfolio:" + event.accountId();
+        // 비동기 스레드간 순서 역전 방지를 위한 분산 락
+        long endTime = System.currentTimeMillis() + 3000;
+        boolean locked = false;
+        while (System.currentTimeMillis() < endTime) {
+            locked = Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(lockKey, "LOCKED", Duration.ofSeconds(5)));
+            if (locked) break;
+            try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+        }
+
+        if (!locked) {
+            log.warn("Failed to acquire lock for updating cache (TradeID: {}).", event.tradeId());
+            return;
+        }
+
         try {
             var currentBalances = accountApi.getBalances(event.accountId());
             String baseCurrency = accountApi.getBaseCurrency(event.accountId());
@@ -54,8 +69,11 @@ public class PortfolioViewRefresher {
             
             log.info("Successfully refreshed Redis portfolio cache for account: {}", event.accountId());
         } catch (Exception e) {
-            log.error("Failed to update Redis cache. Next read will fall back to DB.", e);
-            redisTemplate.delete("portfolio:account:" + event.accountId());
+            // [수정] DB나 API 연동 실패 시 기존 캐시마저 지워버리면 트래픽이 집중되는 Eviction Storm 발생!
+            // 기존 데이터를 유지하며 다음 갱신/조회를 기다리도록 변경.
+            log.error("Failed to update Redis cache. Keeping the old cache data to prevent Cache Eviction Storm.", e);
+        } finally {
+            redisTemplate.delete(lockKey);
         }
     }
 }

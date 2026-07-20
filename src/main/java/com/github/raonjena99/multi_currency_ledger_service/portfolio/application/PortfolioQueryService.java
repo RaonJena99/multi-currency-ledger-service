@@ -1,6 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,53 +54,66 @@ public class PortfolioQueryService {
         BigDecimal totalUnrealizedPnl = BigDecimal.ZERO;
         boolean finalStaleFlag = false;
 
-        if (cachedDto != null && cachedDto.getBalances() != null) {
-            // 캐시 HIT: 캐시 데이터를 기반으로 실시간 환율 적용
-            List<String> targetAssets = cachedDto.getBalances().stream().map(PortfolioCacheDto.AssetBalance::getAssetCode).toList();
-            Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
+        String lockKey = "lock:portfolio:" + accountId;
 
-            for (PortfolioCacheDto.AssetBalance p : cachedDto.getBalances()) {
-                var rateInfo = exchangeRates.get(p.getAssetCode());
-                if(rateInfo == null) continue;
-
-                BigDecimal currentMarketPrice = rateInfo.rate();
-                BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
-
-                var quoteRateInfo = exchangeRateProvider.getExchangeRate(p.getQuoteCurrency(), baseCurrency);
-                BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteRateInfo.rate());
-                BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
-
-                dtos.add(new AssetDetailDto(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), currentMarketPrice, totalValue, unrealizedPnl, rateInfo.isStale()));
-                totalAssetValue = totalAssetValue.add(totalValue);
-                totalUnrealizedPnl = totalUnrealizedPnl.add(unrealizedPnl);
-                if (rateInfo.isStale()) finalStaleFlag = true;
-            }
-        } else {
-            // 캐시 MISS: DB 구체화 뷰(Materialized View)에서 Fallback 조회
-            List<CurrentPortfolio> portfolios = portfolioQueryRepository.findAllByAccountId(accountId);
-            if (portfolios.isEmpty()) {
-                return new PortfolioSummaryResponse(accountId, BigDecimal.ZERO, BigDecimal.ZERO, false, List.of());
+        // 캐시 미스 발생 시 Redis 분산 락(Spin Lock) 적용 (캐시 스탬피드 방어)
+        if (cachedDto == null || cachedDto.getBalances() == null) {
+            long endTime = System.currentTimeMillis() + 3000;
+            boolean locked = false;
+            while (System.currentTimeMillis() < endTime) {
+                locked = Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(lockKey, "LOCKED", Duration.ofSeconds(5)));
+                if (locked) break;
+                try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new RuntimeException("Lock interrupted", e); }
             }
 
-            List<String> targetAssets = portfolios.stream().map(CurrentPortfolio::getAssetCode).toList();
-            Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(targetAssets, baseCurrency);
+            if (!locked) throw new RuntimeException("Failed to acquire lock for portfolio calculation");
 
-            for (CurrentPortfolio p : portfolios) {
-                var rateInfo = exchangeRates.get(p.getAssetCode());
-                if(rateInfo == null) continue;
-
-                BigDecimal currentMarketPrice = rateInfo.rate();
-                BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
-                
-                var quoteRateInfo = exchangeRateProvider.getExchangeRate(p.getQuoteCurrency(), baseCurrency);
-                BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteRateInfo.rate());
-                BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
-
-                dtos.add(new AssetDetailDto(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), currentMarketPrice, totalValue, unrealizedPnl, rateInfo.isStale()));
-                totalAssetValue = totalAssetValue.add(totalValue);
-                totalUnrealizedPnl = totalUnrealizedPnl.add(unrealizedPnl);
-                if (rateInfo.isStale()) finalStaleFlag = true;
+            try {
+                // Double-Checked Locking
+                cachedDto = (PortfolioCacheDto) redisTemplate.opsForValue().get(redisKey);
+                if (cachedDto == null || cachedDto.getBalances() == null) {
+                    List<CurrentPortfolio> portfolios = portfolioQueryRepository.findAllByAccountId(accountId);
+                    
+                    // [수정] 깡통 계좌(Empty)도 캐싱하여 Cache Penetration(캐시 침투) 공격 방어
+                    List<PortfolioCacheDto.AssetBalance> balances = new ArrayList<>();
+                    for (CurrentPortfolio p : portfolios) {
+                        balances.add(new PortfolioCacheDto.AssetBalance(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), p.getQuoteCurrency()));
+                    }
+                    cachedDto = new PortfolioCacheDto(accountId, baseCurrency, balances);
+                    redisTemplate.opsForValue().set(redisKey, cachedDto, Duration.ofHours(1));
+                }
+            } finally {
+                redisTemplate.delete(lockKey);
             }
+        }
+
+        // 견적 통화(Quote) 목록까지 한 번에 수집하여 Batch API 조회 (N+1 문제 해결)
+        List<String> targetAssets = cachedDto.getBalances().stream().map(PortfolioCacheDto.AssetBalance::getAssetCode).toList();
+        List<String> quoteCurrencies = cachedDto.getBalances().stream().map(PortfolioCacheDto.AssetBalance::getQuoteCurrency).distinct().toList();
+        
+        List<String> allRequiredCurrencies = new ArrayList<>(targetAssets);
+        allRequiredCurrencies.addAll(quoteCurrencies);
+        
+        Map<String, ExchangeRateProvider.ExchangeRate> exchangeRates = exchangeRateProvider.getExchangeRates(allRequiredCurrencies, baseCurrency);
+
+        for (PortfolioCacheDto.AssetBalance p : cachedDto.getBalances()) {
+            var rateInfo = exchangeRates.get(p.getAssetCode());
+            if(rateInfo == null) continue;
+
+            BigDecimal currentMarketPrice = rateInfo.rate();
+            BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
+
+            // [수정] 루프 내부 단건 조회를 제거하고 Batch 결과에서 획득 + 잠재적 NPE 방어 로직
+            var quoteRateInfo = exchangeRates.get(p.getQuoteCurrency());
+            if (quoteRateInfo == null) continue;
+
+            BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteRateInfo.rate());
+            BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
+
+            dtos.add(new AssetDetailDto(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), currentMarketPrice, totalValue, unrealizedPnl, rateInfo.isStale() || quoteRateInfo.isStale()));
+            totalAssetValue = totalAssetValue.add(totalValue);
+            totalUnrealizedPnl = totalUnrealizedPnl.add(unrealizedPnl);
+            if (rateInfo.isStale() || quoteRateInfo.isStale()) finalStaleFlag = true;
         }
         
         return new PortfolioSummaryResponse(
