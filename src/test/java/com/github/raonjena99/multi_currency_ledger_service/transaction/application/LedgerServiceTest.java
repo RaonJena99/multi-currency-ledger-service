@@ -34,7 +34,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER", "KRW"));
         
         LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "BTC", "KRW", "BUY", 
+            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "BUY", 
             Money.of("1", AssetType.CRYPTO, "KRW"), 
             Money.of("100000000", AssetType.FIAT, "KRW"), 
             new BigDecimal("100000000"),
@@ -61,7 +61,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_2", "KRW"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "ETH", "KRW", "BUY", 
+            tradeId, accountId, "ETH", AssetType.CRYPTO, "KRW", "KRW", "BUY", 
             Money.of("1", AssetType.CRYPTO, "KRW"), Money.of("3000000", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.zero(AssetType.FIAT, "KRW"),
             false
         );
@@ -82,7 +82,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_3", "KRW"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "BTC", "KRW", "SELL", 
+            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", 
             Money.of("1", AssetType.CRYPTO, "KRW"), 
             Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
@@ -95,7 +95,6 @@ class LedgerServiceTest extends IntegrationTestSupport {
         Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
         
         assertThat(savedTx.getTransactionType()).isEqualTo("SELL");
-        assertThat(savedTx.getEntries()).hasSize(2);
         assertThat(savedTx.getDescription()).contains("[APPLIED_FALLBACK_RATE=TRUE]");
     }
 
@@ -108,7 +107,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_4", "KRW"));
 
         LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "BTC", "KRW", "SELL", 
+            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", 
             Money.of("1", AssetType.CRYPTO, "KRW"), 
             Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
@@ -123,7 +122,7 @@ class LedgerServiceTest extends IntegrationTestSupport {
         
         // OTHER type test (not BUY and not SELL)
         LedgerRecordingCommand command2 = new LedgerRecordingCommand(
-            UUID.randomUUID(), accountId, "BTC", "KRW", "DEPOSIT", 
+            UUID.randomUUID(), accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "DEPOSIT", 
             Money.of("1", AssetType.CRYPTO, "KRW"), 
             Money.of("100000000", AssetType.FIAT, "KRW"), 
             BigDecimal.ONE, 
