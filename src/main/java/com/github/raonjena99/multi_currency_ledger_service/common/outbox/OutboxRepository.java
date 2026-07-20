@@ -20,10 +20,11 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
      * @return 다른 워커가 선점하지 않은 미처리 이벤트 리스트
      */
     @Query(value = "SELECT * FROM outbox_events " +
-                    "WHERE processed = false AND dead_letter = false AND locked_at IS NULL " +
+                    "WHERE processed = false AND dead_letter = false " +
+                    "AND (locked_at IS NULL OR locked_at < :timeout) " +
                     "ORDER BY created_at ASC " +
                     "LIMIT :limit " +
                     "FOR UPDATE SKIP LOCKED", 
             nativeQuery = true)
-    List<OutboxEvent> findUnprocessedEventsWithSkipLocked(@Param("limit") int limit);
+    List<OutboxEvent> findUnprocessedEventsWithSkipLocked(@Param("limit") int limit, @Param("timeout") java.time.OffsetDateTime timeout);
 }

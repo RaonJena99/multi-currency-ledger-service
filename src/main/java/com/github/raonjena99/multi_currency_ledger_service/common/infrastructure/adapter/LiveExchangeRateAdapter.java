@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -36,8 +38,12 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
     private final RestClient restClient;
     private final StringRedisTemplate redisTemplate;
 
+    @Lazy
+    @Autowired
+    private ExchangeRateProvider self;
+
     private static final String CACHE_KEY_PREFIX = "ledger:exchange-rate:";
-    private static final Duration CACHE_TTL = Duration.ofDays(1);
+    private static final Duration CACHE_TTL = Duration.ofMinutes(5);
 
     /**
      * 외부 API를 호출하여 두 자산 간의 환율을 조회합니다.
@@ -132,17 +138,17 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
     }
 
     @Override
-    public Map<String, ExchangeRate> getExchangeRates(List<String> targetAssets, String baseAsset) {
+    public Map<String, ExchangeRate> getExchangeRates(List<String> targetAssets, String baseCurrency) {
         Map<String, ExchangeRate> resultMap = new HashMap<>();
         List<String> missingTargets = new ArrayList<>();
         List<String> cacheKeys = new ArrayList<>();
 
         for (String target : targetAssets) {
-            if (baseAsset.equals(target)) {
+            if (baseCurrency.equals(target)) {
                 resultMap.put(target, new ExchangeRate(BigDecimal.ONE, false));
                 cacheKeys.add(null);
             } else {
-                cacheKeys.add(CACHE_KEY_PREFIX + baseAsset + ":" + target);
+                cacheKeys.add(CACHE_KEY_PREFIX + target + ":" + baseCurrency);
             }
         }
 
@@ -153,7 +159,7 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
                 int fetchIndex = 0;
                 for (int i = 0; i < targetAssets.size(); i++) {
                     String target = targetAssets.get(i);
-                    if (baseAsset.equals(target)) continue;
+                    if (baseCurrency.equals(target)) continue;
 
                     String cachedValue = cachedValues.get(fetchIndex++);
                     if (cachedValue != null && cachedValue.contains("|")) {
@@ -169,14 +175,14 @@ public class LiveExchangeRateAdapter implements ExchangeRateProvider {
         } catch (Exception e) {
             log.warn("Redis multiGet 실패. 개별 조회를 시도합니다: {}", e.getMessage());
             for (String target : targetAssets) {
-                if (!baseAsset.equals(target) && !resultMap.containsKey(target)) {
+                if (!baseCurrency.equals(target) && !resultMap.containsKey(target)) {
                     missingTargets.add(target);
                 }
             }
         }
 
         for (String missingTarget : missingTargets) {
-            resultMap.put(missingTarget, getExchangeRate(baseAsset, missingTarget));
+            resultMap.put(missingTarget, self.getExchangeRate(missingTarget, baseCurrency));
         }
 
         return resultMap;

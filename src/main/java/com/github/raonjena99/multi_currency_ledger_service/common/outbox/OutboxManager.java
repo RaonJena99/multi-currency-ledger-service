@@ -21,7 +21,9 @@ public class OutboxManager {
     @Transactional
     public List<OutboxEvent> claimUnprocessedEvents(int limit) {
 
-        List<OutboxEvent> events = outboxRepository.findUnprocessedEventsWithSkipLocked(limit);
+        // 5분 동안 처리되지 않고 Lock 상태인 이벤트는 서버 다운 등으로 간주하고 강제로 다시 가져옴
+        java.time.OffsetDateTime timeout = java.time.OffsetDateTime.now().minusMinutes(5);
+        List<OutboxEvent> events = outboxRepository.findUnprocessedEventsWithSkipLocked(limit, timeout);
         for (OutboxEvent event : events) {
             event.lock();
         }
