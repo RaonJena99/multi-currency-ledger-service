@@ -42,6 +42,14 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
     );
 
     /**
+     * 이월(Carry-forward) 동시성 방어를 위해 비관적 락(Pessimistic Write)을 걸고 가장 최신 원장을 조회합니다.
+     */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<MonthlyAccountLedger> findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(
+        UUID accountId, String assetCode
+    );
+
+    /**
      * 특정 통화(AssetCode)에 대해, 전체 계좌들의 가장 최신 장부 잔고(Balance) 총합을 조회합니다.
      * 지연 이월(Lazy Carry-forward)로 인해 당월 장부가 없는 계좌도 포함하기 위해 서브 쿼리를 사용합니다.
      *

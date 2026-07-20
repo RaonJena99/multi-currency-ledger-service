@@ -85,12 +85,26 @@ public class AccountTradeService {
         var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
         BigDecimal exchangeRate = rateInfo.rate();
 
+        // [추가] 계좌의 기준 통화 코드를 가져옵니다.
+        String baseCurrency = targetAssetLedger.getAverageUnitPrice().getCurrencyCode();
+        Money unitPriceInBaseCurrency = unitPrice;
+
+        // [추가] 결제 통화와 기준 통화가 다를 경우, 결제 단가를 기준 통화로 환전합니다.
+        if (!paymentCurrency.equals(baseCurrency)) {
+            var fiatToBaseRateInfo = exchangeRateProvider.getExchangeRate(paymentCurrency, baseCurrency);
+            unitPriceInBaseCurrency = Money.of(
+                unitPrice.getAmount().multiply(fiatToBaseRateInfo.rate()).toPlainString(),
+                AssetType.FIAT,
+                baseCurrency
+            );
+        }
+
         // 결제에 필요한 법정 화폐 금액 계산 = 매입 단가 * 매수 수량
         Money requiredFiatAmount = unitPrice.multiply(buyQuantity.getAmount()); 
 
         // Version 필드를 활용한 낙관적 락(Optimistic Lock) 작동으로 동시성 제어
         fiatLedger.subtractBalance(requiredFiatAmount);
-        targetAssetLedger.addBalance(buyQuantity, unitPrice);
+        targetAssetLedger.addBalance(buyQuantity, unitPriceInBaseCurrency);
 
         monthlyAccountLedgerRepository.save(fiatLedger);
         monthlyAccountLedgerRepository.save(targetAssetLedger);
@@ -99,7 +113,9 @@ public class AccountTradeService {
 
         // 잔고 반영 후 거래 성공 이벤트 생성 및 발행
         TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, TradeType.BUY, 
+            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, 
+            targetAssetLedger.getAverageUnitPrice().getCurrencyCode(), // baseCurrency 추가
+            TradeType.BUY, 
             buyQuantity.getAmount(), unitPrice.getAmount(), exchangeRate, BigDecimal.ZERO,
             rateInfo.isStale(), OffsetDateTime.now()
         );
@@ -155,8 +171,22 @@ public class AccountTradeService {
             AssetType.FIAT,
             paymentCurrency
         );
+
+        // [추가] 법정화폐 원장의 기준 통화를 가져오고 1단위 단가를 환전합니다.
+        String baseCurrency = fiatLedger.getAverageUnitPrice().getCurrencyCode();
+        Money fiatUnitPriceInBaseCurrency = Money.of("1", AssetType.FIAT, paymentCurrency);
+        
+        if (!paymentCurrency.equals(baseCurrency)) {
+            var fiatToBaseRateInfo = exchangeRateProvider.getExchangeRate(paymentCurrency, baseCurrency);
+            fiatUnitPriceInBaseCurrency = Money.of(
+                fiatToBaseRateInfo.rate().toPlainString(),
+                AssetType.FIAT,
+                baseCurrency
+            );
+        }
+
         // 수익금을 법정 화폐 원장에 반영
-        fiatLedger.addBalance(earnedFiatAmount, Money.of("1", AssetType.FIAT, paymentCurrency));
+        fiatLedger.addBalance(earnedFiatAmount, fiatUnitPriceInBaseCurrency);
 
         monthlyAccountLedgerRepository.save(fiatLedger);
         monthlyAccountLedgerRepository.save(targetAssetLedger);
@@ -167,7 +197,9 @@ public class AccountTradeService {
 
         // 잔고 반영 후 거래 성공 이벤트 생성 및 발행
         TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, TradeType.SELL, 
+            tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, 
+            targetAssetLedger.getAverageUnitPrice().getCurrencyCode(), // baseCurrency 추가
+            TradeType.SELL, 
             sellQuantity.getAmount(), sellUnitPrice.getAmount(), rateInfo.rate(), averageCost.getAmount(),
             rateInfo.isStale(), OffsetDateTime.now()
         );

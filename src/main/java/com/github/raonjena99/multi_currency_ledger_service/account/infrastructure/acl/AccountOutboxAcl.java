@@ -55,7 +55,7 @@ public class AccountOutboxAcl {
             LedgerRecordingPayload payload = new LedgerRecordingPayload(
                 externalEvent.tradeId(), externalEvent.accountId(), externalEvent.assetCode(), externalEvent.fiatCode(),
                 externalEvent.tradeType().name(),
-                Money.of(externalEvent.quantity().toPlainString(), externalEvent.assetType(), externalEvent.fiatCode()),
+                Money.of(externalEvent.quantity().toPlainString(), externalEvent.assetType(), externalEvent.assetCode()),
                 Money.of(externalEvent.unitPrice().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
                 externalEvent.exchangeRate(),
                 Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
