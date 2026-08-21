@@ -1,8 +1,5 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
-import java.time.Duration;
-
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -11,6 +8,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioCacheDto;
+import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.port.PortfolioCachePort;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class PortfolioViewRefresher {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final PortfolioCachePort portfolioCachePort;
     private final AccountApi accountApi;
 
     /**
@@ -44,7 +42,7 @@ public class PortfolioViewRefresher {
         long endTime = System.currentTimeMillis() + 3000;
         boolean locked = false;
         while (System.currentTimeMillis() < endTime) {
-            locked = Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(lockKey, "LOCKED", Duration.ofSeconds(5)));
+            locked = portfolioCachePort.tryAcquireLock(lockKey, 5);
             if (locked) break;
             try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
         }
@@ -64,8 +62,7 @@ public class PortfolioViewRefresher {
 
             var cacheDto = new PortfolioCacheDto(event.accountId(), baseCurrency, assetBalances);
             
-            String redisKey = "portfolio:account:" + event.accountId();
-            redisTemplate.opsForValue().set(redisKey, cacheDto, Duration.ofHours(1));
+            portfolioCachePort.savePortfolioCache(event.accountId(), cacheDto);
             
             log.info("Successfully refreshed Redis portfolio cache for account: {}", event.accountId());
         } catch (Exception e) {
@@ -73,7 +70,7 @@ public class PortfolioViewRefresher {
             // 기존 데이터를 유지하며 다음 갱신/조회를 기다리도록 변경.
             log.error("Failed to update Redis cache. Keeping the old cache data to prevent Cache Eviction Storm.", e);
         } finally {
-            redisTemplate.delete(lockKey);
+            portfolioCachePort.releaseLock(lockKey);
         }
     }
 }

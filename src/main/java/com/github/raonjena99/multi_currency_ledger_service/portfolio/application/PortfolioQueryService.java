@@ -1,13 +1,12 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,7 +15,9 @@ import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeR
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse.AssetDetailDto;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioCacheDto;
+import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.port.PortfolioCachePort;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
+import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.PortfolioValuation;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,7 @@ public class PortfolioQueryService {
     private final PortfolioQueryRepository portfolioQueryRepository;
     private final ExchangeRateProvider exchangeRateProvider;
     private final AccountApi accountApi;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final PortfolioCachePort portfolioCachePort;
 
     /**
      * 특정 계좌의 실시간 포트폴리오 요약 정보를 조회합니다.
@@ -45,9 +46,9 @@ public class PortfolioQueryService {
      */
     public PortfolioSummaryResponse getPortfolioSummary(UUID accountId) {
         String baseCurrency = accountApi.getBaseCurrency(accountId);
-        String redisKey = "portfolio:account:" + accountId;
 
-        PortfolioCacheDto cachedDto = (PortfolioCacheDto) redisTemplate.opsForValue().get(redisKey);
+        Optional<PortfolioCacheDto> cachedDtoOpt = portfolioCachePort.getPortfolioCache(accountId);
+        PortfolioCacheDto cachedDto = cachedDtoOpt.orElse(null);
         
         List<AssetDetailDto> dtos = new ArrayList<>();
         BigDecimal totalAssetValue = BigDecimal.ZERO;
@@ -61,7 +62,7 @@ public class PortfolioQueryService {
             long endTime = System.currentTimeMillis() + 3000;
             boolean locked = false;
             while (System.currentTimeMillis() < endTime) {
-                locked = Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(lockKey, "LOCKED", Duration.ofSeconds(5)));
+                locked = portfolioCachePort.tryAcquireLock(lockKey, 5);
                 if (locked) break;
                 try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new RuntimeException("Lock interrupted", e); }
             }
@@ -70,7 +71,9 @@ public class PortfolioQueryService {
 
             try {
                 // Double-Checked Locking
-                cachedDto = (PortfolioCacheDto) redisTemplate.opsForValue().get(redisKey);
+                cachedDtoOpt = portfolioCachePort.getPortfolioCache(accountId);
+                cachedDto = cachedDtoOpt.orElse(null);
+                
                 if (cachedDto == null || cachedDto.getBalances() == null) {
                     List<CurrentPortfolio> portfolios = portfolioQueryRepository.findAllByAccountId(accountId);
                     
@@ -80,10 +83,10 @@ public class PortfolioQueryService {
                         balances.add(new PortfolioCacheDto.AssetBalance(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), p.getQuoteCurrency()));
                     }
                     cachedDto = new PortfolioCacheDto(accountId, baseCurrency, balances);
-                    redisTemplate.opsForValue().set(redisKey, cachedDto, Duration.ofHours(1));
+                    portfolioCachePort.savePortfolioCache(accountId, cachedDto);
                 }
             } finally {
-                redisTemplate.delete(lockKey);
+                portfolioCachePort.releaseLock(lockKey);
             }
         }
 
@@ -100,19 +103,26 @@ public class PortfolioQueryService {
             var rateInfo = exchangeRates.get(p.getAssetCode());
             if(rateInfo == null) continue;
 
-            BigDecimal currentMarketPrice = rateInfo.rate();
-            BigDecimal totalValue = currentMarketPrice.multiply(p.getTotalQuantity());
-
             // [수정] 루프 내부 단건 조회를 제거하고 Batch 결과에서 획득 + 잠재적 NPE 방어 로직
             var quoteRateInfo = exchangeRates.get(p.getQuoteCurrency());
             if (quoteRateInfo == null) continue;
 
-            BigDecimal convertedAvgUnitPrice = p.getAvgUnitPrice().multiply(quoteRateInfo.rate());
-            BigDecimal unrealizedPnl = currentMarketPrice.subtract(convertedAvgUnitPrice).multiply(p.getTotalQuantity());
+            PortfolioValuation valuation = PortfolioValuation.calculate(
+                p.getTotalQuantity(), p.getAvgUnitPrice(), rateInfo.rate(), quoteRateInfo.rate()
+            );
 
-            dtos.add(new AssetDetailDto(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), currentMarketPrice, totalValue, unrealizedPnl, rateInfo.isStale() || quoteRateInfo.isStale()));
-            totalAssetValue = totalAssetValue.add(totalValue);
-            totalUnrealizedPnl = totalUnrealizedPnl.add(unrealizedPnl);
+            dtos.add(new AssetDetailDto(
+                p.getAssetCode(), 
+                p.getTotalQuantity(), 
+                p.getAvgUnitPrice(), 
+                valuation.currentMarketPrice(), 
+                valuation.totalValue(), 
+                valuation.unrealizedPnl(), 
+                rateInfo.isStale() || quoteRateInfo.isStale()
+            ));
+            
+            totalAssetValue = totalAssetValue.add(valuation.totalValue());
+            totalUnrealizedPnl = totalUnrealizedPnl.add(valuation.unrealizedPnl());
             if (rateInfo.isStale() || quoteRateInfo.isStale()) finalStaleFlag = true;
         }
         
