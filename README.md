@@ -94,8 +94,7 @@
 
 </details>
 
-<details data-auto-diagram="true">
-<summary><b>[전체 클래스 다이어그램 보기]</b></summary>
+<details data-auto-diagram="true"><summary><b>[전체 클래스 다이어그램 보기]</b></summary>
 
 ```mermaid
 classDiagram
@@ -103,16 +102,43 @@ classDiagram
     +void init()
     + void main(String[])
   }
+  class AccountApi {
+    <<Interface>>
+    + String getBaseCurrency(UUID)
+    + List~AccountBalanceDto~ getBalances(UUID)
+  }
+  class AccountApi_AccountBalanceDto {
+    +String assetCode()
+    +BigDecimal totalQuantity()
+    +BigDecimal avgUnitPrice()
+    +String quoteCurrency()
+  }
+  class AccountApiImpl {
+    +String getBaseCurrency(UUID)
+    +List~AccountBalanceDto~ getBalances(UUID)
+  }
+  class AccountMetricsConfiguration {
+    +void initializeMetrics()
+  }
+  class AccountTradeFacade {
+    +UUID buyAsset(String, UUID, String, AssetType, String, Money, Money)
+    +UUID sellAsset(String, UUID, String, AssetType, String, Money, Money)
+  }
   class AccountTradeService {
-    +UUID buyAsset(UUID, String, AssetType, Money, Money)
-    +UUID sellAsset(UUID, String, AssetType, Money, Money)
+    +UUID executeBuyAsset(String, UUID, String, AssetType, String, Money, Money, OffsetDateTime)
+    +UUID executeSellAsset(String, UUID, String, AssetType, String, Money, Money, OffsetDateTime)
+  }
+  class IdempotencyCleanupWorker {
+    +void cleanupOldRecords()
+  }
+  class MonthlyLedgerInitializer {
+    +void initializeInNewTransaction(UUID, String, AssetType, String)
   }
   class MonthlyLedgerResolver {
     +MonthlyAccountLedger resolveOrInitializeLedger(UUID, String, AssetType, OffsetDateTime)
-    +void initializeInNewTransaction(UUID, String, AssetType, String)
   }
   class Account {
-    + Account open(UUID, String)
+    + Account open(UUID, String, String)
     +boolean isActive()
     +void suspend()
     +void activate()
@@ -121,12 +147,17 @@ classDiagram
     +UUID getId()
     +String getOwnerName()
     +AccountStatus getStatus()
+    +String getBaseCurrency()
   }
   class AccountStatus {
     <<Enumeration>>
     ACTIVE
     SUSPENDED
     CLOSED
+  }
+  class IdempotencyRecord {
+    +String getIdempotencyKey()
+    +OffsetDateTime getCreatedAt()
   }
   class MonthlyAccountLedger {
     + MonthlyAccountLedger initialize(UUID, String, AssetType, String, String)
@@ -148,6 +179,7 @@ classDiagram
     +String assetCode()
     +AssetType assetType()
     +String fiatCode()
+    +String baseCurrency()
     +TradeType tradeType()
     +BigDecimal quantity()
     +BigDecimal unitPrice()
@@ -159,10 +191,64 @@ classDiagram
   class AccountRepository {
     <<Interface>>
   }
+  class IdempotencyRecordRepository {
+    <<Interface>>
+    + int deleteByCreatedAtBefore(OffsetDateTime)
+  }
   class MonthlyAccountLedgerRepository {
     <<Interface>>
     + Optional~MonthlyAccountLedger~ findByAccountIdAndAssetCodeAndLedgerMonth(UUID, String, String)
     + Optional~MonthlyAccountLedger~ findFirstByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
+    + Optional~MonthlyAccountLedger~ findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(UUID, String)
+    + BigDecimal sumLatestBalanceByAssetCode(String)
+    + List~String~ findDistinctFiatCodes()
+    + List~MonthlyAccountLedger~ findLatestBalancesByAccountId(UUID)
+  }
+  class AccountOutboxAcl {
+    +void persistOutboxEvent(TradeExecutedEvent)
+  }
+  class AccountOutboxAcl_LedgerRecordingPayload {
+    +UUID tradeId()
+    +UUID accountId()
+    +String targetAssetCode()
+    +String paymentCurrency()
+    +String tradeType()
+    +Money quantity()
+    +Money unitPrice()
+    +BigDecimal exchangeRate()
+    +Money averageCost()
+    +boolean isStaleRate()
+  }
+  class AccountTradeController {
+    +ResponseEntity~Void~ buyAsset(UUID, TradeRequestDto)
+    +ResponseEntity~Void~ sellAsset(UUID, TradeRequestDto)
+  }
+  class AccountTradeController_TradeRequestDto {
+    +String idempotencyKey()
+    +String targetAssetCode()
+    +AssetType targetAssetType()
+    +String paymentCurrency()
+    +BigDecimal quantity()
+    +BigDecimal unitPrice()
+  }
+  class JpaConfig {
+    +DateTimeProvider offsetDateTimeProvider()
+  }
+  class KafkaConfig {
+    +DefaultErrorHandler errorHandler(KafkaOperations~?, ?~)
+  }
+  class KafkaProducerConfig {
+    +ProducerFactory~String, String~ primaryProducerFactory()
+    +KafkaTemplate~String, String~ primaryKafkaTemplate()
+  }
+  class RedisConfig {
+    +RedisTemplate~String, Object~ redisTemplate(RedisConnectionFactory)
+  }
+  class RestClientConfig {
+    +RestClient customRestClient(Builder)
+  }
+  class ShedLockConfig {
+    +LockProvider lockProvider(DataSource)
   }
   class BaseEntity {
     <<Abstract>>
@@ -190,12 +276,39 @@ classDiagram
     +AssetType getAssetType()
     +String getCurrencyCode()
   }
+  class ArbitrageRiskException {
+  }
+  class DoubleEntryImbalanceException {
+  }
+  class DuplicateTradeRequestException {
+  }
+  class ErrorResponse {
+    +String code()
+    +String message()
+  }
+  class EventPublishingException {
+  }
+  class GlobalExceptionHandler {
+    +ResponseEntity~ErrorResponse~ handleIllegalArgument(IllegalArgumentException)
+    +ResponseEntity~ErrorResponse~ handleOptimisticLockingFailure(OptimisticLockingFailureException)
+    +ResponseEntity~ErrorResponse~ handleIllegalState(IllegalStateException)
+    +ResponseEntity~ErrorResponse~ handleInvalidAccountState(InvalidAccountStateException)
+    +ResponseEntity~ErrorResponse~ handleDuplicateTradeRequest(DuplicateTradeRequestException)
+    +ResponseEntity~ErrorResponse~ handleInvalidSettlementState(InvalidSettlementStateException)
+    +ResponseEntity~ErrorResponse~ handleDoubleEntryImbalance(DoubleEntryImbalanceException)
+    +ResponseEntity~ErrorResponse~ handleUnhandledException(Exception)
+  }
+  class InvalidAccountStateException {
+  }
+  class InvalidSettlementStateException {
+  }
   class DummyExchangeRateAdapter {
     +ExchangeRate getExchangeRate(String, String)
   }
   class LiveExchangeRateAdapter {
     +ExchangeRate getExchangeRate(String, String)
     +ExchangeRate fallbackExchangeRate(String, String, Throwable)
+    +Map~String, ExchangeRate~ getExchangeRates(List~String~, String)
   }
   class AssetType {
     <<Enumeration>>
@@ -207,18 +320,17 @@ classDiagram
     +boolean isDigitalAsset()
     +boolean isIndivisible()
   }
-  class TradeType {
-    <<Enumeration>>
-    BUY
-    SELL
-  }
-  class KafkaProducerListener {
-    +void handleOutboxMessageEvent(OutboxMessageEvent)
-  }
   class EntryType {
     <<Enumeration>>
     DEBIT
     CREDIT
+  }
+  class FailureReason {
+    <<Enumeration>>
+    AMOUNT_MISMATCH
+    TEXT_NOT_FOUND
+    TIME_WINDOW_EXCEEDED
+    SYSTEM_ERROR
   }
   class SettlementStatus {
     <<Enumeration>>
@@ -238,6 +350,8 @@ classDiagram
   class OutboxEvent {
     +void markAsProcessed()
     +void recordFailure(String)
+    +void lock()
+    +void unlock()
     +Long getId()
     +String getAggregateType()
     +String getAggregateId()
@@ -247,28 +361,74 @@ classDiagram
     +int getRetryCount()
     +String getErrorMessage()
     +boolean isDeadLetter()
+    +String getCorrelationId()
+    +OffsetDateTime getLockedAt()
+  }
+  class OutboxManager {
+    +List~OutboxEvent~ claimUnprocessedEvents(int)
+    +void markAsProcessed(Long)
+    +void recordFailure(Long, String)
   }
   class OutboxMessageEvent {
     +String eventType()
+    +String aggregateId()
     +String payload()
+    +String correlationId()
   }
   class OutboxRelayWorker {
     +void relayOutboxEvents()
   }
   class OutboxRepository {
     <<Interface>>
-    + List~OutboxEvent~ findUnprocessedEventsWithSkipLocked(int)
-    + List~OutboxEvent~ findTop100ByProcessedFalseOrderByCreatedAtAsc()
+    + List~OutboxEvent~ findUnprocessedEventsWithSkipLocked(int, OffsetDateTime)
   }
   class ExchangeRateProvider {
     <<Interface>>
     + ExchangeRate getExchangeRate(String, String)
+    +Map~String, ExchangeRate~ getExchangeRates(List~String~, String)
+  }
+  class ExchangeRateProvider_ExchangeRate {
+    +BigDecimal rate()
+    +boolean isStale()
+  }
+  class CorrelationIdFilter {
+    ..
+    + String CORRELATION_ID_HEADER
+    + String MDC_KEY
+    +void doFilter(ServletRequest, ServletResponse, FilterChain)
+  }
+  class KafkaCorrelationInterceptor {
+    +ProducerRecord~String, String~ onSend(ProducerRecord~String, String~)
+    +void onAcknowledgement(RecordMetadata, Exception)
+    +void close()
+    +void configure(Map~String, ?~)
   }
   class PortfolioQueryService {
     +PortfolioSummaryResponse getPortfolioSummary(UUID)
   }
+  class PortfolioViewRefreshWorker {
+    +void refreshPortfolioView()
+  }
   class PortfolioViewRefresher {
-    +void handleTradeExecuted(TradeExecutedEvent)
+    +void updateRedisCache(TradeExecutedEvent)
+  }
+  class PortfolioCacheDto {
+    +UUID getAccountId()
+    +String getBaseCurrency()
+    +List~AssetBalance~ getBalances()
+    +void setAccountId(UUID)
+    +void setBaseCurrency(String)
+    +void setBalances(List~AssetBalance~)
+  }
+  class PortfolioCacheDto_AssetBalance {
+    +String getAssetCode()
+    +BigDecimal getTotalQuantity()
+    +BigDecimal getAvgUnitPrice()
+    +String getQuoteCurrency()
+    +void setAssetCode(String)
+    +void setTotalQuantity(BigDecimal)
+    +void setAvgUnitPrice(BigDecimal)
+    +void setQuoteCurrency(String)
   }
   class PortfolioSummaryResponse {
     +UUID accountId()
@@ -276,6 +436,15 @@ classDiagram
     +BigDecimal totalUnrealizedPnl()
     +boolean isStaleData()
     +List~AssetDetailDto~ assets()
+  }
+  class PortfolioSummaryResponse_AssetDetailDto {
+    +String assetCode()
+    +BigDecimal quantity()
+    +BigDecimal avgUnitPrice()
+    +BigDecimal currentMarketPrice()
+    +BigDecimal totalValue()
+    +BigDecimal unrealizedPnl()
+    +boolean isRateStale()
   }
   class CurrentPortfolio {
     +String getId()
@@ -292,6 +461,7 @@ classDiagram
   class PortfolioQueryRepository {
     <<Interface>>
     + List~CurrentPortfolio~ findAllByAccountId(UUID)
+    + void refreshMaterializedView()
   }
   class PortfolioController {
     +ResponseEntity~PortfolioSummaryResponse~ getPortfolioSummary(UUID)
@@ -303,6 +473,8 @@ classDiagram
   class HeuristicMatchingProcessor {
     +MatchedReconciliationResult process(ExternalSettlement)
   }
+  class HeuristicMatchingProcessor_1 {
+  }
   class MatchedReconciliationResult {
     +ExternalSettlement externalSettlement()
     +UUID matchedTransactionId()
@@ -310,6 +482,18 @@ classDiagram
   }
   class ReconciliationResultWriter {
     +void write(Chunk~? extends MatchedReconciliationResult~)
+  }
+  class UnmatchableSettlementException {
+    +Throwable fillInStackTrace()
+    +String getExternalSettlementId()
+  }
+  class AmountToleranceRule {
+    +int getOrder()
+    +RuleResult evaluate(ExternalSettlement, InternalTransactionCandidate)
+  }
+  class FuzzyTextMatchingRule {
+    +int getOrder()
+    +RuleResult evaluate(ExternalSettlement, InternalTransactionCandidate)
   }
   class MatchingRule {
     <<Interface>>
@@ -321,6 +505,16 @@ classDiagram
     +boolean isPassed()
     +int getScore()
     +String getFailReason()
+  }
+  class RuleResult_RuleResultBuilder {
+    +RuleResultBuilder passed(boolean)
+    +RuleResultBuilder score(int)
+    +RuleResultBuilder failReason(String)
+    +RuleResult build()
+  }
+  class TimeToleranceRule {
+    +int getOrder()
+    +RuleResult evaluate(ExternalSettlement, InternalTransactionCandidate)
   }
   class ManualReconciliationService {
     +void resolveManually(Long, UUID, Money)
@@ -340,9 +534,18 @@ classDiagram
     +SettlementStatus getStatus()
     +UUID getMatchedInternalTransactionId()
   }
+  class ExternalSettlementId {
+  }
   class ReconciliationDeadLetter {
     + ReconciliationDeadLetter isolate(UUID, FailureReason, String, String)
     +void markAsResolved()
+    +Long getId()
+    +UUID getExternalSettlementId()
+    +FailureReason getFailureReason()
+    +String getErrorMessage()
+    +boolean isResolved()
+    +OffsetDateTime getResolvedAt()
+    +String getHandlerEnrichmentPayload()
   }
   class ReconciliationFeeAdjustedEvent {
     + ReconciliationFeeAdjustedEvent of(UUID, UUID, UUID, Money)
@@ -356,6 +559,7 @@ classDiagram
     <<Interface>>
     + Optional~ExternalSettlement~ findByIdWithoutPartitionKey(UUID)
     + Optional~ExternalSettlement~ findByInstitutionCodeAndExternalReferenceId(String, String)
+    + boolean existsByMatchedInternalTransactionId(UUID)
   }
   class ExternalSettlementDto {
     +String transactionId()
@@ -367,6 +571,48 @@ classDiagram
   }
   class PgSettlementAdapter {
     +ExternalSettlementDto fetchSettlement(String)
+    +ExternalSettlementDto fallbackSettlement(String, Throwable)
+  }
+  class PgApiSkipListener {
+    +void onSkipInProcess(ExternalSettlement, Throwable)
+    +void onSkipInRead(Throwable)
+    +void onSkipInWrite(MatchedReconciliationResult, Throwable)
+  }
+  class PgApiSkipPolicy {
+    +boolean shouldSkip(Throwable, long)
+  }
+  class ReconciliationCompositeSkipPolicy {
+    +boolean shouldSkip(Throwable, long)
+  }
+  class ReconciliationJobConfig {
+    +Job monthlyReconciliationJob()
+    +Step reconciliationStep()
+  }
+  class ReconciliationReaderConfig {
+    +JpaCursorItemReader~ExternalSettlement~ externalSettlementReader(EntityManagerFactory, String)
+  }
+  class ReconciliationSkipListener {
+    +void onSkipInProcess(ExternalSettlement, Throwable)
+  }
+  class InternalTransactionCandidate {
+    +UUID transactionId()
+    +OffsetDateTime transactedAt()
+    +String description()
+    +Money amount()
+  }
+  class InternalTransactionQueryDao {
+    +List~InternalTransactionCandidate~ fetchCandidatesForPeriod(OffsetDateTime, OffsetDateTime)
+    +UUID findAccountIdByTransactionId(UUID)
+  }
+  class ReconciliationAdminController {
+    +ResponseEntity~Void~ resolveDeadLetter(Long, ManualResolutionRequest)
+  }
+  class ReconciliationAdminController_ManualResolutionRequest {
+    +Money getFeeDifference()
+    +UUID internalTransactionId()
+    +BigDecimal feeAmount()
+    +AssetType feeAssetType()
+    +String feeCurrency()
   }
   class LedgerService {
     +void recordDoubleEntry(LedgerRecordingCommand)
@@ -375,7 +621,9 @@ classDiagram
     +UUID referenceTradeId()
     +UUID accountId()
     +String assetCode()
+    +AssetType assetType()
     +String fiatCode()
+    +String baseCurrency()
     +String tradeType()
     +Money quantity()
     +Money unitPrice()
@@ -412,15 +660,40 @@ classDiagram
     <<Interface>>
     + Optional~Transaction~ findWithEntriesById(UUID)
   }
+  class LedgerDltConsumer {
+    +void consumeDlt(String, String, String)
+  }
   class OrderToLedgerAcl {
-    +void persistOutboxEvent(TradeExecutedEvent)
-    +void handleOutboxRelay(OutboxMessageEvent)
+    +void consumeLedgerCommand(String)
   }
   class ReconciliationToLedgerAcl {
     +void handle(ReconciliationFeeAdjustedEvent)
   }
-  AccountTradeService --> MonthlyLedgerResolver
+  class ReconciliationToLedgerAcl_LedgerRecordingPayload {
+    +UUID settlementId()
+    +UUID accountId()
+    +String targetAssetCode()
+    +String paymentCurrency()
+    +String tradeType()
+    +Money quantity()
+    +Money unitPrice()
+    +BigDecimal exchangeRate()
+    +Money averageCost()
+    +boolean isStaleRate()
+  }
+  AccountApiImpl ..|> AccountApi
+  AccountApiImpl --> MonthlyAccountLedgerRepository
+  AccountApiImpl --> AccountRepository
+  AccountMetricsConfiguration --> MonthlyAccountLedgerRepository
+  AccountTradeFacade --> AccountTradeService
+  AccountTradeFacade --> MonthlyLedgerResolver
+  AccountTradeService --> MonthlyAccountLedgerRepository
+  AccountTradeService --> IdempotencyRecordRepository
   AccountTradeService --> ExchangeRateProvider
+  IdempotencyCleanupWorker --> IdempotencyRecordRepository
+  MonthlyLedgerInitializer --> MonthlyAccountLedgerRepository
+  MonthlyLedgerInitializer --> AccountRepository
+  MonthlyLedgerResolver --> MonthlyLedgerInitializer
   MonthlyLedgerResolver --> MonthlyAccountLedgerRepository
   Account --|> BaseEntity
   Account --> AccountStatus
@@ -428,33 +701,63 @@ classDiagram
   MonthlyAccountLedger --> Money
   TradeExecutedEvent --> TradeType
   TradeExecutedEvent --> AssetType
+  AccountOutboxAcl --> OutboxRepository
+  AccountOutboxAcl_LedgerRecordingPayload --> Money
+  AccountTradeController --> AccountTradeFacade
+  AccountTradeController_TradeRequestDto --> AssetType
   Money --> AssetType
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
   LiveExchangeRateAdapter ..|> ExchangeRateProvider
+  LiveExchangeRateAdapter --> ExchangeRateProvider
   OutboxEvent --|> BaseEntity
-  OutboxRelayWorker --> OutboxRepository
+  OutboxManager --> OutboxRepository
+  OutboxRelayWorker --> OutboxManager
+  PortfolioQueryService --> AccountApi
   PortfolioQueryService --> PortfolioQueryRepository
   PortfolioQueryService --> ExchangeRateProvider
+  PortfolioViewRefreshWorker --> PortfolioQueryRepository
+  PortfolioViewRefresher --> AccountApi
+  PortfolioCacheDto --> PortfolioCacheDto_AssetBalance
+  PortfolioSummaryResponse --> PortfolioSummaryResponse_AssetDetailDto
   PortfolioController --> PortfolioQueryService
+  HeuristicMatchingProcessor --> InternalTransactionQueryDao
   HeuristicMatchingProcessor --> MatchingRule
+  HeuristicMatchingProcessor --> InternalTransactionCandidate
   MatchedReconciliationResult --> ExternalSettlement
   MatchedReconciliationResult --> Money
   ReconciliationResultWriter --> ExternalSettlementRepository
+  AmountToleranceRule ..|> MatchingRule
+  FuzzyTextMatchingRule ..|> MatchingRule
+  TimeToleranceRule ..|> MatchingRule
+  ManualReconciliationService --> InternalTransactionQueryDao
   ManualReconciliationService --> ExternalSettlementRepository
   ManualReconciliationService --> ReconciliationDeadLetterRepository
   ExternalSettlement --|> BaseEntity
   ExternalSettlement --> SettlementStatus
   ExternalSettlement --> Money
   ReconciliationDeadLetter --|> BaseEntity
+  ReconciliationDeadLetter --> FailureReason
   ReconciliationFeeAdjustedEvent --> Money
+  ReconciliationJobConfig --> ExternalSettlement
+  ReconciliationJobConfig --> PgApiSkipListener
+  ReconciliationJobConfig --> ReconciliationResultWriter
+  ReconciliationJobConfig --> HeuristicMatchingProcessor
+  ReconciliationJobConfig --> ReconciliationSkipListener
+  ReconciliationSkipListener --> ExternalSettlementRepository
+  ReconciliationSkipListener --> ReconciliationDeadLetterRepository
+  InternalTransactionCandidate --> Money
+  ReconciliationAdminController --> ManualReconciliationService
+  ReconciliationAdminController_ManualResolutionRequest --> AssetType
   LedgerService --> TransactionRepository
+  LedgerService --> ExchangeRateProvider
+  LedgerRecordingCommand --> AssetType
   LedgerRecordingCommand --> Money
   Transaction "0..1" o-- "0..*" TransactionEntry
   TransactionEntry --> EntryType
   TransactionEntry --> Money
   OrderToLedgerAcl --> LedgerService
-  OrderToLedgerAcl --> OutboxRepository
-  ReconciliationToLedgerAcl --> LedgerService
+  ReconciliationToLedgerAcl --> OutboxRepository
+  ReconciliationToLedgerAcl_LedgerRecordingPayload --> Money
 ```
 </details>
 
