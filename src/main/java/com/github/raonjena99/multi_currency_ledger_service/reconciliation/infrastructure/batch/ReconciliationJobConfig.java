@@ -13,7 +13,7 @@ import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.HeuristicMatchingProcessor;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
-import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.ReconciliationResultWriter;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.batch.ReconciliationResultWriter;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 
 import lombok.RequiredArgsConstructor;

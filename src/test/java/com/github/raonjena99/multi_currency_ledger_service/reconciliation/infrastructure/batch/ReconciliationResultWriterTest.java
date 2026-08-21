@@ -1,4 +1,6 @@
-package com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch;
+package com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.batch;
+
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
