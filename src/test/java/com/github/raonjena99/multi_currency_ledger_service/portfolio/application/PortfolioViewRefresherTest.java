@@ -1,7 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,23 +15,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
+import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi.AccountBalanceDto;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
-import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
-import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType;
+import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioCacheDto;
+import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.port.PortfolioCachePort;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("인프라 단위 테스트: PortfolioViewRefresher")
+@DisplayName("인프라 단위 테스트: PortfolioViewRefresher (Redis Write-Through 갱신 검증)")
 class PortfolioViewRefresherTest {
 
     @Mock
-    private RedisTemplate<String, Object> redisTemplate;
-
-    @Mock
-    private ValueOperations<String, Object> valueOperations;
+    private PortfolioCachePort portfolioCachePort;
 
     @Mock
     private AccountApi accountApi;
@@ -40,26 +36,49 @@ class PortfolioViewRefresherTest {
     private PortfolioViewRefresher portfolioViewRefresher;
 
     @Test
-    @DisplayName("이벤트 수신 시 Redis 캐시를 업데이트한다.")
-    void updateRedisCache() {
+    @DisplayName("이벤트 수신 시 AccountApi를 통해 잔고를 조회하고 PortfolioCachePort로 캐시를 갱신한다.")
+    void update_redis_cache_success() {
         // given
+        UUID accountId = UUID.randomUUID();
         TradeExecutedEvent mockEvent = new TradeExecutedEvent(
-            UUID.randomUUID(), UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "KRW", TradeType.BUY,
+            UUID.randomUUID(), accountId, "BTC", com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY,
             new BigDecimal("1"), new BigDecimal("50000000"), BigDecimal.ONE, BigDecimal.ZERO,
             false, java.time.OffsetDateTime.now()
         );
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
-        when(accountApi.getBalances(any())).thenReturn(List.of());
-        when(accountApi.getBaseCurrency(any())).thenReturn("KRW");
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        when(accountApi.getBalances(accountId)).thenReturn(List.of(
+            new AccountBalanceDto("BTC", new BigDecimal("1"), new BigDecimal("50000000"), "KRW")
+        ));
+        when(portfolioCachePort.tryAcquireLock(any(), org.mockito.ArgumentMatchers.anyLong())).thenReturn(true);
 
         // when
         portfolioViewRefresher.updateRedisCache(mockEvent);
 
         // then
-        verify(accountApi).getBalances(mockEvent.accountId());
-        verify(valueOperations).set(anyString(), any(), any());
-        verify(redisTemplate).delete(anyString());
+        verify(accountApi).getBaseCurrency(accountId);
+        verify(accountApi).getBalances(accountId);
+        verify(portfolioCachePort).savePortfolioCache(eq(accountId), any(PortfolioCacheDto.class));
+    }
+
+    @Test
+    @DisplayName("캐시 갱신 실패 시 기존 캐시를 유지하여 Eviction Storm을 방지하고 락을 해제한다.")
+    void update_redis_cache_failure() {
+        // given
+        UUID accountId = UUID.randomUUID();
+        TradeExecutedEvent mockEvent = new TradeExecutedEvent(
+            UUID.randomUUID(), accountId, "BTC", com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY,
+            new BigDecimal("1"), new BigDecimal("50000000"), BigDecimal.ONE, BigDecimal.ZERO,
+            false, java.time.OffsetDateTime.now()
+        );
+
+        when(portfolioCachePort.tryAcquireLock(any(), org.mockito.ArgumentMatchers.anyLong())).thenReturn(true);
+        when(accountApi.getBalances(accountId)).thenThrow(new RuntimeException("API Error"));
+
+        // when
+        portfolioViewRefresher.updateRedisCache(mockEvent);
+
+        // then
+        verify(portfolioCachePort).releaseLock(any());
     }
 }
