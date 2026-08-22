@@ -31,27 +31,12 @@ public class OutboxManager {
     }
 
     /**
-     * 이벤트를 처리 완료로 표시하고 잠금 해제
-     * @param eventId
+     * 비동기 처리가 끝난 이벤트들의 상태(성공, 실패, 잠금해제 등)를 벌크(일괄)로 저장합니다.
+     * N+1 트랜잭션 오버헤드를 막기 위해 사용됩니다.
+     * @param events 처리 결과가 반영된 이벤트 리스트
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markAsProcessed(Long eventId) {
-        outboxRepository.findById(eventId).ifPresent(event -> {
-            event.markAsProcessed();
-            event.unlock();
-        });
-    }
-
-    /**
-     * 이벤트를 처리 실패로 표시하고 잠금 해제
-     * @param eventId
-     * @param errorMessage
-     */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordFailure(Long eventId, String errorMessage) {
-        outboxRepository.findById(eventId).ifPresent(event -> {
-            event.recordFailure(errorMessage);
-            event.unlock();
-        });
+    @Transactional
+    public void updateEvents(List<OutboxEvent> events) {
+        outboxRepository.saveAll(events);
     }
 }
