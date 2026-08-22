@@ -32,7 +32,7 @@ public class ReconciliationToLedgerAcl {
 
     record LedgerRecordingPayload(
         UUID settlementId, UUID accountId, String targetAssetCode, String paymentCurrency,
-        String tradeType, Money quantity, Money unitPrice, BigDecimal exchangeRate, Money averageCost, boolean isStaleRate
+        String tradeType, Money quantity, BigDecimal unitPrice, BigDecimal exchangeRate, BigDecimal averageCost, boolean isStaleRate
     ) {}
 
     /**
@@ -47,8 +47,8 @@ public class ReconciliationToLedgerAcl {
         try {
             LedgerRecordingPayload payload = new LedgerRecordingPayload(
                 event.settlementId(), SYSTEM_FEE_ACCOUNT_ID, fee.getAssetType().name(), fee.getCurrencyCode(),
-                "FEE_DEDUCTION", fee, Money.of("1", fee.getAssetType(), fee.getCurrencyCode()),
-                BigDecimal.ONE, Money.of("0", fee.getAssetType(), fee.getCurrencyCode()), false
+                "FEE_DEDUCTION", fee, BigDecimal.ONE,
+                BigDecimal.ONE, BigDecimal.ZERO, false
             );
 
             OutboxEvent outboxEvent = new OutboxEvent(

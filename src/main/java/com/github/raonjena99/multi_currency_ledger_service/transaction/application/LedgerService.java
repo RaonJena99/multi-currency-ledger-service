@@ -64,20 +64,22 @@ public class LedgerService {
 
         // 매수(BUY) 거래인 경우: 자산을 매수하고 법정화폐를 매도(지불)합니다.
         if ("BUY".equals(cmd.tradeType())) {
-            Money requiredFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
+            BigDecimal requiredFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
+            Money fiatMoney = Money.of(requiredFiatAmount, AssetType.FIAT, cmd.fiatCode());
             
             // 차변(Debit): 매수한 자산 증가 기록 (fiatToBaseRate 적용)
             transaction.addBuyEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), cmd.unitPrice(), fiatToBaseRate, baseCurrency);
             // 대변(Credit): 지불한 법정화폐 감소 기록 (환율 미적용 버그 해결)
-            transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), requiredFiatAmount, 
-                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), fiatToBaseRate, Money.of("1", AssetType.FIAT, cmd.fiatCode()), baseCurrency);
+            transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), fiatMoney, 
+                                    BigDecimal.ONE, fiatToBaseRate, BigDecimal.ONE, baseCurrency);
         } else if ("SELL".equals(cmd.tradeType())) {
             // 매도(SELL) 거래인 경우: 법정화폐를 매수(수취)하고 자산을 매도합니다.
-            Money earnedFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
+            BigDecimal earnedFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
+            Money fiatMoney = Money.of(earnedFiatAmount, AssetType.FIAT, cmd.fiatCode());
             
             // 차변(Debit): 수취한 법정화폐 증가 기록
-            transaction.addBuyEntry(cmd.accountId(), cmd.fiatCode(), earnedFiatAmount, 
-                                    Money.of("1", AssetType.FIAT, cmd.fiatCode()), fiatToBaseRate, baseCurrency);
+            transaction.addBuyEntry(cmd.accountId(), cmd.fiatCode(), fiatMoney, 
+                                    BigDecimal.ONE, fiatToBaseRate, baseCurrency);
             // 대변(Credit): 매도한 자산 감소 기록
             transaction.addSellEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), 
                                     cmd.unitPrice(), fiatToBaseRate, cmd.averageCost(), baseCurrency);
@@ -98,21 +100,21 @@ public class LedgerService {
             if (cmd.quantity().getAmount().compareTo(BigDecimal.ZERO) > 0) {
                 // 수수료 수익 (초과 수취): 차변(법정화폐 입금), 대변(수수료 수익)
                 transaction.addBuyEntry(cmd.accountId(), cmd.fiatCode(), cmd.quantity(), 
-                                        Money.of("1", AssetType.FIAT, cmd.fiatCode()), fiatToBaseRate, baseCurrency);
+                                        BigDecimal.ONE, fiatToBaseRate, baseCurrency);
                                         
                 transaction.addSellEntry(cmd.accountId(), "FEE_GAIN", cmd.quantity(), 
-                                        Money.of("1", AssetType.FIAT, cmd.fiatCode()), fiatToBaseRate, 
-                                        Money.of("1", AssetType.FIAT, cmd.fiatCode()), baseCurrency);
+                                        BigDecimal.ONE, fiatToBaseRate, 
+                                        BigDecimal.ONE, baseCurrency);
             } else if (cmd.quantity().getAmount().compareTo(BigDecimal.ZERO) < 0) {
                 // 수수료 손실 (초과 지불): 차변(수수료 손실), 대변(법정화폐 출금)
                 Money lossAmount = Money.of(cmd.quantity().getAmount().abs().toPlainString(), AssetType.FIAT, cmd.fiatCode());
 
                 transaction.addBuyEntry(cmd.accountId(), "FEE_LOSS", lossAmount, 
-                                        Money.of("1", AssetType.FIAT, cmd.fiatCode()), fiatToBaseRate, baseCurrency);
+                                        BigDecimal.ONE, fiatToBaseRate, baseCurrency);
 
                 transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), lossAmount, 
-                                        Money.of("1", AssetType.FIAT, cmd.fiatCode()), fiatToBaseRate, 
-                                        Money.of("1", AssetType.FIAT, cmd.fiatCode()), baseCurrency);
+                                        BigDecimal.ONE, fiatToBaseRate, 
+                                        BigDecimal.ONE, baseCurrency);
             }
         }
 
@@ -144,14 +146,14 @@ public class LedgerService {
             // 차변 > 대변: 시스템 환차익 발생 -> 대변(Sell) 엔트리로 SYSTEM_FX_GAIN 추가
             Money differenceMoney = Money.of(difference.toPlainString(), AssetType.FIAT, baseCurrency);
             transaction.addSellEntry(systemAccountId, "SYSTEM_FX_GAIN", differenceMoney,
-                                    Money.of("1", AssetType.FIAT, baseCurrency), BigDecimal.ONE, 
-                                    Money.of("1", AssetType.FIAT, baseCurrency), baseCurrency);
+                                    BigDecimal.ONE, BigDecimal.ONE, 
+                                    BigDecimal.ONE, baseCurrency);
                                     
         } else if (difference.compareTo(BigDecimal.ZERO) < 0) {
             // 차변 < 대변: 시스템 환차손 발생 -> 차변(Buy) 엔트리로 SYSTEM_FX_LOSS 추가
             Money differenceMoney = Money.of(difference.abs().toPlainString(), AssetType.FIAT, baseCurrency);
             transaction.addBuyEntry(systemAccountId, "SYSTEM_FX_LOSS", differenceMoney,
-                                    Money.of("1", AssetType.FIAT, baseCurrency), BigDecimal.ONE, baseCurrency);
+                                    BigDecimal.ONE, BigDecimal.ONE, baseCurrency);
         }
 
         // [수정3: 레이스 컨디션 방지] Check-Then-Act 문제 해결을 위해 Unique Constraint를 활용한 DB 락 멱등성 보장
