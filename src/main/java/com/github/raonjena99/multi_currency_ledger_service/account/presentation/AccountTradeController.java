@@ -40,7 +40,7 @@ public class AccountTradeController {
                 request.targetAssetType(),
                 request.paymentCurrency(),
                 Money.of(request.quantity().toPlainString(), request.targetAssetType(), request.targetAssetCode()),
-                Money.of(request.unitPrice().toPlainString(), AssetType.FIAT, request.paymentCurrency())
+                request.unitPrice()
         );
         
         return ResponseEntity.ok().build();
@@ -57,7 +57,7 @@ public class AccountTradeController {
                 request.targetAssetType(),
                 request.paymentCurrency(),
                 Money.of(request.quantity().toPlainString(), request.targetAssetType(), request.targetAssetCode()),
-                Money.of(request.unitPrice().toPlainString(), AssetType.FIAT, request.paymentCurrency())
+                request.unitPrice()
         );
         
         return ResponseEntity.ok().build();

@@ -30,7 +30,7 @@ public class AccountTradeFacade {
      * @Transactional 이 없는 Facade 계층
      */
     public UUID buyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                         String paymentCurrency, Money buyQuantity, Money unitPrice) {
+                         String paymentCurrency, Money buyQuantity, java.math.BigDecimal unitPrice) {
         
         // 트랜잭션 진입 전 현재 시각 기록
         OffsetDateTime transactedAt = OffsetDateTime.now();
@@ -63,7 +63,7 @@ public class AccountTradeFacade {
 
     public UUID sellAsset(String idempotencyKey, 
                           UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                          String paymentCurrency, Money sellQuantity, Money sellUnitPrice) {
+                          String paymentCurrency, Money sellQuantity, java.math.BigDecimal sellUnitPrice) {
         
         OffsetDateTime transactedAt = OffsetDateTime.now();
         
