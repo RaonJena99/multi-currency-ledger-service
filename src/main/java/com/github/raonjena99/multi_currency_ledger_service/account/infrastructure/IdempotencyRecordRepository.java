@@ -15,6 +15,6 @@ public interface IdempotencyRecordRepository extends JpaRepository<IdempotencyRe
     // 대량 삭제로 인한 Lock Escalation 및 트랜잭션 로그 스파이크를 방지하기 위해 청크(Chunk) 단위로 삭제합니다.
     @Transactional
     @Modifying
-    @Query(nativeQuery = true, value = "DELETE FROM idempotency_records WHERE created_at < :threshold LIMIT :limit")
+    @Query(nativeQuery = true, value = "DELETE FROM idempotency_records WHERE idempotency_key IN (SELECT idempotency_key FROM idempotency_records WHERE created_at < :threshold LIMIT :limit)")
     int deleteByCreatedAtBeforeWithLimit(@Param("threshold") OffsetDateTime threshold, @Param("limit") int limit);
 }
