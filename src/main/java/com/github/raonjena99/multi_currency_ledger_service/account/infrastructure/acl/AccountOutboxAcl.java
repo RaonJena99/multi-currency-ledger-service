@@ -35,9 +35,9 @@ public class AccountOutboxAcl {
         String baseCurrency,
         String tradeType,
         Money quantity,
-        Money unitPrice,
+        BigDecimal unitPrice,
         BigDecimal exchangeRate,
-        Money averageCost,
+        BigDecimal averageCost,
         boolean isStaleRate
     ) {}
     
@@ -63,9 +63,9 @@ public class AccountOutboxAcl {
                 externalEvent.baseCurrency(),
                 externalEvent.tradeType().name(),
                 Money.of(externalEvent.quantity().toPlainString(), externalEvent.assetType(), externalEvent.assetCode()),
-                Money.of(externalEvent.unitPrice().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
+                externalEvent.unitPrice(),
                 externalEvent.exchangeRate(),
-                Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
+                externalEvent.averageCost(),
                 externalEvent.isStaleRate()
             );
 
