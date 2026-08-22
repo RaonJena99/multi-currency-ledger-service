@@ -157,12 +157,11 @@ public class LedgerService {
         }
 
         // [수정3: 레이스 컨디션 방지] Check-Then-Act 문제 해결을 위해 Unique Constraint를 활용한 DB 락 멱등성 보장
-        try {
-            transactionRepository.saveAndFlush(transaction);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            log.warn("Ledger already recorded for TradeID: {} (Caught by DB Constraint). Ignoring duplicate request.", cmd.referenceTradeId());
-            return;
-        }
+        // 주의: 여기서 DataIntegrityViolationException을 catch하고 삼키면 Spring JPA 특성상 트랜잭션이 
+        // rollback-only로 마킹되어 UnexpectedRollbackException이 터지는 좀비 트랜잭션 버그가 발생합니다.
+        // 예외가 터지면 자연스럽게 카프카가 실패 후 재시도하게 놔두는 것이 분산 시스템의 정석입니다.
+        transactionRepository.saveAndFlush(transaction);
+        
         log.info("Ledger successfully recorded for TradeID: {}", cmd.referenceTradeId());
     }
 }
