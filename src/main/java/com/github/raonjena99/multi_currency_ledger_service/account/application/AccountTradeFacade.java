@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 
@@ -41,6 +42,11 @@ public class AccountTradeFacade {
         // 2. 외부 API를 찌르는 통신을 DB 트랜잭션 밖에서 수행 (Connection Pool 고갈 방지)
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+                
+        if (!account.isActive()) {
+            throw new InvalidAccountStateException("Account is not active for trading: " + accountId);
+        }
+        
         String baseCurrency = account.getBaseCurrency();
         
         var targetRateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
@@ -68,6 +74,11 @@ public class AccountTradeFacade {
         // 2. 외부 API를 찌르는 통신을 DB 트랜잭션 밖에서 수행 (Connection Pool 고갈 방지)
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+                
+        if (!account.isActive()) {
+            throw new InvalidAccountStateException("Account is not active for trading: " + accountId);
+        }
+        
         String baseCurrency = account.getBaseCurrency();
         
         var targetRateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
