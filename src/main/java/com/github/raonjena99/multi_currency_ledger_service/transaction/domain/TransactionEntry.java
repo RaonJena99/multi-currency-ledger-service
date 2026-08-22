@@ -154,7 +154,7 @@ public class TransactionEntry {
         BigDecimal costPrice = sellPrice;
         
         if (averageCost != null) {
-            pnlValue = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount());
+            pnlValue = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount()).multiply(exchangeRate);
             costPrice = averageCost;
         }
         

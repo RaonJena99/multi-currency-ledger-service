@@ -47,7 +47,7 @@ public class ReconciliationToLedgerAcl {
         try {
             LedgerRecordingPayload payload = new LedgerRecordingPayload(
                 event.settlementId(), SYSTEM_FEE_ACCOUNT_ID, fee.getAssetType().name(), fee.getCurrencyCode(),
-                "FEE_DEDUCTION", fee, BigDecimal.ONE,
+                "FEE_ADJUSTMENT", fee, BigDecimal.ONE,
                 BigDecimal.ONE, BigDecimal.ZERO, false
             );
 
