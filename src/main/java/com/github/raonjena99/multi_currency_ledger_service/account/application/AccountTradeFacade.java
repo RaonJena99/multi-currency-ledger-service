@@ -3,6 +3,9 @@ package com.github.raonjena99.multi_currency_ledger_service.account.application;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
@@ -29,6 +32,11 @@ public class AccountTradeFacade {
     /**
      * @Transactional 이 없는 Facade 계층
      */
+    @Retryable(
+        retryFor = OptimisticLockingFailureException.class, 
+        maxAttempts = 3, 
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
     public UUID buyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
                          String paymentCurrency, Money buyQuantity, java.math.BigDecimal unitPrice) {
         
@@ -61,6 +69,11 @@ public class AccountTradeFacade {
                                         targetRateInfo.rate(), targetRateInfo.isStale(), fiatToBaseRate);
     }
 
+    @Retryable(
+        retryFor = OptimisticLockingFailureException.class, 
+        maxAttempts = 3, 
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
     public UUID sellAsset(String idempotencyKey, 
                           UUID accountId, String targetAssetCode, AssetType targetAssetType, 
                           String paymentCurrency, Money sellQuantity, java.math.BigDecimal sellUnitPrice) {

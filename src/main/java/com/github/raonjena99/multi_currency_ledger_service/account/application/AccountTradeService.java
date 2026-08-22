@@ -7,9 +7,6 @@ import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,11 +52,6 @@ public class AccountTradeService {
      * @param unitPrice 매입 단가
      * @return 생성된 거래의 고유 식별자
      */
-    @Retryable(
-        retryFor = OptimisticLockingFailureException.class, 
-        maxAttempts = 3, 
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
-    )
     @Transactional
     public UUID executeBuyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
                                 String paymentCurrency, Money buyQuantity, BigDecimal unitPrice, OffsetDateTime transactedAt,
@@ -130,11 +122,6 @@ public class AccountTradeService {
      * @param sellUnitPrice 매도 단가
      * @return 생성된 거래의 고유 식별자
      */
-    @Retryable(
-        retryFor = OptimisticLockingFailureException.class, 
-        maxAttempts = 3, 
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
-    )
     @Transactional
     public UUID executeSellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
                                 String paymentCurrency, Money sellQuantity, BigDecimal sellUnitPrice, OffsetDateTime transactedAt,
