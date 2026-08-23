@@ -119,14 +119,15 @@ classDiagram
   }
   class AccountMetricsConfiguration {
     +void initializeMetrics()
+    +void refreshFiatBalances()
   }
   class AccountTradeFacade {
-    +UUID buyAsset(String, UUID, String, AssetType, String, Money, Money)
-    +UUID sellAsset(String, UUID, String, AssetType, String, Money, Money)
+    +UUID buyAsset(String, UUID, String, AssetType, String, Money, BigDecimal)
+    +UUID sellAsset(String, UUID, String, AssetType, String, Money, BigDecimal)
   }
   class AccountTradeService {
-    +UUID executeBuyAsset(String, UUID, String, AssetType, String, Money, Money, OffsetDateTime)
-    +UUID executeSellAsset(String, UUID, String, AssetType, String, Money, Money, OffsetDateTime)
+    +UUID executeBuyAsset(String, UUID, String, AssetType, String, Money, BigDecimal, OffsetDateTime, BigDecimal, boolean, BigDecimal)
+    +UUID executeSellAsset(String, UUID, String, AssetType, String, Money, BigDecimal, OffsetDateTime, BigDecimal, boolean, BigDecimal)
   }
   class IdempotencyCleanupWorker {
     +void cleanupOldRecords()
@@ -156,20 +157,23 @@ classDiagram
     CLOSED
   }
   class IdempotencyRecord {
+    +String getId()
+    +boolean isNew()
     +String getIdempotencyKey()
     +OffsetDateTime getCreatedAt()
   }
   class MonthlyAccountLedger {
     + MonthlyAccountLedger initialize(UUID, String, AssetType, String, String)
     + MonthlyAccountLedger carryForwardFrom(MonthlyAccountLedger, String)
-    +void addBalance(Money, Money)
-    +Money subtractBalance(Money)
+    +void addBalance(Money, BigDecimal)
+    +BigDecimal subtractBalance(Money)
     +Long getId()
     +UUID getAccountId()
     +String getAssetCode()
     +String getLedgerMonth()
     +Money getBalance()
-    +Money getAverageUnitPrice()
+    +BigDecimal getAverageUnitPrice()
+    +String getBaseCurrency()
     +boolean isCarriedForward()
     +Long getVersion()
   }
@@ -193,7 +197,7 @@ classDiagram
   }
   class IdempotencyRecordRepository {
     <<Interface>>
-    + int deleteByCreatedAtBefore(OffsetDateTime)
+    + int deleteByCreatedAtBeforeWithLimit(OffsetDateTime, int)
   }
   class MonthlyAccountLedgerRepository {
     <<Interface>>
@@ -211,17 +215,19 @@ classDiagram
     +UUID tradeId()
     +UUID accountId()
     +String targetAssetCode()
+    +AssetType targetAssetType()
     +String paymentCurrency()
+    +String baseCurrency()
     +String tradeType()
     +Money quantity()
-    +Money unitPrice()
+    +BigDecimal unitPrice()
     +BigDecimal exchangeRate()
-    +Money averageCost()
+    +BigDecimal averageCost()
     +boolean isStaleRate()
   }
   class AccountTradeController {
-    +ResponseEntity~Void~ buyAsset(UUID, TradeRequestDto)
-    +ResponseEntity~Void~ sellAsset(UUID, TradeRequestDto)
+    +ResponseEntity~TradeResponseDto~ buyAsset(UUID, TradeRequestDto)
+    +ResponseEntity~TradeResponseDto~ sellAsset(UUID, TradeRequestDto)
   }
   class AccountTradeController_TradeRequestDto {
     +String idempotencyKey()
@@ -230,6 +236,9 @@ classDiagram
     +String paymentCurrency()
     +BigDecimal quantity()
     +BigDecimal unitPrice()
+  }
+  class AccountTradeController_TradeResponseDto {
+    +UUID tradeId()
   }
   class JpaConfig {
     +DateTimeProvider offsetDateTimeProvider()
@@ -344,9 +353,6 @@ classDiagram
     BUY
     SELL
   }
-  class KafkaProducerListener {
-    +void handleOutboxMessageEvent(OutboxMessageEvent)
-  }
   class OutboxEvent {
     +void markAsProcessed()
     +void recordFailure(String)
@@ -366,14 +372,10 @@ classDiagram
   }
   class OutboxManager {
     +List~OutboxEvent~ claimUnprocessedEvents(int)
-    +void markAsProcessed(Long)
-    +void recordFailure(Long, String)
+    +void updateResults(List~Long~, List~OutboxEvent~)
   }
-  class OutboxMessageEvent {
-    +String eventType()
-    +String aggregateId()
-    +String payload()
-    +String correlationId()
+  class OutboxMessageDispatcher {
+    +CompletableFuture~SendResult~String, String~~ dispatch(OutboxEvent)
   }
   class OutboxRelayWorker {
     +void relayOutboxEvents()
@@ -381,6 +383,7 @@ classDiagram
   class OutboxRepository {
     <<Interface>>
     + List~OutboxEvent~ findUnprocessedEventsWithSkipLocked(int, OffsetDateTime)
+    + void markAsProcessedInBatch(List~Long~)
   }
   class ExchangeRateProvider {
     <<Interface>>
@@ -405,9 +408,6 @@ classDiagram
   }
   class PortfolioQueryService {
     +PortfolioSummaryResponse getPortfolioSummary(UUID)
-  }
-  class PortfolioViewRefreshWorker {
-    +void refreshPortfolioView()
   }
   class PortfolioViewRefresher {
     +void updateRedisCache(TradeExecutedEvent)
@@ -446,22 +446,26 @@ classDiagram
     +BigDecimal unrealizedPnl()
     +boolean isRateStale()
   }
-  class CurrentPortfolio {
-    +String getId()
-    +UUID getAccountId()
-    +String getAssetCode()
-    +String getBalanceCurrency()
-    +BigDecimal getTotalQuantity()
-    +String getQuoteCurrency()
-    +BigDecimal getAvgUnitPrice()
-    +BigDecimal getCurrentMarketPrice()
-    +BigDecimal getUnrealizedPnl()
-    +String getLastUpdatedMonth()
-  }
-  class PortfolioQueryRepository {
+  class PortfolioCachePort {
     <<Interface>>
-    + List~CurrentPortfolio~ findAllByAccountId(UUID)
-    + void refreshMaterializedView()
+    + Optional~PortfolioCacheDto~ getPortfolioCache(UUID)
+    + void savePortfolioCache(UUID, PortfolioCacheDto)
+    + void evictPortfolioCache(UUID)
+    + boolean tryAcquireLock(String, long)
+    + void releaseLock(String)
+  }
+  class PortfolioValuation {
+    + PortfolioValuation calculate(BigDecimal, BigDecimal, BigDecimal, BigDecimal)
+    +BigDecimal currentMarketPrice()
+    +BigDecimal totalValue()
+    +BigDecimal unrealizedPnl()
+  }
+  class RedisPortfolioCacheAdapter {
+    +Optional~PortfolioCacheDto~ getPortfolioCache(UUID)
+    +void savePortfolioCache(UUID, PortfolioCacheDto)
+    +void evictPortfolioCache(UUID)
+    +boolean tryAcquireLock(String, long)
+    +void releaseLock(String)
   }
   class PortfolioController {
     +ResponseEntity~PortfolioSummaryResponse~ getPortfolioSummary(UUID)
@@ -472,16 +476,15 @@ classDiagram
   }
   class HeuristicMatchingProcessor {
     +MatchedReconciliationResult process(ExternalSettlement)
+    +void afterChunkError(ChunkContext)
   }
   class HeuristicMatchingProcessor_1 {
   }
   class MatchedReconciliationResult {
     +ExternalSettlement externalSettlement()
     +UUID matchedTransactionId()
+    +UUID accountId()
     +Money feeDifference()
-  }
-  class ReconciliationResultWriter {
-    +void write(Chunk~? extends MatchedReconciliationResult~)
   }
   class UnmatchableSettlementException {
     +Throwable fillInStackTrace()
@@ -589,13 +592,17 @@ classDiagram
     +Step reconciliationStep()
   }
   class ReconciliationReaderConfig {
-    +JpaCursorItemReader~ExternalSettlement~ externalSettlementReader(EntityManagerFactory, String)
+    +JpaPagingItemReader~ExternalSettlement~ externalSettlementReader(EntityManagerFactory, String)
+  }
+  class ReconciliationResultWriter {
+    +void write(Chunk~? extends MatchedReconciliationResult~)
   }
   class ReconciliationSkipListener {
     +void onSkipInProcess(ExternalSettlement, Throwable)
   }
   class InternalTransactionCandidate {
     +UUID transactionId()
+    +UUID accountId()
     +OffsetDateTime transactedAt()
     +String description()
     +Money amount()
@@ -626,15 +633,15 @@ classDiagram
     +String baseCurrency()
     +String tradeType()
     +Money quantity()
-    +Money unitPrice()
+    +BigDecimal unitPrice()
     +BigDecimal exchangeRate()
-    +Money averageCost()
+    +BigDecimal averageCost()
     +boolean isStaleRate()
   }
   class Transaction {
     + Transaction record(UUID, String, String)
-    +void addBuyEntry(UUID, String, Money, Money, BigDecimal, String)
-    +void addSellEntry(UUID, String, Money, Money, BigDecimal, Money, String)
+    +void addBuyEntry(UUID, String, Money, BigDecimal, BigDecimal, String)
+    +void addSellEntry(UUID, String, Money, BigDecimal, BigDecimal, BigDecimal, String)
     +boolean isNew()
     +UUID getId()
     +String getTransactionType()
@@ -643,15 +650,15 @@ classDiagram
     +List~TransactionEntry~ getEntries()
   }
   class TransactionEntry {
-    + TransactionEntry createBuyEntry(Transaction, UUID, String, Money, Money, BigDecimal, String)
-    + TransactionEntry createSellEntry(Transaction, UUID, String, Money, Money, BigDecimal, Money, String)
+    + TransactionEntry createBuyEntry(Transaction, UUID, String, Money, BigDecimal, BigDecimal, String)
+    + TransactionEntry createSellEntry(Transaction, UUID, String, Money, BigDecimal, BigDecimal, BigDecimal, String)
     +Long getId()
     +Transaction getTransaction()
     +UUID getAccountId()
     +EntryType getEntryType()
     +String getAssetCode()
     +Money getQuantity()
-    +Money getUnitPrice()
+    +BigDecimal getUnitPrice()
     +Money getAmount()
     +Money getRealizedPnl()
     +BigDecimal getExchangeRate()
@@ -676,9 +683,9 @@ classDiagram
     +String paymentCurrency()
     +String tradeType()
     +Money quantity()
-    +Money unitPrice()
+    +BigDecimal unitPrice()
     +BigDecimal exchangeRate()
-    +Money averageCost()
+    +BigDecimal averageCost()
     +boolean isStaleRate()
   }
   AccountApiImpl ..|> AccountApi
@@ -686,10 +693,11 @@ classDiagram
   AccountApiImpl --> AccountRepository
   AccountMetricsConfiguration --> MonthlyAccountLedgerRepository
   AccountTradeFacade --> AccountTradeService
+  AccountTradeFacade --> AccountRepository
   AccountTradeFacade --> MonthlyLedgerResolver
+  AccountTradeFacade --> ExchangeRateProvider
   AccountTradeService --> MonthlyAccountLedgerRepository
   AccountTradeService --> IdempotencyRecordRepository
-  AccountTradeService --> ExchangeRateProvider
   IdempotencyCleanupWorker --> IdempotencyRecordRepository
   MonthlyLedgerInitializer --> MonthlyAccountLedgerRepository
   MonthlyLedgerInitializer --> AccountRepository
@@ -702,9 +710,10 @@ classDiagram
   TradeExecutedEvent --> TradeType
   TradeExecutedEvent --> AssetType
   AccountOutboxAcl --> OutboxRepository
+  AccountOutboxAcl_LedgerRecordingPayload --> AssetType
   AccountOutboxAcl_LedgerRecordingPayload --> Money
   AccountTradeController --> AccountTradeFacade
-  AccountTradeController_TradeRequestDto --> AssetType
+  AccountTradeController_TradeRequestDto --> "1..*" AssetType
   Money --> AssetType
   DummyExchangeRateAdapter ..|> ExchangeRateProvider
   LiveExchangeRateAdapter ..|> ExchangeRateProvider
@@ -712,20 +721,21 @@ classDiagram
   OutboxEvent --|> BaseEntity
   OutboxManager --> OutboxRepository
   OutboxRelayWorker --> OutboxManager
+  OutboxRelayWorker --> OutboxMessageDispatcher
+  PortfolioQueryService --> PortfolioCachePort
   PortfolioQueryService --> AccountApi
-  PortfolioQueryService --> PortfolioQueryRepository
   PortfolioQueryService --> ExchangeRateProvider
-  PortfolioViewRefreshWorker --> PortfolioQueryRepository
   PortfolioViewRefresher --> AccountApi
+  PortfolioViewRefresher --> PortfolioCachePort
   PortfolioCacheDto --> PortfolioCacheDto_AssetBalance
   PortfolioSummaryResponse --> PortfolioSummaryResponse_AssetDetailDto
+  RedisPortfolioCacheAdapter ..|> PortfolioCachePort
   PortfolioController --> PortfolioQueryService
   HeuristicMatchingProcessor --> InternalTransactionQueryDao
   HeuristicMatchingProcessor --> MatchingRule
   HeuristicMatchingProcessor --> InternalTransactionCandidate
   MatchedReconciliationResult --> ExternalSettlement
   MatchedReconciliationResult --> Money
-  ReconciliationResultWriter --> ExternalSettlementRepository
   AmountToleranceRule ..|> MatchingRule
   FuzzyTextMatchingRule ..|> MatchingRule
   TimeToleranceRule ..|> MatchingRule
@@ -740,9 +750,10 @@ classDiagram
   ReconciliationFeeAdjustedEvent --> Money
   ReconciliationJobConfig --> ExternalSettlement
   ReconciliationJobConfig --> PgApiSkipListener
-  ReconciliationJobConfig --> ReconciliationResultWriter
   ReconciliationJobConfig --> HeuristicMatchingProcessor
+  ReconciliationJobConfig --> ReconciliationResultWriter
   ReconciliationJobConfig --> ReconciliationSkipListener
+  ReconciliationResultWriter --> ExternalSettlementRepository
   ReconciliationSkipListener --> ExternalSettlementRepository
   ReconciliationSkipListener --> ReconciliationDeadLetterRepository
   InternalTransactionCandidate --> Money
