@@ -38,8 +38,8 @@ public class AccountApiImpl implements AccountApi {
                 .map(ledger -> new AccountBalanceDto(
                         ledger.getAssetCode(),
                         ledger.getBalance().getAmount(),
-                        ledger.getAverageUnitPrice().getAmount(),
-                        ledger.getAverageUnitPrice().getCurrencyCode()
+                        ledger.getAverageUnitPrice(),
+                        ledger.getBaseCurrency()
                 )).toList();
     }
 }

@@ -77,7 +77,7 @@ public class ExternalSettlement extends BaseEntity implements Persistable<UUID> 
     @Column(name = "status", nullable = false, length = 20)
     private SettlementStatus status;
 
-    @Column(name = "matched_internal_transaction_id", length = 36)
+    @Column(name = "matched_internal_transaction_id", length = 36, unique = true)
     private UUID matchedInternalTransactionId;
 
     /**

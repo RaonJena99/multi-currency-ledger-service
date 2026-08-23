@@ -1,14 +1,23 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,100 +26,169 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
+import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioCacheDto;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse;
-import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
-import com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.port.PortfolioCachePort;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("애플리케이션 단위 테스트: PortfolioQueryService (CQRS 조회 및 집계 로직 검증)")
 class PortfolioQueryServiceTest {
 
-    @Mock
-    private PortfolioQueryRepository portfolioQueryRepository;
-
-    @Mock
-    private AccountApi accountApi;
-
-    @Mock
-    private ExchangeRateProvider exchangeRateProvider;
-
-    @Mock
-    private PortfolioCachePort portfolioCachePort;
+    @Mock private ExchangeRateProvider exchangeRateProvider;
+    @Mock private AccountApi accountApi;
+    @Mock private PortfolioCachePort portfolioCachePort;
 
     @InjectMocks
-    private PortfolioQueryService portfolioQueryService;
+    private PortfolioQueryService service;
 
     @Test
-    @DisplayName("사용자의 여러 자산을 조회하여 총 자산 가치(Total Asset Value)와 총 손익(Unrealized PnL)을 완벽히 집계한다.")
-    void aggregate_portfolio_summary() {
-        // given
+    void getPortfolioSummary_should_use_cache_when_available() {
         UUID accountId = UUID.randomUUID();
-
         when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        
+        PortfolioCacheDto.AssetBalance balance = new PortfolioCacheDto.AssetBalance("BTC", new BigDecimal("1"), new BigDecimal("10000"), "KRW");
+        PortfolioCacheDto cacheDto = new PortfolioCacheDto(accountId, "KRW", List.of(balance));
+        when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(Optional.of(cacheDto));
 
-        CurrentPortfolio btc = mock(CurrentPortfolio.class);
-        when(btc.getAssetCode()).thenReturn("BTC");
-        when(btc.getQuoteCurrency()).thenReturn("KRW");
-        when(btc.getTotalQuantity()).thenReturn(new BigDecimal("2"));
-        when(btc.getAvgUnitPrice()).thenReturn(new BigDecimal("50000000"));
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC", "KRW"), "KRW"))
+            .thenReturn(Map.of(
+                "BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("15000"), false),
+                "KRW", new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false)
+            ));
 
-        CurrentPortfolio eth = mock(CurrentPortfolio.class);
-        when(eth.getAssetCode()).thenReturn("ETH");
-        when(eth.getQuoteCurrency()).thenReturn("KRW");
-        when(eth.getTotalQuantity()).thenReturn(new BigDecimal("10"));
-        when(eth.getAvgUnitPrice()).thenReturn(new BigDecimal("4000000"));
+        PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
 
-        when(portfolioQueryRepository.findAllByAccountId(accountId)).thenReturn(List.of(btc, eth));
-
-        java.util.Map<String, ExchangeRateProvider.ExchangeRate> mockRates = new java.util.HashMap<>();
-        mockRates.put("BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), false));
-        mockRates.put("ETH", new ExchangeRateProvider.ExchangeRate(new BigDecimal("3000000"), false));
-        mockRates.put("KRW", new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false));
-        when(exchangeRateProvider.getExchangeRates(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.eq("KRW"))).thenReturn(mockRates);
-
-        when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(java.util.Optional.empty());
-        when(portfolioCachePort.tryAcquireLock(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong())).thenReturn(true);
-
-        // when
-        PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
-
-        // then
-        // 총 자산 가치 검증 (2 * 80m + 10 * 3m = 160m + 30m = 190m)
-        assertThat(response.totalAssetValue()).isEqualByComparingTo("190000000");
-
-        // 총 미실현 손익 검증 (2*(80m-50m) + 10*(3m-4m) = 60m - 10m = 50m)
-        assertThat(response.totalUnrealizedPnl()).isEqualByComparingTo("50000000");
-
-        // 자산 세부 리스트 개수 검증
-        assertThat(response.assets()).hasSize(2);
+        assertThat(response.accountId()).isEqualTo(accountId);
+        assertThat(response.totalAssetValue()).isEqualByComparingTo("15000");
+        assertThat(response.totalUnrealizedPnl()).isEqualByComparingTo("5000"); // 15000 - 10000
+        assertThat(response.isStaleData()).isFalse();
+        
+        verify(portfolioCachePort, never()).tryAcquireLock(anyString(), anyInt());
     }
 
     @Test
-    @DisplayName("자산 가격 조회 중 staleRate가 하나라도 있으면 finalStaleFlag가 true가 된다")
-    void aggregate_portfolio_summary_with_stale() {
+    void getPortfolioSummary_should_fetch_from_api_and_cache_when_cache_miss() {
         UUID accountId = UUID.randomUUID();
-
         when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        
+        // Cache miss
+        when(portfolioCachePort.getPortfolioCache(accountId))
+            .thenReturn(Optional.empty()) // First check
+            .thenReturn(Optional.empty()); // Double check
 
-        CurrentPortfolio btc = mock(CurrentPortfolio.class);
-        when(btc.getAssetCode()).thenReturn("BTC");
-        when(btc.getQuoteCurrency()).thenReturn("KRW");
-        when(btc.getTotalQuantity()).thenReturn(new BigDecimal("2"));
-        when(btc.getAvgUnitPrice()).thenReturn(new BigDecimal("50000000"));
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(true);
+        
+        when(accountApi.getBalances(accountId)).thenReturn(List.of(
+            new AccountApi.AccountBalanceDto("BTC", new BigDecimal("1"), new BigDecimal("10000"), "KRW")
+        ));
 
-        when(portfolioQueryRepository.findAllByAccountId(accountId)).thenReturn(List.of(btc));
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC", "KRW"), "KRW"))
+            .thenReturn(Map.of(
+                "BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("15000"), true),
+                "KRW", new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false)
+            ));
 
-        java.util.Map<String, ExchangeRateProvider.ExchangeRate> mockRates = new java.util.HashMap<>();
-        mockRates.put("BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("80000000"), true));
-        mockRates.put("KRW", new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false));
-        when(exchangeRateProvider.getExchangeRates(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.eq("KRW"))).thenReturn(mockRates);
+        PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
 
-        when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(java.util.Optional.empty());
-        when(portfolioCachePort.tryAcquireLock(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong())).thenReturn(true);
-
-        PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
-
+        assertThat(response.accountId()).isEqualTo(accountId);
+        assertThat(response.totalAssetValue()).isEqualByComparingTo("15000");
         assertThat(response.isStaleData()).isTrue();
+        
+        verify(portfolioCachePort).savePortfolioCache(eq(accountId), any(PortfolioCacheDto.class));
+        verify(portfolioCachePort).releaseLock(anyString());
+    }
+
+    @Test
+    void getPortfolioSummary_should_throw_if_lock_acquisition_fails() {
+        UUID accountId = UUID.randomUUID();
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(Optional.empty());
+
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.getPortfolioSummary(accountId))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("Failed to acquire lock");
+    }
+
+    @Test
+    void getPortfolioSummary_should_skip_asset_if_rate_missing() {
+        UUID accountId = UUID.randomUUID();
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        
+        PortfolioCacheDto.AssetBalance balance = new PortfolioCacheDto.AssetBalance("BTC", new BigDecimal("1"), new BigDecimal("10000"), "KRW");
+        PortfolioCacheDto cacheDto = new PortfolioCacheDto(accountId, "KRW", List.of(balance));
+        when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(Optional.of(cacheDto));
+
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC", "KRW"), "KRW"))
+            .thenReturn(Collections.emptyMap()); // Missing rates
+
+        PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
+
+        assertThat(response.assets()).isEmpty();
+        assertThat(response.totalAssetValue()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void getPortfolioSummary_should_skip_asset_if_quote_rate_missing() {
+        UUID accountId = UUID.randomUUID();
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        
+        PortfolioCacheDto.AssetBalance balance = new PortfolioCacheDto.AssetBalance("BTC", new BigDecimal("1"), new BigDecimal("10000"), "KRW");
+        PortfolioCacheDto cacheDto = new PortfolioCacheDto(accountId, "KRW", List.of(balance));
+        when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(Optional.of(cacheDto));
+
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC", "KRW"), "KRW"))
+            .thenReturn(Map.of("BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("15000"), false))); // KRW is missing
+
+        PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
+
+        assertThat(response.assets()).isEmpty();
+        assertThat(response.totalAssetValue()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void getPortfolioSummary_should_throw_on_interruption_during_lock() {
+        UUID accountId = UUID.randomUUID();
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(Optional.empty());
+
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(false);
+
+        Thread.currentThread().interrupt();
+
+        assertThatThrownBy(() -> service.getPortfolioSummary(accountId))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("Lock interrupted")
+            .hasCauseInstanceOf(InterruptedException.class);
+            
+        Thread.interrupted(); // Clear interrupt flag
+    }
+
+    @Test
+    void getPortfolioSummary_should_use_cache_on_double_check() {
+        UUID accountId = UUID.randomUUID();
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        
+        PortfolioCacheDto.AssetBalance balance = new PortfolioCacheDto.AssetBalance("BTC", new BigDecimal("1"), new BigDecimal("10000"), "KRW");
+        PortfolioCacheDto cacheDto = new PortfolioCacheDto(accountId, "KRW", List.of(balance));
+        
+        // Cache miss on first check, cache hit on second check
+        when(portfolioCachePort.getPortfolioCache(accountId))
+            .thenReturn(Optional.empty()) 
+            .thenReturn(Optional.of(cacheDto)); 
+
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(true);
+
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC", "KRW"), "KRW"))
+            .thenReturn(Map.of(
+                "BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("15000"), false),
+                "KRW", new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false)
+            ));
+
+        PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
+
+        assertThat(response.assets()).hasSize(1);
+        verify(accountApi, never()).getBalances(any());
+        verify(portfolioCachePort).releaseLock("lock:portfolio:" + accountId);
     }
 }

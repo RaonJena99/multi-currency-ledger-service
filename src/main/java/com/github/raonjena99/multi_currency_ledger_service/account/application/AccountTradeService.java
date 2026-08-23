@@ -7,9 +7,6 @@ import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AccountTradeService {
     
     private final ApplicationEventPublisher eventPublisher;
-    private final ExchangeRateProvider exchangeRateProvider;
     private final IdempotencyRecordRepository idempotencyRepository;
     private final MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
 
@@ -56,14 +52,10 @@ public class AccountTradeService {
      * @param unitPrice 매입 단가
      * @return 생성된 거래의 고유 식별자
      */
-    @Retryable(
-        retryFor = OptimisticLockingFailureException.class, 
-        maxAttempts = 3, 
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
-    )
     @Transactional
     public UUID executeBuyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                                String paymentCurrency, Money buyQuantity, Money unitPrice, OffsetDateTime transactedAt) {
+                                String paymentCurrency, Money buyQuantity, BigDecimal unitPrice, OffsetDateTime transactedAt,
+                                BigDecimal exchangeRate, boolean isStaleRate, BigDecimal fiatToBaseRate) {
 
         try {
             idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
@@ -82,25 +74,18 @@ public class AccountTradeService {
         .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, paymentCurrency, targetMonth)
         .orElseThrow();
 
-        var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
-        BigDecimal exchangeRate = rateInfo.rate();
-
         // [추가] 계좌의 기준 통화 코드를 가져옵니다.
-        String baseCurrency = targetAssetLedger.getAverageUnitPrice().getCurrencyCode();
-        Money unitPriceInBaseCurrency = unitPrice;
+        String baseCurrency = targetAssetLedger.getBaseCurrency();
+        BigDecimal unitPriceInBaseCurrency = unitPrice;
 
         // [추가] 결제 통화와 기준 통화가 다를 경우, 결제 단가를 기준 통화로 환전합니다.
-        if (!paymentCurrency.equals(baseCurrency)) {
-            var fiatToBaseRateInfo = exchangeRateProvider.getExchangeRate(paymentCurrency, baseCurrency);
-            unitPriceInBaseCurrency = Money.of(
-                unitPrice.getAmount().multiply(fiatToBaseRateInfo.rate()).toPlainString(),
-                AssetType.FIAT,
-                baseCurrency
-            );
+        if (fiatToBaseRate != null) {
+            unitPriceInBaseCurrency = unitPrice.multiply(fiatToBaseRate);
         }
 
         // 결제에 필요한 법정 화폐 금액 계산 = 매입 단가 * 매수 수량
-        Money requiredFiatAmount = unitPrice.multiply(buyQuantity.getAmount()); 
+        BigDecimal requiredFiatAmtBd = unitPrice.multiply(buyQuantity.getAmount()); 
+        Money requiredFiatAmount = Money.of(requiredFiatAmtBd, AssetType.FIAT, paymentCurrency);
 
         // Version 필드를 활용한 낙관적 락(Optimistic Lock) 작동으로 동시성 제어
         fiatLedger.subtractBalance(requiredFiatAmount);
@@ -114,10 +99,10 @@ public class AccountTradeService {
         // 잔고 반영 후 거래 성공 이벤트 생성 및 발행
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, 
-            targetAssetLedger.getAverageUnitPrice().getCurrencyCode(), // baseCurrency 추가
+            targetAssetLedger.getBaseCurrency(), // baseCurrency 추가
             TradeType.BUY, 
-            buyQuantity.getAmount(), unitPrice.getAmount(), exchangeRate, BigDecimal.ZERO,
-            rateInfo.isStale(), OffsetDateTime.now()
+            buyQuantity.getAmount(), unitPrice, exchangeRate, BigDecimal.ZERO,
+            isStaleRate, OffsetDateTime.now()
         );
         eventPublisher.publishEvent(event);
         
@@ -137,14 +122,10 @@ public class AccountTradeService {
      * @param sellUnitPrice 매도 단가
      * @return 생성된 거래의 고유 식별자
      */
-    @Retryable(
-        retryFor = OptimisticLockingFailureException.class, 
-        maxAttempts = 3, 
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
-    )
     @Transactional
     public UUID executeSellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType, 
-                                String paymentCurrency, Money sellQuantity, Money sellUnitPrice, OffsetDateTime transactedAt) {
+                                String paymentCurrency, Money sellQuantity, BigDecimal sellUnitPrice, OffsetDateTime transactedAt,
+                                BigDecimal exchangeRate, boolean isStaleRate, BigDecimal fiatToBaseRate) {
                 
         try {
             idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
@@ -163,26 +144,18 @@ public class AccountTradeService {
         .orElseThrow();
 
         // 매도 자산 잔고 차감 및 당시 평균 단가 계산
-        Money averageCost = targetAssetLedger.subtractBalance(sellQuantity);
+        BigDecimal averageCost = targetAssetLedger.subtractBalance(sellQuantity);
         
         // 매도로 획득한 법정 화폐 수익금 계산 = 매도 수량 * 매도 단가
-        Money earnedFiatAmount = Money.of(
-            sellQuantity.getAmount().multiply(sellUnitPrice.getAmount()).toPlainString(),
-            AssetType.FIAT,
-            paymentCurrency
-        );
+        BigDecimal earnedFiatAmtBd = sellQuantity.getAmount().multiply(sellUnitPrice);
+        Money earnedFiatAmount = Money.of(earnedFiatAmtBd, AssetType.FIAT, paymentCurrency);
 
         // [추가] 법정화폐 원장의 기준 통화를 가져오고 1단위 단가를 환전합니다.
-        String baseCurrency = fiatLedger.getAverageUnitPrice().getCurrencyCode();
-        Money fiatUnitPriceInBaseCurrency = Money.of("1", AssetType.FIAT, paymentCurrency);
+        String baseCurrency = fiatLedger.getBaseCurrency();
+        BigDecimal fiatUnitPriceInBaseCurrency = BigDecimal.ONE;
         
-        if (!paymentCurrency.equals(baseCurrency)) {
-            var fiatToBaseRateInfo = exchangeRateProvider.getExchangeRate(paymentCurrency, baseCurrency);
-            fiatUnitPriceInBaseCurrency = Money.of(
-                fiatToBaseRateInfo.rate().toPlainString(),
-                AssetType.FIAT,
-                baseCurrency
-            );
+        if (fiatToBaseRate != null) {
+            fiatUnitPriceInBaseCurrency = fiatToBaseRate;
         }
 
         // 수익금을 법정 화폐 원장에 반영
@@ -193,15 +166,13 @@ public class AccountTradeService {
 
         UUID tradeId = UUID.randomUUID();
 
-        var rateInfo = exchangeRateProvider.getExchangeRate(targetAssetCode, paymentCurrency);
-
         // 잔고 반영 후 거래 성공 이벤트 생성 및 발행
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency, 
-            targetAssetLedger.getAverageUnitPrice().getCurrencyCode(), // baseCurrency 추가
+            targetAssetLedger.getBaseCurrency(), // baseCurrency 추가
             TradeType.SELL, 
-            sellQuantity.getAmount(), sellUnitPrice.getAmount(), rateInfo.rate(), averageCost.getAmount(),
-            rateInfo.isStale(), OffsetDateTime.now()
+            sellQuantity.getAmount(), sellUnitPrice, exchangeRate, averageCost,
+            isStaleRate, OffsetDateTime.now()
         );
 
         eventPublisher.publishEvent(event);

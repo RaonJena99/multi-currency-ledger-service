@@ -3,7 +3,6 @@ package com.github.raonjena99.multi_currency_ledger_service.common.outbox;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
@@ -15,6 +14,7 @@ public class OutboxManager {
 
     /**
      * 조회된 미처리 이벤트를 잠금 처리
+     * 
      * @param limit
      * @return
      */
@@ -31,27 +31,19 @@ public class OutboxManager {
     }
 
     /**
-     * 이벤트를 처리 완료로 표시하고 잠금 해제
-     * @param eventId
+     * 전송 성공한 이벤트는 1번의 벌크 쿼리로 처리하고,
+     * 전송 실패한 이벤트는 기존처럼 개별 상태 갱신을 진행합니다.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markAsProcessed(Long eventId) {
-        outboxRepository.findById(eventId).ifPresent(event -> {
-            event.markAsProcessed();
-            event.unlock();
-        });
-    }
+    @Transactional
+    public void updateResults(List<Long> successIds, List<OutboxEvent> failedEvents) {
+        // 성공 건 벌크 업데이트
+        if (!successIds.isEmpty()) {
+            outboxRepository.markAsProcessedInBatch(successIds);
+        }
 
-    /**
-     * 이벤트를 처리 실패로 표시하고 잠금 해제
-     * @param eventId
-     * @param errorMessage
-     */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordFailure(Long eventId, String errorMessage) {
-        outboxRepository.findById(eventId).ifPresent(event -> {
-            event.recordFailure(errorMessage);
-            event.unlock();
-        });
+        // 실패 건 저장
+        if (!failedEvents.isEmpty()) {
+            outboxRepository.saveAll(failedEvents);
+        }
     }
 }

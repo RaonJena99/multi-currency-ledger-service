@@ -30,10 +30,11 @@ public class TimeToleranceRule implements MatchingRule {
      */
     @Override
     public RuleResult evaluate(ExternalSettlement external, InternalTransactionCandidate internal) {
-        // 외부 정산 일자와 내부 거래 일자 사이의 절대적인 일(days) 수 차이를 계산합니다.
+        // 외부 정산 일자와 내부 거래 일자를 모두 UTC 기준으로 정규화(Normalize)한 뒤, 절대적인 일(days) 수 차이를 계산합니다.
+        // 타임존 오프셋이 다를 경우 발생하는 자정 경계(Midnight Boundary) 시프트 버그를 방지합니다.
         long diffDays = Math.abs(ChronoUnit.DAYS.between(
-            external.getSettlementDate().toLocalDate(), 
-            internal.transactedAt().toLocalDate()
+            external.getSettlementDate().withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDate(), 
+            internal.transactedAt().withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDate()
         ));
         
         // 두 일자의 차이가 3일 이하인 경우 허용 오차 범위 내로 간주하여 규칙을 통과시킵니다.

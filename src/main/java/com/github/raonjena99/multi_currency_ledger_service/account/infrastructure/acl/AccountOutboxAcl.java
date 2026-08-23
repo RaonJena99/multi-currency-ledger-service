@@ -30,12 +30,14 @@ public class AccountOutboxAcl {
         UUID tradeId,
         UUID accountId,
         String targetAssetCode,
+        AssetType targetAssetType,
         String paymentCurrency,
+        String baseCurrency,
         String tradeType,
         Money quantity,
-        Money unitPrice,
+        BigDecimal unitPrice,
         BigDecimal exchangeRate,
-        Money averageCost,
+        BigDecimal averageCost,
         boolean isStaleRate
     ) {}
     
@@ -53,12 +55,17 @@ public class AccountOutboxAcl {
             
             // 내부 DTO로 변환
             LedgerRecordingPayload payload = new LedgerRecordingPayload(
-                externalEvent.tradeId(), externalEvent.accountId(), externalEvent.assetCode(), externalEvent.fiatCode(),
+                externalEvent.tradeId(), 
+                externalEvent.accountId(), 
+                externalEvent.assetCode(), 
+                externalEvent.assetType(),
+                externalEvent.fiatCode(),
+                externalEvent.baseCurrency(),
                 externalEvent.tradeType().name(),
                 Money.of(externalEvent.quantity().toPlainString(), externalEvent.assetType(), externalEvent.assetCode()),
-                Money.of(externalEvent.unitPrice().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
+                externalEvent.unitPrice(),
                 externalEvent.exchangeRate(),
-                Money.of(externalEvent.averageCost().toPlainString(), AssetType.FIAT, externalEvent.fiatCode()),
+                externalEvent.averageCost(),
                 externalEvent.isStaleRate()
             );
 

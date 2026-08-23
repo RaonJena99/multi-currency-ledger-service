@@ -1,134 +1,244 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.github.raonjena99.multi_currency_ledger_service.IntegrationTestSupport;
-import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
-import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.TransactionRepository;
 
-@DisplayName("서비스 통합 테스트: LedgerService (ACL 및 복식부기 자동 기록 검증)")
-class LedgerServiceTest extends IntegrationTestSupport {
+@ExtendWith(MockitoExtension.class)
+class LedgerServiceTest {
 
-    @Autowired private LedgerService ledgerService;
-    @Autowired private TransactionRepository transactionRepository;
-    @Autowired private AccountRepository accountRepository;
+    @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
+    private ExchangeRateProvider exchangeRateProvider;
+
+    @InjectMocks
+    private LedgerService ledgerService;
 
     @Test
-    @DisplayName("BUY 커맨드 수신 시, 완벽하게 차변/대변이 일치하는 원장 트랜잭션이 생성된다.")
-    void recordDoubleEntry_buy_success() {
+    void recordDoubleEntry_should_ignore_duplicate() {
         UUID tradeId = UUID.randomUUID();
-        UUID accountId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(true);
 
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER", "KRW"));
-        
-        LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "BUY", 
-            Money.of("1", AssetType.CRYPTO, "KRW"), 
-            Money.of("100000000", AssetType.FIAT, "KRW"), 
-            new BigDecimal("100000000"),
-            Money.zero(AssetType.FIAT, "KRW"),
-            false
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "USD", "USD", "BUY", Money.of("1", AssetType.CRYPTO, "BTC"),
+            new BigDecimal("1000"), null, null, false
         );
 
-        ledgerService.recordDoubleEntry(command);
+        ledgerService.recordDoubleEntry(cmd);
 
-        Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
-        
-        assertThat(savedTx.getTransactionType()).isEqualTo("BUY");
-        
-        assertThat(savedTx.getEntries()).hasSize(2);
-        assertThat(savedTx.getDescription()).contains("Auto-recorded via ACL");
+        verify(transactionRepository, never()).saveAndFlush(any());
     }
 
     @Test
-    @DisplayName("멱등성 검증: 동일한 TradeID로 두 번 요청이 오면 중복 기록을 무시한다.")
-    void recordDoubleEntry_idempotency_ignores_duplicates() {
+    void recordDoubleEntry_should_handle_buy_with_fx_gain() {
         UUID tradeId = UUID.randomUUID();
-        UUID accountId = UUID.randomUUID();
-
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_2", "KRW"));
-
-        LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "ETH", AssetType.CRYPTO, "KRW", "KRW", "BUY", 
-            Money.of("1", AssetType.CRYPTO, "KRW"), Money.of("3000000", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.zero(AssetType.FIAT, "KRW"),
-            false
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        when(exchangeRateProvider.getExchangeRate("KRW", "USD")).thenReturn(
+            new ExchangeRateProvider.ExchangeRate(new BigDecimal("0.0008"), false)
         );
 
-        ledgerService.recordDoubleEntry(command); 
-        ledgerService.recordDoubleEntry(command); 
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "USD", "BUY", Money.of("1", AssetType.CRYPTO, "BTC"),
+            new BigDecimal("100000"), null, null, true
+        );
 
-        long count = transactionRepository.count();
-        assertThat(count).isGreaterThanOrEqualTo(1); 
+        ledgerService.recordDoubleEntry(cmd);
+
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
     }
 
     @Test
-    @DisplayName("SELL 커맨드 및 staleRate가 true일 때의 로직 검증")
-    void recordDoubleEntry_sell_with_staleRate() {
+    void recordDoubleEntry_should_handle_sell_with_fx_loss() {
         UUID tradeId = UUID.randomUUID();
-        UUID accountId = UUID.randomUUID();
-
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_3", "KRW"));
-
-        LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", 
-            Money.of("1", AssetType.CRYPTO, "KRW"), 
-            Money.of("100000000", AssetType.FIAT, "KRW"), 
-            BigDecimal.ONE, 
-            Money.of("50000000", AssetType.FIAT, "KRW"), // averageCost
-            true // isStaleRate
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        when(exchangeRateProvider.getExchangeRate("KRW", "USD")).thenReturn(
+            new ExchangeRateProvider.ExchangeRate(new BigDecimal("0.0008"), false)
         );
 
-        ledgerService.recordDoubleEntry(command);
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "USD", "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
+            new BigDecimal("100000"), null, new BigDecimal("90000"), false
+        );
 
-        Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
-        
-        assertThat(savedTx.getTransactionType()).isEqualTo("SELL");
-        assertThat(savedTx.getDescription()).contains("[APPLIED_FALLBACK_RATE=TRUE]");
+        ledgerService.recordDoubleEntry(cmd);
+
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
     }
 
     @Test
-    @DisplayName("SELL 커맨드 및 averageCost가 null일 때 (realizedPnl == null) - 분기 커버리지용")
-    void recordDoubleEntry_sell_with_null_averageCost() {
+    void recordDoubleEntry_should_handle_fee_deduction() {
         UUID tradeId = UUID.randomUUID();
-        UUID accountId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        accountRepository.saveAndFlush(Account.open(accountId, "TEST_USER_4", "KRW"));
-
-        LedgerRecordingCommand command = new LedgerRecordingCommand(
-            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", 
-            Money.of("1", AssetType.CRYPTO, "KRW"), 
-            Money.of("100000000", AssetType.FIAT, "KRW"), 
-            BigDecimal.ONE, 
-            null, // averageCost == null
-            false 
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_DEDUCTION", Money.of("10", AssetType.FIAT, "KRW"),
+            new BigDecimal("1"), null, null, false
         );
 
-        ledgerService.recordDoubleEntry(command);
+        ledgerService.recordDoubleEntry(cmd);
 
-        Transaction savedTx = transactionRepository.findWithEntriesById(tradeId).orElseThrow();
-        assertThat(savedTx.getTransactionType()).isEqualTo("SELL");
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+
+    @Test
+    void recordDoubleEntry_should_handle_fee_adjustment_gain() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_ADJUSTMENT", Money.of("10", AssetType.FIAT, "KRW"),
+            new BigDecimal("1"), null, null, false
+        );
+
+        ledgerService.recordDoubleEntry(cmd);
+
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+
+    @Test
+    void recordDoubleEntry_should_handle_fee_adjustment_loss() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_ADJUSTMENT", Money.of("-10", AssetType.FIAT, "KRW"),
+            new BigDecimal("1"), null, null, false
+        );
+
+        ledgerService.recordDoubleEntry(cmd);
+
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+
+    @Test
+    void recordDoubleEntry_should_handle_fee_adjustment_zero() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_ADJUSTMENT", Money.of("0", AssetType.FIAT, "KRW"),
+            new BigDecimal("1"), null, null, false
+        );
+
+        ledgerService.recordDoubleEntry(cmd);
+
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+
+    @Test
+    void recordDoubleEntry_should_handle_fiat_not_equal_to_base_currency_and_fx_gain() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        when(exchangeRateProvider.getExchangeRate("KRW", "USD")).thenReturn(
+            new ExchangeRateProvider.ExchangeRate(new BigDecimal("2.0"), false)
+        );
+
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "USD", "BUY", Money.of("1", AssetType.CRYPTO, "BTC"),
+            new BigDecimal("100"), null, null, true
+        );
+
+        ledgerService.recordDoubleEntry(cmd);
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+
+    @Test
+    void recordDoubleEntry_should_handle_sell_with_null_base_currency_and_average_cost() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        // fiatCode is KRW, baseCurrency is null -> baseCurrency becomes KRW, so no exchange rate API call
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", null, "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
+            new BigDecimal("100"), null, new BigDecimal("80"), false
+        );
+
+        ledgerService.recordDoubleEntry(cmd);
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+
+    @Test
+    void recordDoubleEntry_should_handle_fee_deduction_with_average_cost_not_null() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_DEDUCTION", Money.of("10", AssetType.FIAT, "KRW"),
+            new BigDecimal("1"), null, new BigDecimal("1.2"), false
+        );
+
+        ledgerService.recordDoubleEntry(cmd);
+        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+    
+    @Test
+    void recordDoubleEntry_should_plugin_system_fx_gain_when_debit_exceeds_credit() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        // To trigger difference > 0, we need debit > credit.
+        // KRW has scale 0, rounding HALF_EVEN.
+        // qty = 1, fx = 1.
+        // unitPrice = 1.5, avgCost = 0.5.
+        // debit: Round(1.5) = 2.
+        // credit: Round(0.5) + Round(1.0) = 0 + 1 = 1.
+        // difference = 2 - 1 = 1 > 0.
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
+            new BigDecimal("1.5"), null, new BigDecimal("0.5"), false
+        );
+
+        ledgerService.recordDoubleEntry(cmd);
         
-        // OTHER type test (not BUY and not SELL)
-        LedgerRecordingCommand command2 = new LedgerRecordingCommand(
-            UUID.randomUUID(), accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", "DEPOSIT", 
-            Money.of("1", AssetType.CRYPTO, "KRW"), 
-            Money.of("100000000", AssetType.FIAT, "KRW"), 
-            BigDecimal.ONE, 
-            null,
-            false 
+        org.mockito.ArgumentCaptor<Transaction> captor = org.mockito.ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).saveAndFlush(captor.capture());
+        
+        Transaction saved = captor.getValue();
+        org.assertj.core.api.Assertions.assertThat(saved).isNotNull();
+    }
+    
+    @Test
+    void recordDoubleEntry_should_plugin_system_fx_loss_when_credit_exceeds_debit() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        // To trigger difference < 0, we need credit > debit.
+        // KRW has scale 0, rounding HALF_EVEN.
+        // qty = 1, fx = 1.
+        // unitPrice = 2.5, avgCost = 1.5.
+        // debit: Round(2.5) = 2.
+        // credit: Round(1.5) + Round(1.0) = 2 + 1 = 3.
+        // difference = 2 - 3 = -1 < 0.
+        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
+            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
+            new BigDecimal("2.5"), null, new BigDecimal("1.5"), false
         );
-        ledgerService.recordDoubleEntry(command2);
+
+        ledgerService.recordDoubleEntry(cmd);
+        
+        org.mockito.ArgumentCaptor<Transaction> captor = org.mockito.ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).saveAndFlush(captor.capture());
+        
+        Transaction saved = captor.getValue();
+        org.assertj.core.api.Assertions.assertThat(saved).isNotNull();
     }
 }

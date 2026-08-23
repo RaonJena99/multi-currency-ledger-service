@@ -30,9 +30,12 @@ public class FuzzyTextMatchingRule implements MatchingRule {
      */
     @Override
     public RuleResult evaluate(ExternalSettlement external, InternalTransactionCandidate internal) {
+        String rawExtDesc = external.getDescription() != null ? external.getDescription() : "";
+        String rawIntDesc = internal.description() != null ? internal.description() : "";
+
         // 영문자, 숫자, 한글을 제외한 모든 특수문자 및 공백을 제거하고 대문자로 변환하여 비교를 단순화합니다.
-        String extDesc = external.getDescription().replaceAll("[^a-zA-Z0-9가-힣]", "").toUpperCase();
-        String intDesc = internal.description().replaceAll("[^a-zA-Z0-9가-힣]", "").toUpperCase();
+        String extDesc = rawExtDesc.replaceAll("[^a-zA-Z0-9가-힣]", "").toUpperCase();
+        String intDesc = rawIntDesc.replaceAll("[^a-zA-Z0-9가-힣]", "").toUpperCase();
         
         // 두 문자열 중 더 긴 길이를 기준 길이로 설정합니다.
         int maxLength = Math.max(extDesc.length(), intDesc.length());

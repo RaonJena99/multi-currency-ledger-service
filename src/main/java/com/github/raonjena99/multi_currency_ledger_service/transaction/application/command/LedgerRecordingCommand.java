@@ -23,9 +23,9 @@ public record LedgerRecordingCommand(
     String baseCurrency,
     String tradeType,
     Money quantity,
-    Money unitPrice,
+    BigDecimal unitPrice,
     BigDecimal exchangeRate,
-    Money averageCost,
+    BigDecimal averageCost,
     boolean isStaleRate
 ) {}
 

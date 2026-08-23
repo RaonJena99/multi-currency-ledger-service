@@ -1,5 +1,4 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.domain;
-import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -7,91 +6,107 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 
-@DisplayName("도메인 단위 테스트: Transaction (복식부기 대차평균 정합성 검증)")
 class TransactionTest {
 
     @Test
-    @DisplayName("차변과 대변의 기준 화폐(Fiat) 환산 가치가 완벽히 일치하면 onPersist 검증을 통과한다.")
-    void onPersist_success_when_balanced() {
-        // given
-        Transaction transaction = Transaction.record(UUID.randomUUID(), "BUY", "Buy 2 BTC");
-        UUID accountId = UUID.randomUUID();
-
-        // 차변: BTC 2개 유입 (단가 50,000 -> 총 가치 100,000)
-        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO, "KRW"), 
-                                Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, "KRW");
+    void record_should_create_valid_transaction() {
+        UUID id = UUID.randomUUID();
+        Transaction transaction = Transaction.record(id, "DEPOSIT", "Deposit TEST");
         
-        // 대변: USD 100,000 유출 (총 가치 100,000)
-        transaction.addSellEntry(accountId, "USD", Money.of("100000", AssetType.FIAT, "KRW"), 
-                                Money.of("1", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.of("1", AssetType.FIAT, "KRW"), "KRW");
-
-        // when & then (예외가 발생하지 않으면 성공)
-        transaction.onPersist(); 
-        assertThat(transaction.getEntries()).hasSize(2);
-    }
-
-    @Test
-    @DisplayName("차변과 대변의 Fiat 환산 가치가 단 1이라도 불일치하면 IllegalStateException 예외가 발생한다.")
-    void onPersist_fails_when_unbalanced() {
-        // given
-        Transaction transaction = Transaction.record(UUID.randomUUID(), "BUY", "Unbalanced Trade");
-        UUID accountId = UUID.randomUUID();
-
-        // 차변: 총 가치 100,000
-        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO, "KRW"), 
-                                Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, "KRW");
-        
-        // 대변: 총 가치 90,000 (10,000 부족)
-        transaction.addSellEntry(accountId, "USD", Money.of("90000", AssetType.FIAT, "KRW"), 
-                                Money.of("1", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.of("1", AssetType.FIAT, "KRW"), "KRW");
-
-        // when & then
-        assertThatThrownBy(transaction::onPersist)
-            .isInstanceOf(DoubleEntryImbalanceException.class)
-            .hasMessageContaining("Double-entry accounting error");
-    }
-
-    @Test
-    @DisplayName("isNew - 항상 true 반환")
-    void isNew_alwaysTrue() {
-        Transaction transaction = Transaction.record(UUID.randomUUID(), "TEST", "Desc");
+        assertThat(transaction.getId()).isEqualTo(id);
+        assertThat(transaction.getTransactionType()).isEqualTo("DEPOSIT");
+        assertThat(transaction.getDescription()).isEqualTo("Deposit TEST");
+        assertThat(transaction.getTransactedAt()).isNotNull();
         assertThat(transaction.isNew()).isTrue();
     }
 
     @Test
-    @DisplayName("exchangeRate가 null이면 ONE으로 대체되고, realizedPnl이 null이어도 검증을 통과한다.")
-    void null_exchangeRate_and_pnl() throws Exception {
-        Transaction transaction = Transaction.record(UUID.randomUUID(), "BUY", "Desc");
+    void verifyDoubleEntry_should_pass_for_balanced_entries() {
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "TRADE", "Trade TEST");
         UUID accountId = UUID.randomUUID();
-
-        // null exchange rate -> fallback to ONE
-        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO, "KRW"), 
-                                Money.of("50000", AssetType.FIAT, "KRW"), null, "KRW");
         
-        transaction.addSellEntry(accountId, "USD", Money.of("100000", AssetType.FIAT, "KRW"), 
-                                Money.of("1", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.of("1", AssetType.FIAT, "KRW"), "KRW");
-
-        // Use reflection to set realizedPnl to null to cover the null check branch
-        TransactionEntry sellEntry = transaction.getEntries().get(1);
-        java.lang.reflect.Field field = TransactionEntry.class.getDeclaredField("realizedPnl");
-        field.setAccessible(true);
-        field.set(sellEntry, null);
-
-        // Should balance since 2 * 50000 * 1 = 100000 * 1 * 1, and pnl is null so ignored
-        transaction.onPersist();
-        assertThat(transaction.getEntries().get(0).getExchangeRate()).isEqualByComparingTo(BigDecimal.ONE);
+        // 차변: BTC 매수 (1 BTC, 단가 10000)
+        transaction.addBuyEntry(accountId, "BTC", Money.of(BigDecimal.ONE, AssetType.CRYPTO, "BTC"), BigDecimal.valueOf(10000), BigDecimal.ONE, "KRW");
+        
+        // 대변: KRW 차감 (10000 KRW, 평균단가 1)
+        transaction.addSellEntry(accountId, "KRW", Money.of(BigDecimal.valueOf(10000), AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "KRW");
+        
+        ReflectionTestUtils.invokeMethod(transaction, "verifyDoubleEntry"); // Should not throw
     }
 
     @Test
-    @DisplayName("빈 트랜잭션이라도 onPersist 검증(0=0)을 통과한다.")
-    void onPersist_emptyEntries() {
-        Transaction tx = Transaction.record(UUID.randomUUID(), "TEST", "Empty");
-        tx.onPersist(); // Should pass, 0 = 0
+    void verifyDoubleEntry_should_fail_for_imbalanced_entries() {
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "TRADE", "Trade TEST");
+        UUID accountId = UUID.randomUUID();
+        
+        // 차변: BTC 매수 (1 BTC, 단가 10000)
+        transaction.addBuyEntry(accountId, "BTC", Money.of(BigDecimal.ONE, AssetType.CRYPTO, "BTC"), BigDecimal.valueOf(10000), BigDecimal.ONE, "KRW");
+        
+        // 대변: KRW 차감 (9000 KRW, 평균단가 1) - 불일치
+        transaction.addSellEntry(accountId, "KRW", Money.of(BigDecimal.valueOf(9000), AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "KRW");
+        
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(transaction, "verifyDoubleEntry"))
+                .isInstanceOf(DoubleEntryImbalanceException.class)
+                .hasMessageContaining("Double-entry accounting error for currency [KRW]");
+    }
+
+    @Test
+    void verifyDoubleEntry_should_fail_when_credit_exists_without_debit() {
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "TRADE", "Trade TEST");
+        UUID accountId = UUID.randomUUID();
+        
+        // 대변만 존재
+        transaction.addSellEntry(accountId, "KRW", Money.of(BigDecimal.valueOf(10000), AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "KRW");
+        
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(transaction, "verifyDoubleEntry"))
+                .isInstanceOf(DoubleEntryImbalanceException.class)
+                .hasMessageContaining("Credit exists without Debit");
+    }
+
+    @Test
+    void markNotNew_should_set_isNew_to_false() {
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "DEPOSIT", "Deposit TEST");
+        assertThat(transaction.isNew()).isTrue();
+        
+        ReflectionTestUtils.invokeMethod(transaction, "markNotNew");
+        assertThat(transaction.isNew()).isFalse();
+    }
+
+    @Test
+    void onPersist_should_call_verifyDoubleEntry() {
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "TRADE", "Trade TEST");
+        UUID accountId = UUID.randomUUID();
+        
+        transaction.addBuyEntry(accountId, "BTC", Money.of(BigDecimal.ONE, AssetType.CRYPTO, "BTC"), BigDecimal.valueOf(10000), BigDecimal.ONE, "KRW");
+        transaction.addSellEntry(accountId, "KRW", Money.of(BigDecimal.valueOf(10000), AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "KRW");
+        
+        // This will indirectly call verifyDoubleEntry, should pass without throwing
+        ReflectionTestUtils.invokeMethod(transaction, "onPersist");
+    }
+
+    @Test
+    void verifyDoubleEntry_should_pass_with_pnl() {
+        Transaction transaction = Transaction.record(UUID.randomUUID(), "TRADE", "Trade TEST");
+        UUID accountId = UUID.randomUUID();
+        
+        // BTC 1개를 10000 KRW에 매도, 평단가는 8000 KRW
+        // 차변: KRW 증가 (10000 KRW)
+        transaction.addBuyEntry(accountId, "KRW", Money.of(BigDecimal.valueOf(10000), AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, "KRW");
+        
+        // 대변: BTC 매도 (1 BTC), 단가 10000, 평단 8000 -> PNL 2000 KRW
+        // sellQuantity=1, sellPrice=10000, averageCost=8000
+        // costPrice = 8000, PNL = (10000 - 8000) * 1 = 2000 KRW
+        // 대변 총 금액 = costPrice * quantity = 8000
+        // verifyDoubleEntry에서 대변에 PNL(2000)을 더해서 10000 = 10000 일치 확인
+        transaction.addSellEntry(accountId, "BTC", Money.of(BigDecimal.ONE, AssetType.CRYPTO, "BTC"), BigDecimal.valueOf(10000), BigDecimal.ONE, BigDecimal.valueOf(8000), "KRW");
+        
+        ReflectionTestUtils.invokeMethod(transaction, "verifyDoubleEntry"); // Should pass
     }
 }

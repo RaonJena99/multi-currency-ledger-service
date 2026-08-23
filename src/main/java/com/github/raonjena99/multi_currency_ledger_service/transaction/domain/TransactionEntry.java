@@ -66,13 +66,8 @@ public class TransactionEntry {
     })
     private Money quantity;
 
-    @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "amount", column = @Column(name = "unit_price", nullable = false, precision = 36, scale = 18)),
-        @AttributeOverride(name = "assetType", column = @Column(name = "unit_price_asset_type", nullable = false, length = 20)),
-        @AttributeOverride(name = "currencyCode", column = @Column(name = "unit_price_currency", nullable = false, length = 10))
-    })
-    private Money unitPrice;
+    @Column(name = "unit_price", nullable = false, precision = 36, scale = 18)
+    private BigDecimal unitPrice;
 
     @Embedded
     @AttributeOverrides({
@@ -94,7 +89,7 @@ public class TransactionEntry {
     private BigDecimal exchangeRate;
 
     private TransactionEntry(Transaction transaction, UUID accountId, EntryType entryType, String assetCode, 
-                    Money quantity, Money unitPrice, BigDecimal exchangeRate, Money realizedPnl, String baseCurrencyCode) {
+                    Money quantity, BigDecimal unitPrice, BigDecimal exchangeRate, Money realizedPnl, String baseCurrencyCode) {
         this.transaction = transaction;
         this.accountId = accountId;
         this.entryType = entryType;
@@ -104,19 +99,14 @@ public class TransactionEntry {
         this.unitPrice = unitPrice;
         this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
         
-        // 수량 * 단가
-        Money valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
+        // 수량 * 단가 (외화 기준)
+        BigDecimal valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
 
-        Money finalCalculatedValue;
-        // 단가의 통화가 이미 최종 기준 통화와 같다면 환율을 곱하지 않음
-        if (valueBeforeExchange.getCurrencyCode().equals(baseCurrencyCode)) {
-            finalCalculatedValue = valueBeforeExchange;
-        } else {
-            // 단가가 외화 기준일 경우에만 환율을 곱해 원화 환산
-            finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
-        }
+        // 단가가 기준 통화(Base Currency)와 같다면 exchangeRate는 이미 1로 넘어옵니다.
+        // 따라서 분기 처리 없이 일괄적으로 exchangeRate를 곱해 원화 환산(Base Currency Value)을 수행합니다.
+        BigDecimal finalCalculatedValue = valueBeforeExchange.multiply(this.exchangeRate);
 
-        this.amount = Money.of(finalCalculatedValue.getAmount(), AssetType.FIAT, baseCurrencyCode);
+        this.amount = Money.of(finalCalculatedValue, AssetType.FIAT, baseCurrencyCode);
         this.realizedPnl = realizedPnl;
     }
 
@@ -133,7 +123,7 @@ public class TransactionEntry {
      */
     public static TransactionEntry createBuyEntry(
             Transaction transaction, UUID accountId, String assetCode, 
-            Money buyQuantity, Money buyPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
+            Money buyQuantity, BigDecimal buyPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
         
         return new TransactionEntry(
                 transaction, accountId, EntryType.DEBIT, assetCode, 
@@ -158,15 +148,17 @@ public class TransactionEntry {
      */
     public static TransactionEntry createSellEntry(
             Transaction transaction, UUID accountId, String assetCode, 
-            Money sellQuantity, Money sellPrice, BigDecimal exchangeRate, Money averageCost, String baseCurrencyCode) {
+            Money sellQuantity, BigDecimal sellPrice, BigDecimal exchangeRate, BigDecimal averageCost, String baseCurrencyCode) {
         
-        Money pnl = Money.zero(AssetType.FIAT, baseCurrencyCode);
-        Money costPrice = sellPrice;
+        BigDecimal pnlValue = BigDecimal.ZERO;
+        BigDecimal costPrice = sellPrice;
         
         if (averageCost != null) {
-            pnl = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount());
+            pnlValue = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount()).multiply(exchangeRate);
             costPrice = averageCost;
         }
+        
+        Money pnl = Money.of(pnlValue, AssetType.FIAT, baseCurrencyCode);
         
         return new TransactionEntry(
                 transaction, accountId, EntryType.CREDIT, assetCode, 

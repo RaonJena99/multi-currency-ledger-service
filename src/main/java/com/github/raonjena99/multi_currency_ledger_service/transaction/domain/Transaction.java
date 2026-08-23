@@ -81,7 +81,7 @@ public class Transaction implements Persistable<UUID> {
      * @param exchangeRate 환율
      * @param baseCurrencyCode 기준 통화 코드
      */
-    public void addBuyEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
+    public void addBuyEntry(UUID accountId, String assetCode, Money quantity, BigDecimal unitPrice, BigDecimal exchangeRate, String baseCurrencyCode) {
         TransactionEntry entry = TransactionEntry.createBuyEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, baseCurrencyCode);
         this.entries.add(entry);
     }
@@ -96,7 +96,7 @@ public class Transaction implements Persistable<UUID> {
      * @param averageCost 평균 단가
      * @param baseCurrencyCode 기준 통화 코드
      */
-    public void addSellEntry(UUID accountId, String assetCode, Money quantity, Money unitPrice, BigDecimal exchangeRate, Money averageCost, String baseCurrencyCode) {
+    public void addSellEntry(UUID accountId, String assetCode, Money quantity, BigDecimal unitPrice, BigDecimal exchangeRate, BigDecimal averageCost, String baseCurrencyCode) {
         TransactionEntry entry = TransactionEntry.createSellEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, averageCost, baseCurrencyCode);
         this.entries.add(entry);
     }

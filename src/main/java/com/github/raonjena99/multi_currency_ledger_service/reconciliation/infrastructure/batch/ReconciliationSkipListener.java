@@ -1,10 +1,14 @@
 package com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.batch;
 
+import java.util.Map;
+
 import org.springframework.batch.core.listener.SkipListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.exception.UnmatchableSettlementException;
@@ -28,6 +32,7 @@ public class ReconciliationSkipListener implements SkipListener<ExternalSettleme
 
     private final ExternalSettlementRepository settlementRepository;
     private final ReconciliationDeadLetterRepository deadLetterRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * ItemProcessor에서 발생한 예외로 인해 스킵된 항목을 처리합니다.
@@ -48,12 +53,20 @@ public class ReconciliationSkipListener implements SkipListener<ExternalSettleme
             FailureReason reason = determineFailureReason(errorMessage);
             String descriptionSnapshot = item.getDescription() != null ? item.getDescription() : "";
 
+            String payloadJson;
+            try {
+                payloadJson = objectMapper.writeValueAsString(Map.of("description_snapshot", descriptionSnapshot));
+            } catch (JsonProcessingException e) {
+                payloadJson = "{\"description_snapshot\": \"serialization_failed\"}";
+                log.error("Failed to serialize description snapshot", e);
+            }
+
             // 격리 보관할 데드 레터 엔티티를 생성합니다. (원천 데이터의 스냅샷 포함)
             ReconciliationDeadLetter dlq = ReconciliationDeadLetter.isolate(
                     item.getId(),
                     reason,
                     errorMessage,
-                    "{\"description_snapshot\": \"" + descriptionSnapshot + "\"}"
+                    payloadJson
             );
 
             // 외부 정산 엔티티의 최신 상태를 DB에서 다시 읽어와(없으면 전달받은 item 사용) 매칭 실패 상태(UNMATCHED)로 마킹합니다.

@@ -1,8 +1,10 @@
 package com.github.raonjena99.multi_currency_ledger_service.common.outbox;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -20,11 +22,17 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
      * @return 다른 워커가 선점하지 않은 미처리 이벤트 리스트
      */
     @Query(value = "SELECT * FROM outbox_events " +
-                    "WHERE processed = false AND dead_letter = false " +
-                    "AND (locked_at IS NULL OR locked_at < :timeout) " +
-                    "ORDER BY created_at ASC " +
-                    "LIMIT :limit " +
-                    "FOR UPDATE SKIP LOCKED", 
-            nativeQuery = true)
-    List<OutboxEvent> findUnprocessedEventsWithSkipLocked(@Param("limit") int limit, @Param("timeout") java.time.OffsetDateTime timeout);
+            "WHERE processed = false AND dead_letter = false " +
+            "AND (locked_at IS NULL OR locked_at < :timeout) " +
+            "ORDER BY created_at ASC " +
+            "LIMIT :limit " +
+            "FOR UPDATE SKIP LOCKED", nativeQuery = true)
+    List<OutboxEvent> findUnprocessedEventsWithSkipLocked(@Param("limit") int limit,
+            @Param("timeout") OffsetDateTime timeout);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE OutboxEvent e " +
+            "SET e.processed = true, e.lockedAt = null " +
+            "WHERE e.id IN :ids")
+    void markAsProcessedInBatch(@Param("ids") List<Long> successIds);
 }

@@ -79,10 +79,10 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
         jdbcTemplate.update("INSERT INTO transaction_entries (" +
                 "transaction_id, account_id, entry_type, asset_code, " +
                 "quantity_asset_type, quantity, quantity_currency, " +
-                "unit_price, unit_price_asset_type, unit_price_currency, " +
+                "unit_price, " +
                 "amount, amount_asset_type, amount_currency, " +
                 "realized_pnl, realized_pnl_asset_type, realized_pnl_currency) " +
-                "VALUES (?, ?, 'CREDIT', 'KRW', 'FIAT', 1000, 'KRW', 1, 'FIAT', 'KRW', 1000, 'FIAT', 'KRW', 0, 'FIAT', 'KRW')", 
+                "VALUES (?, ?, 'CREDIT', 'KRW', 'FIAT', 1000, 'KRW', 1, 1000, 'FIAT', 'KRW', 0, 'FIAT', 'KRW')", 
                 tId, accountId);
 
         failSettlementDate = OffsetDateTime.parse("2026-06-25T10:00:00Z");

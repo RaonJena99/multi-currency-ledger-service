@@ -44,7 +44,7 @@ public class ReconciliationAdminController {
             if (feeAmount == null || feeAmount.compareTo(BigDecimal.ZERO) == 0 || feeAssetType == null || feeCurrency == null || feeCurrency.isBlank()) {
                 return null; 
             }
-            return Money.of(feeAmount.toPlainString(), feeAssetType, feeCurrency);
+            return Money.of(feeAmount, feeAssetType, feeCurrency);
         }
     }
 

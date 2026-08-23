@@ -66,9 +66,10 @@ public class PortfolioViewRefresher {
             
             log.info("Successfully refreshed Redis portfolio cache for account: {}", event.accountId());
         } catch (Exception e) {
-            // [수정] DB나 API 연동 실패 시 기존 캐시마저 지워버리면 트래픽이 집중되는 Eviction Storm 발생!
-            // 기존 데이터를 유지하며 다음 갱신/조회를 기다리도록 변경.
-            log.error("Failed to update Redis cache. Keeping the old cache data to prevent Cache Eviction Storm.", e);
+            // [수정] DB나 API 연동 실패 시 기존 캐시를 유지하면 사용자가 1시간 동안 과거의 낡은 잔고(Stale Data)를 보게 되는 치명적 버그 발생!
+            // Eviction Storm은 이미 PortfolioQueryService의 Double-Checked Spin Lock으로 방어되어 있으므로 안심하고 캐시를 날립니다.
+            log.error("Failed to update Redis cache. Evicting cache to force real-time refresh on next query.", e);
+            portfolioCachePort.evictPortfolioCache(event.accountId());
         } finally {
             portfolioCachePort.releaseLock(lockKey);
         }
