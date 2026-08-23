@@ -43,6 +43,7 @@ class LiveExchangeRateAdapterTest {
         RestClient restClient = builder.build();
         
         adapter = new LiveExchangeRateAdapter(restClient, redisTemplate);
+        org.springframework.test.util.ReflectionTestUtils.setField(adapter, "self", adapter);
     }
 
     @Test
@@ -57,6 +58,22 @@ class LiveExchangeRateAdapterTest {
 
         assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("50000000"));
         assertThat(result.isStale()).isFalse();
+    }
+    
+    @Test
+    @DisplayName("getExchangeRate - 5분 이내 캐시 히트 (Line 73 커버리지)")
+    void testGetExchangeRate_ValidCache_HitsLine73() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        // 1분 전 캐시된 데이터
+        String validCache = "51000000|" + Instant.now().minus(Duration.ofMinutes(1)).toEpochMilli();
+        when(valueOperations.get("ledger:exchange-rate:BTC:KRW")).thenReturn(validCache);
+
+        ExchangeRate result = adapter.getExchangeRate("BTC", "KRW");
+
+        assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("51000000"));
+        assertThat(result.isStale()).isFalse();
+        // API was not called
     }
 
     @Test
@@ -94,12 +111,70 @@ class LiveExchangeRateAdapterTest {
                 
         // Mock Redis exception
         org.mockito.Mockito.doThrow(new RuntimeException("Redis down"))
-            .when(valueOperations).set(eq("ledger:exchange-rate:ETH:KRW"), anyString(), eq(java.time.Duration.ofDays(1)));
+            .when(valueOperations).set(eq("ledger:exchange-rate:ETH:KRW"), anyString(), eq(java.time.Duration.ofMinutes(5)));
 
         ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
         
         assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3000000"));
         assertThat(result.isStale()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getExchangeRate - 캐시가 5분 이상 지연되었으면 API 재조회")
+    void testGetExchangeRate_StaleCache_FetchesApi() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        String staleCache = "3000000|" + Instant.now().minus(Duration.ofMinutes(10)).toEpochMilli();
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn(staleCache);
+
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))
+                .andRespond(withSuccess("3100000", MediaType.APPLICATION_JSON));
+
+        ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
+
+        assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3100000"));
+        assertThat(result.isStale()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getExchangeRate - 캐시에 타임스탬프가 없으면 (구버전) 그대로 사용")
+    void testGetExchangeRate_LegacyCache_UsesCache() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn("3200000");
+
+        ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
+
+        assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3200000"));
+        assertThat(result.isStale()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getExchangeRate - Redis 읽기 실패 시 API 조회 진행")
+    void testGetExchangeRate_RedisReadException_FetchesApi() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenThrow(new RuntimeException("Redis read failed"));
+
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=ETH&target=KRW"))
+                .andRespond(withSuccess("3300000", MediaType.APPLICATION_JSON));
+
+        ExchangeRate result = adapter.getExchangeRate("ETH", "KRW");
+
+        assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3300000"));
+        assertThat(result.isStale()).isFalse();
+    }
+    
+    @Test
+    @DisplayName("fallbackExchangeRate - 타임스탬프 없는 구버전 캐시 사용 (Line 128 커버리지)")
+    void testFallbackExchangeRate_LegacyCache_UsesCache() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        when(valueOperations.get("ledger:exchange-rate:ETH:KRW")).thenReturn("3500000");
+
+        ExchangeRate result = adapter.fallbackExchangeRate("ETH", "KRW", new RuntimeException("API down"));
+
+        assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3500000"));
+        assertThat(result.isStale()).isTrue();
     }
 
     @Test
@@ -156,5 +231,67 @@ class LiveExchangeRateAdapterTest {
 
         assertThat(result.rate()).isEqualByComparingTo(new BigDecimal("3000000"));
         assertThat(result.isStale()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getExchangeRates - 다중 환율 조회 성공 (전부 캐시 미스)")
+    void testGetExchangeRates_AllMisses() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.multiGet(org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.Arrays.asList(null, null));
+
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=USD&target=KRW"))
+                .andRespond(withSuccess("1300", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=EUR&target=KRW"))
+                .andRespond(withSuccess("1400", MediaType.APPLICATION_JSON));
+
+        java.util.Map<String, ExchangeRate> result = adapter.getExchangeRates(java.util.Arrays.asList("USD", "EUR"), "KRW");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get("USD").rate()).isEqualByComparingTo("1300");
+        assertThat(result.get("EUR").rate()).isEqualByComparingTo("1400");
+    }
+
+    @Test
+    @DisplayName("getExchangeRates - 다중 환율 조회 부분 캐시 히트")
+    void testGetExchangeRates_PartialCacheHit() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.multiGet(org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.Arrays.asList("1300.50|" + Instant.now().toEpochMilli(), null));
+
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=EUR&target=KRW"))
+                .andRespond(withSuccess("1400.00", MediaType.APPLICATION_JSON));
+
+        java.util.Map<String, ExchangeRate> result = adapter.getExchangeRates(java.util.Arrays.asList("USD", "EUR"), "KRW");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get("USD").rate()).isEqualByComparingTo("1300.50");
+        assertThat(result.get("EUR").rate()).isEqualByComparingTo("1400.00");
+    }
+
+    @Test
+    @DisplayName("getExchangeRates - 다중 환율 조회 중 같은 화폐 포함")
+    void testGetExchangeRates_SameCurrencyIncluded() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.multiGet(org.mockito.ArgumentMatchers.anyList())).thenReturn(java.util.Collections.singletonList("1300.50"));
+
+        java.util.Map<String, ExchangeRate> result = adapter.getExchangeRates(java.util.Arrays.asList("USD", "KRW"), "KRW");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get("KRW").rate()).isEqualByComparingTo("1");
+        assertThat(result.get("USD").rate()).isEqualByComparingTo("1300.50");
+    }
+
+    @Test
+    @DisplayName("getExchangeRates - Redis multiGet 실패 시 개별 fallback 조회 작동")
+    void testGetExchangeRates_RedisMultiGetFailure() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.multiGet(org.mockito.ArgumentMatchers.anyList())).thenThrow(new RuntimeException("Redis cluster issues"));
+
+        mockServer.expect(requestTo("/api/v1/market-data/rates?base=USD&target=KRW"))
+                .andRespond(withSuccess("1310", MediaType.APPLICATION_JSON));
+
+        java.util.Map<String, ExchangeRate> result = adapter.getExchangeRates(java.util.Arrays.asList("USD"), "KRW");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get("USD").rate()).isEqualByComparingTo("1310");
     }
 }

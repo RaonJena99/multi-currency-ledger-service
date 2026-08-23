@@ -16,9 +16,7 @@ import com.github.raonjena99.multi_currency_ledger_service.portfolio.application
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse.AssetDetailDto;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioCacheDto;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.port.PortfolioCachePort;
-import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.CurrentPortfolio;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.domain.PortfolioValuation;
-import com.github.raonjena99.multi_currency_ledger_service.portfolio.infrastructure.PortfolioQueryRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class PortfolioQueryService {
 
-    private final PortfolioQueryRepository portfolioQueryRepository;
     private final ExchangeRateProvider exchangeRateProvider;
     private final AccountApi accountApi;
     private final PortfolioCachePort portfolioCachePort;
@@ -75,12 +72,12 @@ public class PortfolioQueryService {
                 cachedDto = cachedDtoOpt.orElse(null);
                 
                 if (cachedDto == null || cachedDto.getBalances() == null) {
-                    List<CurrentPortfolio> portfolios = portfolioQueryRepository.findAllByAccountId(accountId);
+                    var currentBalances = accountApi.getBalances(accountId);
                     
-                    // [수정] 깡통 계좌(Empty)도 캐싱하여 Cache Penetration(캐시 침투) 공격 방어
+                    // 깡통 계좌(Empty)도 캐싱하여 Cache Penetration(캐시 침투) 공격 방어 및 실시간 데이터 매핑
                     List<PortfolioCacheDto.AssetBalance> balances = new ArrayList<>();
-                    for (CurrentPortfolio p : portfolios) {
-                        balances.add(new PortfolioCacheDto.AssetBalance(p.getAssetCode(), p.getTotalQuantity(), p.getAvgUnitPrice(), p.getQuoteCurrency()));
+                    for (var b : currentBalances) {
+                        balances.add(new PortfolioCacheDto.AssetBalance(b.assetCode(), b.totalQuantity(), b.avgUnitPrice(), b.quoteCurrency()));
                     }
                     cachedDto = new PortfolioCacheDto(accountId, baseCurrency, balances);
                     portfolioCachePort.savePortfolioCache(accountId, cachedDto);

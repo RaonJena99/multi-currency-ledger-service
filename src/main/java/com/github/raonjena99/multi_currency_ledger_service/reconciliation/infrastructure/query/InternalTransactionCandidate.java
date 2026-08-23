@@ -10,6 +10,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
  */
 public record InternalTransactionCandidate(
     UUID transactionId,
+    UUID accountId,
     OffsetDateTime transactedAt,
     String description,
     Money amount

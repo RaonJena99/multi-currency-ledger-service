@@ -1,136 +1,156 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.event.ApplicationEvents;
-import org.springframework.test.context.event.RecordApplicationEvents;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 
-import com.github.raonjena99.multi_currency_ledger_service.IntegrationTestSupport;
-import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.IdempotencyRecord;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
-import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.IdempotencyRecordRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DuplicateTradeRequestException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
-import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 
-@RecordApplicationEvents
-@DisplayName("서비스 통합 테스트: AccountTradeService (실제 흐름 및 이벤트 발행 검증)")
-class AccountTradeServiceTest extends IntegrationTestSupport {
+@ExtendWith(MockitoExtension.class)
+class AccountTradeServiceTest {
 
-    @Autowired private AccountTradeService accountTradeService;
-    @Autowired private AccountTradeFacade accountTradeFacade;
-    @Autowired private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
-    @Autowired private AccountRepository accountRepository;
-    @Autowired private JdbcTemplate jdbcTemplate;
-    @Autowired private ApplicationEvents applicationEvents;
-    
-    @Autowired private TransactionTemplate transactionTemplate;
+    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private IdempotencyRecordRepository idempotencyRepository;
+    @Mock private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
 
-    @MockitoBean
-    private ExchangeRateProvider exchangeRateProvider;
+    @InjectMocks
+    private AccountTradeService tradeService;
 
-    @AfterEach
-    void tearDown() {
-        jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transactions, transaction_entries, monthly_account_ledgers, accounts CASCADE");
+    @Test
+    void executeBuyAsset_should_throw_on_duplicate_request() {
+        when(idempotencyRepository.saveAndFlush(any(IdempotencyRecord.class)))
+            .thenThrow(new DataIntegrityViolationException("Duplicate"));
+
+        assertThatThrownBy(() -> 
+            tradeService.executeBuyAsset("idemp-key", UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", 
+                                         Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), 
+                                         BigDecimal.ONE, false, null)
+        ).isInstanceOf(DuplicateTradeRequestException.class);
     }
 
     @Test
-    @DisplayName("자산 매수 시 원화 잔액 차감, 자산 증가, 그리고 도메인 이벤트가 정상 발행된다.")
-    void buyAsset_integration_flow() {
-        // given
+    void executeBuyAsset_should_process_successfully_with_fiat_to_base_rate() {
         UUID accountId = UUID.randomUUID();
-        String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
-
-        transactionTemplate.execute(status -> {
-            accountRepository.save(Account.open(accountId, "TEST_USER", "KRW"));
-            MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
-            fiatLedger.addBalance(Money.of("50000000", AssetType.FIAT, "KRW"), Money.of("1", AssetType.FIAT, "KRW"));
-            monthlyAccountLedgerRepository.save(fiatLedger);
-            return null;
-        });
-
-        Money buyQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
-        Money unitPrice = Money.of("100000000", AssetType.FIAT, "KRW"); 
-
-        Mockito.when(exchangeRateProvider.getExchangeRate(Mockito.anyString(), Mockito.anyString()))
-            .thenReturn(new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false));
-
-        // when
-        UUID tradeId = accountTradeFacade.buyAsset("idemp-test-1", accountId, "BTC", AssetType.CRYPTO, "KRW", buyQuantity, unitPrice);
-
-        // then
-        transactionTemplate.execute(status -> {
-            MonthlyAccountLedger updatedFiat = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "KRW", currentMonth).orElseThrow();
-            MonthlyAccountLedger updatedCrypto = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", currentMonth).orElseThrow();
-
-            assertThat(updatedFiat.getBalance().getAmount()).isEqualByComparingTo("0"); 
-            assertThat(updatedCrypto.getBalance().getAmount()).isEqualByComparingTo("0.5");
-            return null;
-        });
+        OffsetDateTime now = OffsetDateTime.now();
         
-        long eventCount = applicationEvents.stream(TradeExecutedEvent.class)
-            .filter(event -> event.tradeId().equals(tradeId))
-            .count();
+        MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
+        MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
         
-        assertThat(eventCount).isEqualTo(1);
+        when(targetLedger.getBaseCurrency()).thenReturn("USD");
+        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("BTC"), anyString()))
+            .thenReturn(Optional.of(targetLedger));
+        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("KRW"), anyString()))
+            .thenReturn(Optional.of(fiatLedger));
+
+        UUID tradeId = tradeService.executeBuyAsset(
+            "idemp-key", accountId, "BTC", AssetType.CRYPTO, "KRW", 
+            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("10000"), now, 
+            new BigDecimal("10000"), false, new BigDecimal("0.00075")
+        );
+
+        assertThat(tradeId).isNotNull();
+        verify(fiatLedger).subtractBalance(any());
+        verify(targetLedger).addBalance(any(), eq(new BigDecimal("7.50000"))); // 10000 * 0.00075
+        verify(monthlyAccountLedgerRepository).save(targetLedger);
+        verify(monthlyAccountLedgerRepository).save(fiatLedger);
+        verify(eventPublisher).publishEvent(any(TradeExecutedEvent.class));
     }
 
     @Test
-    @DisplayName("자산 매도 시 원화 잔액 증가, 자산 감소, 그리고 도메인 이벤트가 정상 발행된다.")
-    void sellAsset_integration_flow() {
-        // given
-        UUID accountId = UUID.randomUUID();
-        String currentMonth = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+    void executeSellAsset_should_throw_on_duplicate_request() {
+        when(idempotencyRepository.saveAndFlush(any(IdempotencyRecord.class)))
+            .thenThrow(new DataIntegrityViolationException("Duplicate"));
 
-        transactionTemplate.execute(status -> {
-            accountRepository.save(Account.open(accountId, "TEST_USER", "KRW"));
-            MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
-            monthlyAccountLedgerRepository.save(fiatLedger);
+        assertThatThrownBy(() -> 
+            tradeService.executeSellAsset("idemp-key", UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", 
+                                         Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), 
+                                         BigDecimal.ONE, false, null)
+        ).isInstanceOf(DuplicateTradeRequestException.class);
+    }
+
+    @Test
+    void executeSellAsset_should_process_successfully_without_fiat_to_base_rate() {
+        UUID accountId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now();
+        
+        MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
+        MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
+        
+        when(fiatLedger.getBaseCurrency()).thenReturn("KRW");
+        when(targetLedger.getBaseCurrency()).thenReturn("KRW");
+        
+        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("BTC"), anyString()))
+            .thenReturn(Optional.of(targetLedger));
+        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("KRW"), anyString()))
+            .thenReturn(Optional.of(fiatLedger));
             
-            MonthlyAccountLedger cryptoLedger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, currentMonth, "KRW");
-            cryptoLedger.addBalance(Money.of("1.0", AssetType.CRYPTO, "BTC"), Money.of("40000000", AssetType.FIAT, "KRW"));
-            monthlyAccountLedgerRepository.save(cryptoLedger);
-            return null;
-        });
+        when(targetLedger.subtractBalance(any())).thenReturn(BigDecimal.ZERO);
 
-        Money sellQuantity = Money.of("0.5", AssetType.CRYPTO, "BTC");
-        Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW"); 
+        UUID tradeId = tradeService.executeSellAsset(
+            "idemp-key", accountId, "BTC", AssetType.CRYPTO, "KRW", 
+            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("10000"), now, 
+            new BigDecimal("10000"), false, null
+        );
 
-        Mockito.when(exchangeRateProvider.getExchangeRate(Mockito.anyString(), Mockito.anyString()))
-        .thenReturn(new ExchangeRateProvider.ExchangeRate(new java.math.BigDecimal("50000000"), false));
+        assertThat(tradeId).isNotNull();
+        verify(targetLedger).subtractBalance(any());
+        verify(fiatLedger).addBalance(any(), eq(BigDecimal.ONE)); // Default 1 when null fiatToBaseRate
+        verify(monthlyAccountLedgerRepository).save(targetLedger);
+        verify(monthlyAccountLedgerRepository).save(fiatLedger);
+        verify(eventPublisher).publishEvent(any(TradeExecutedEvent.class));
+    }
+    
+    @Test
+    void executeSellAsset_should_use_provided_fiat_to_base_rate() {
+        OffsetDateTime now = OffsetDateTime.now();
+        UUID accountId = UUID.randomUUID();
 
-        // when
-        UUID tradeId = accountTradeFacade.sellAsset("idemp-test-2", accountId, "BTC", AssetType.CRYPTO, "KRW", sellQuantity, unitPrice);
-
-        // then
-        transactionTemplate.execute(status -> {
-            MonthlyAccountLedger updatedFiat = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "KRW", currentMonth).orElseThrow();
-            MonthlyAccountLedger updatedCrypto = monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", currentMonth).orElseThrow();
-
-            assertThat(updatedFiat.getBalance().getAmount()).isEqualByComparingTo("25000000"); // 5천만 * 0.5
-            assertThat(updatedCrypto.getBalance().getAmount()).isEqualByComparingTo("0.5");
-            return null;
-        });
+        MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
+        when(fiatLedger.getBaseCurrency()).thenReturn("KRW");
         
-        long eventCount = applicationEvents.stream(TradeExecutedEvent.class)
-            .filter(event -> event.tradeId().equals(tradeId))
-            .count();
-        
-        assertThat(eventCount).isEqualTo(1);
+        MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
+        when(targetLedger.getBaseCurrency()).thenReturn("KRW");
+
+        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(org.mockito.ArgumentMatchers.eq(accountId), org.mockito.ArgumentMatchers.eq("USD"), org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(Optional.of(fiatLedger));
+        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(org.mockito.ArgumentMatchers.eq(accountId), org.mockito.ArgumentMatchers.eq("BTC"), org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(Optional.of(targetLedger));
+
+        when(targetLedger.subtractBalance(any())).thenReturn(BigDecimal.ZERO);
+        when(monthlyAccountLedgerRepository.save(any())).thenReturn(fiatLedger);
+
+        UUID tradeId = tradeService.executeSellAsset(
+            "idemp-key-fx", accountId, "BTC", AssetType.CRYPTO, "USD", 
+            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("100"), now, 
+            new BigDecimal("100"), false, new BigDecimal("1300")
+        );
+
+        assertThat(tradeId).isNotNull();
+        // Since fiatToBaseRate is 1300, addBalance should be called with 1300
+        verify(fiatLedger).addBalance(any(), eq(new BigDecimal("1300")));
     }
 }

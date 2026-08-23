@@ -85,7 +85,7 @@ public class AccountTradeService {
 
         // 결제에 필요한 법정 화폐 금액 계산 = 매입 단가 * 매수 수량
         BigDecimal requiredFiatAmtBd = unitPrice.multiply(buyQuantity.getAmount()); 
-        Money requiredFiatAmount = Money.of(requiredFiatAmtBd.toPlainString(), AssetType.FIAT, paymentCurrency);
+        Money requiredFiatAmount = Money.of(requiredFiatAmtBd, AssetType.FIAT, paymentCurrency);
 
         // Version 필드를 활용한 낙관적 락(Optimistic Lock) 작동으로 동시성 제어
         fiatLedger.subtractBalance(requiredFiatAmount);
@@ -148,7 +148,7 @@ public class AccountTradeService {
         
         // 매도로 획득한 법정 화폐 수익금 계산 = 매도 수량 * 매도 단가
         BigDecimal earnedFiatAmtBd = sellQuantity.getAmount().multiply(sellUnitPrice);
-        Money earnedFiatAmount = Money.of(earnedFiatAmtBd.toPlainString(), AssetType.FIAT, paymentCurrency);
+        Money earnedFiatAmount = Money.of(earnedFiatAmtBd, AssetType.FIAT, paymentCurrency);
 
         // [추가] 법정화폐 원장의 기준 통화를 가져오고 1단위 단가를 환전합니다.
         String baseCurrency = fiatLedger.getBaseCurrency();

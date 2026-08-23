@@ -31,6 +31,13 @@ public class AmountToleranceRule implements MatchingRule {
      */
     @Override
     public RuleResult evaluate(ExternalSettlement external, InternalTransactionCandidate internal) {
+        // [수정] 외부 정산 금액과 내부 거래 금액의 통화(Currency) 및 자산 타입이 일치하는지 우선 검사합니다.
+        // 다를 경우 IllegalArgumentException 발생으로 인한 배치 셧다운을 방지하기 위해 즉시 불일치로 판정합니다.
+        if (external.getAmount().getAssetType() != internal.amount().getAssetType() || 
+            !external.getAmount().getCurrencyCode().equals(internal.amount().getCurrencyCode())) {
+            return RuleResult.builder().passed(false).failReason("CURRENCY_MISMATCH").build();
+        }
+
         // 외부 정산 금액과 내부 거래 금액의 절대적인 차이값을 계산합니다.
         BigDecimal diff = external.getAmount().subtract(internal.amount()).getAmount().abs();
         

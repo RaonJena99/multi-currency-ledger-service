@@ -75,7 +75,7 @@ class MatchingRulesTest {
 
     private InternalTransactionCandidate mockCandidate(OffsetDateTime date, String desc, String amount) {
         return new InternalTransactionCandidate(
-                UUID.randomUUID(), date, desc, Money.of(amount, AssetType.FIAT, "KRW")
+                UUID.randomUUID(), UUID.randomUUID(), date, desc, Money.of(amount, AssetType.FIAT, "KRW")
         );
     }
 }

@@ -21,45 +21,47 @@ import lombok.RequiredArgsConstructor;
 public class AccountTradeController {
     private final AccountTradeFacade accountTradeFacade;
     public record TradeRequestDto(
-            String idempotencyKey,
-            String targetAssetCode,
-            AssetType targetAssetType,
-            String paymentCurrency,
-            java.math.BigDecimal quantity,
-            java.math.BigDecimal unitPrice
+            @jakarta.validation.constraints.NotBlank String idempotencyKey,
+            @jakarta.validation.constraints.NotBlank String targetAssetCode,
+            @jakarta.validation.constraints.NotNull AssetType targetAssetType,
+            @jakarta.validation.constraints.NotBlank String paymentCurrency,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Positive java.math.BigDecimal quantity,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Positive java.math.BigDecimal unitPrice
     ) {}
+    public record TradeResponseDto(UUID tradeId) {}
+
     @PostMapping("/buy")
-    public ResponseEntity<Void> buyAsset(
+    public ResponseEntity<TradeResponseDto> buyAsset(
             @PathVariable UUID accountId,
-            @RequestBody TradeRequestDto request) {
+            @jakarta.validation.Valid @RequestBody TradeRequestDto request) {
         
-        accountTradeFacade.buyAsset(
+        UUID tradeId = accountTradeFacade.buyAsset(
                 request.idempotencyKey(),
                 accountId,
                 request.targetAssetCode(),
                 request.targetAssetType(),
                 request.paymentCurrency(),
-                Money.of(request.quantity().toPlainString(), request.targetAssetType(), request.targetAssetCode()),
+                Money.of(request.quantity(), request.targetAssetType(), request.targetAssetCode()),
                 request.unitPrice()
         );
         
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new TradeResponseDto(tradeId));
     }
     @PostMapping("/sell")
-    public ResponseEntity<Void> sellAsset(
+    public ResponseEntity<TradeResponseDto> sellAsset(
             @PathVariable UUID accountId,
-            @RequestBody TradeRequestDto request) {
+            @jakarta.validation.Valid @RequestBody TradeRequestDto request) {
         
-        accountTradeFacade.sellAsset(
+        UUID tradeId = accountTradeFacade.sellAsset(
                 request.idempotencyKey(),
                 accountId,
                 request.targetAssetCode(),
                 request.targetAssetType(),
                 request.paymentCurrency(),
-                Money.of(request.quantity().toPlainString(), request.targetAssetType(), request.targetAssetCode()),
+                Money.of(request.quantity(), request.targetAssetType(), request.targetAssetCode()),
                 request.unitPrice()
         );
         
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new TradeResponseDto(tradeId));
     }
 }

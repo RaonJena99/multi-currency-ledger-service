@@ -14,6 +14,10 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
  */
 public class CurrencyScaleResolver {
 
+    private CurrencyScaleResolver() {
+        // Utility class
+    }
+
     private static final Map<String, Integer> SCALE_CACHE = new ConcurrentHashMap<>();
 
     /**

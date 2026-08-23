@@ -30,7 +30,7 @@ public class ReconciliationReaderConfig {
      */
     @Bean
     @StepScope
-    public JpaCursorItemReader<ExternalSettlement> externalSettlementReader(
+    public org.springframework.batch.infrastructure.item.database.JpaPagingItemReader<ExternalSettlement> externalSettlementReader(
         EntityManagerFactory entityManagerFactory,
         @Value("#{jobParameters['startOfMonth']}") String startOfMonthStr) {
         
@@ -39,17 +39,16 @@ public class ReconciliationReaderConfig {
         OffsetDateTime endOfMonth = startOfMonth.plusMonths(1);
 
         
-        return new JpaCursorItemReaderBuilder<ExternalSettlement>()
+        return new org.springframework.batch.infrastructure.item.database.builder.JpaPagingItemReaderBuilder<ExternalSettlement>()
             .name("externalSettlementReader")
             .entityManagerFactory(entityManagerFactory)
             .queryString("SELECT e FROM ExternalSettlement e " +
-                        "WHERE e.status = :status " +
-                        "AND e.settlementDate >= :start AND e.settlementDate < :end " +
+                        "WHERE e.settlementDate >= :start AND e.settlementDate < :end " +
                         "ORDER BY e.settlementDate ASC")
             .parameterValues(Map.of(
-                    "status", SettlementStatus.PENDING,
                     "start", startOfMonth, 
                     "end", endOfMonth))
+            .pageSize(1000)
             .build();
         }
 }

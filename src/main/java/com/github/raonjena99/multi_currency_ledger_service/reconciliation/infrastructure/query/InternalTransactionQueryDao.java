@@ -38,6 +38,7 @@ public class InternalTransactionQueryDao {
             SELECT t.id AS transaction_id, 
                     t.transacted_at, 
                     t.description, 
+                    te.account_id,
                     te.amount, 
                     te.amount_asset_type AS asset_type,
                     te.amount_currency AS currency
@@ -62,9 +63,10 @@ public class InternalTransactionQueryDao {
 
                 return new InternalTransactionCandidate(
                     UUID.fromString(rs.getString("transaction_id")),
+                    UUID.fromString(rs.getString("account_id")),
                     transactedAt,
                     rs.getString("description"),
-                    Money.of(rs.getBigDecimal("amount").stripTrailingZeros().toPlainString(), 
+                    Money.of(rs.getBigDecimal("amount"), 
                             AssetType.valueOf(rs.getString("asset_type")), rs.getString("currency"))
                 );
             }

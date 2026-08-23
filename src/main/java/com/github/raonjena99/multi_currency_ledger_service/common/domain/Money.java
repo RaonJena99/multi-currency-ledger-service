@@ -21,7 +21,6 @@ import lombok.NoArgsConstructor;
 @Embeddable
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EqualsAndHashCode
 public class Money {
     @Column(nullable = false, precision = 36, scale = 18)
     private BigDecimal amount;
@@ -217,5 +216,20 @@ public class Money {
                     this.assetType, this.currencyCode, other.assetType, other.currencyCode)
             );
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Money money = (Money) o;
+        return assetType == money.assetType &&
+               currencyCode.equals(money.currencyCode) &&
+               amount.compareTo(money.amount) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(assetType, currencyCode, amount.stripTrailingZeros());
     }
 }

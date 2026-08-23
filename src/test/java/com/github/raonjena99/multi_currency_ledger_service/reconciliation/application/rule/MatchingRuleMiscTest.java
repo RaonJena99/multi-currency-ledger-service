@@ -26,7 +26,7 @@ class MatchingRuleMiscTest {
         FuzzyTextMatchingRule rule = new FuzzyTextMatchingRule();
         
         ExternalSettlement external = ExternalSettlement.create("REF1", "TOSS", OffsetDateTime.now(), "!@#", Money.of("1000", AssetType.FIAT, "KRW"));
-        InternalTransactionCandidate internal = new InternalTransactionCandidate(java.util.UUID.randomUUID(), OffsetDateTime.now(), "$%^", Money.of("1000", AssetType.FIAT, "KRW"));
+        InternalTransactionCandidate internal = new InternalTransactionCandidate(java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), OffsetDateTime.now(), "$%^", Money.of("1000", AssetType.FIAT, "KRW"));
 
         RuleResult result = rule.evaluate(external, internal);
         assertThat(result.isPassed()).isTrue();

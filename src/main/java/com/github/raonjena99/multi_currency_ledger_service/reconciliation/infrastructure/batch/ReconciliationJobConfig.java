@@ -72,6 +72,7 @@ public class ReconciliationJobConfig {
                 .skipPolicy(new ReconciliationCompositeSkipPolicy(50000))
                 .listener(skipListener)
                 .listener(pgApiSkipListener)
+                .listener((Object) heuristicMatchingProcessor)
                 .transactionAttribute(attribute)
                 .build();
     }

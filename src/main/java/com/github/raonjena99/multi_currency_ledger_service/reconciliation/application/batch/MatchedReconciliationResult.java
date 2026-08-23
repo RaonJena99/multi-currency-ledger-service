@@ -12,5 +12,6 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain
 public record MatchedReconciliationResult(
     ExternalSettlement externalSettlement,
     UUID matchedTransactionId,
+    UUID accountId,
     Money feeDifference
 ) {}

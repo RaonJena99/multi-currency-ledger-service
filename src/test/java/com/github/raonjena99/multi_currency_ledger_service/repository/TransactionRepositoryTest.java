@@ -37,9 +37,9 @@ class TransactionRepositoryTest extends IntegrationTestSupport {
         Transaction transaction = Transaction.record(UUID.randomUUID(), "BUY", "Hack");
         
         // 차변: 2 * 50,000 = 100,000
-        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO, "KRW"), Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, "KRW");
+        transaction.addBuyEntry(accountId, "BTC", Money.of("2", AssetType.CRYPTO, "KRW"), new java.math.BigDecimal("50000"), BigDecimal.ONE, "KRW");
         // 대변: 1 * 50,000 = 50,000
-        transaction.addSellEntry(accountId, "KRW", Money.of("1", AssetType.FIAT, "KRW"), Money.of("50000", AssetType.FIAT, "KRW"), BigDecimal.ONE, Money.zero(AssetType.FIAT, "KRW"), "KRW");
+        transaction.addSellEntry(accountId, "KRW", Money.of("1", AssetType.FIAT, "KRW"), new java.math.BigDecimal("50000"), BigDecimal.ONE, java.math.BigDecimal.ZERO, "KRW");
 
         // 예외 검증
         assertThatThrownBy(() -> transactionRepository.saveAndFlush(transaction))

@@ -53,7 +53,7 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
             accountRepository.save(Account.open(accountId, "TEST_USER", "KRW"));
 
             MonthlyAccountLedger fiatLedger = MonthlyAccountLedger.initialize(accountId, "KRW", AssetType.FIAT, currentMonth, "KRW");
-            fiatLedger.addBalance(Money.of("10000000000", AssetType.FIAT, "KRW"), Money.of("1", AssetType.FIAT, "KRW"));
+            fiatLedger.addBalance(Money.of("10000000000", AssetType.FIAT, "KRW"), java.math.BigDecimal.ONE);
             monthlyAccountLedgerRepository.save(fiatLedger);
 
             MonthlyAccountLedger btcLedger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, currentMonth, "KRW");
@@ -69,7 +69,7 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         AtomicInteger lockExceptionCount = new AtomicInteger(0);
 
         Money buyQuantity = Money.of("1", AssetType.CRYPTO, "BTC");
-        Money unitPrice = Money.of("50000000", AssetType.FIAT, "KRW");
+        java.math.BigDecimal unitPrice = new java.math.BigDecimal("50000000");
 
         org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
             .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));

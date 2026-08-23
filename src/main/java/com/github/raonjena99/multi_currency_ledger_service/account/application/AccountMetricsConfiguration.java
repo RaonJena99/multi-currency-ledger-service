@@ -60,6 +60,24 @@ public class AccountMetricsConfiguration {
      */
     @Scheduled(fixedDelay = 300000)
     public void refreshFiatBalances() {
+        // 동적으로 추가된 FIAT 통화를 감지하기 위해 매번 Distinct 목록을 조회
+        List<String> currentFiatCodes = ledgerRepository.findDistinctFiatCodes();
+        
+        for (String fiatCode : currentFiatCodes) {
+            // 캐시에 없으면 새로운 통화로 간주하고 Gauge 즉시 등록
+            if (!fiatBalanceCache.containsKey(fiatCode)) {
+                AtomicReference<Double> ref = new AtomicReference<>(0.0);
+                fiatBalanceCache.put(fiatCode, ref);
+                
+                Gauge.builder("platform.total.fiat.balance", ref, AtomicReference::get)
+                        .description("플랫폼 내의 총 법정 화폐 보유 잔액")
+                        .tag("currency", fiatCode)
+                        .register(meterRegistry);
+                        
+                log.info("New FIAT currency detected and registered to Prometheus metrics: {}", fiatCode);
+            }
+        }
+
         fiatBalanceCache.keySet().forEach(fiatCode -> {
             try {
                 BigDecimal totalBalance = ledgerRepository.sumLatestBalanceByAssetCode(fiatCode);

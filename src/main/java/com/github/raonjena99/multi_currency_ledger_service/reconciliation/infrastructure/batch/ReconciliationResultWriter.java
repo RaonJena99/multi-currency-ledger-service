@@ -7,10 +7,12 @@ import java.util.stream.Collectors;
 
 import org.springframework.batch.infrastructure.item.Chunk;
 import org.springframework.batch.infrastructure.item.ItemWriter;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.model.SettlementStatus;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.event.ReconciliationFeeAdjustedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.ExternalSettlementRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -26,9 +28,11 @@ import lombok.extern.slf4j.Slf4j;
 public class ReconciliationResultWriter implements ItemWriter<MatchedReconciliationResult> {
 
     private final ExternalSettlementRepository settlementRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Chunk 단위로 전달된 대사 성공 결과들을 받아, 외부 정산 데이터의 상태를 MATCHED로 변경하고 일괄 저장(saveAll)합니다.
+     * 차액(feeDifference)이 발생한 경우 차액 보정 분개 이벤트를 자동으로 발행합니다.
      * 
      * @param chunk 저장할 대사 매칭 결과 묶음 (Chunk<? extends MatchedReconciliationResult>)
      * @throws Exception 저장 중 예외 발생 시
@@ -43,6 +47,18 @@ public class ReconciliationResultWriter implements ItemWriter<MatchedReconciliat
                 // 기존 상태가 대기 중(PENDING)이거나 매칭 실패(UNMATCHED)인 경우에만 성공 상태로 갱신합니다.
                 if (external.getStatus() == SettlementStatus.PENDING || external.getStatus() == SettlementStatus.UNMATCHED) {
                     external.markAsMatched(result.matchedTransactionId());
+                    
+                    // [수정] 차액 보정이 필요한 경우 이벤트 발행
+                    if (result.feeDifference() != null && !result.feeDifference().isZero()) {
+                        eventPublisher.publishEvent(
+                            ReconciliationFeeAdjustedEvent.of(
+                                external.getId(), 
+                                result.matchedTransactionId(), 
+                                result.accountId(), 
+                                result.feeDifference()
+                            )
+                        );
+                    }
                 }
                                 
                 return external;

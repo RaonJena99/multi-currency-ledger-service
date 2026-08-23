@@ -25,6 +25,7 @@ class ReconciliationSkipListenerTest {
 
     @Mock private ExternalSettlementRepository settlementRepository;
     @Mock private ReconciliationDeadLetterRepository deadLetterRepository;
+
     
     @InjectMocks private ReconciliationSkipListener skipListener;
 
@@ -102,5 +103,24 @@ class ReconciliationSkipListenerTest {
         method.setAccessible(true);
         Object res = method.invoke(skipListener, (String) null);
         org.assertj.core.api.Assertions.assertThat(res).isEqualTo(com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason.SYSTEM_ERROR);
+    }
+
+    @Test
+    @DisplayName("[SkipListener] JsonProcessingException 발생 시 로깅하고 에러 페이로드를 사용한다")
+    void onSkipInProcess_jsonProcessingException() throws Exception {
+        ExternalSettlement item = Mockito.mock(ExternalSettlement.class);
+        when(item.getId()).thenReturn(UUID.randomUUID());
+        when(item.getDescription()).thenReturn("desc");
+
+        UnmatchableSettlementException ex = new UnmatchableSettlementException("TIME_WINDOW_EXCEEDED", item.getId().toString());
+
+        com.fasterxml.jackson.databind.ObjectMapper mockMapper = org.mockito.Mockito.mock(com.fasterxml.jackson.databind.ObjectMapper.class);
+        when(mockMapper.writeValueAsString(any())).thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("test") {});
+        
+        org.springframework.test.util.ReflectionTestUtils.setField(skipListener, "objectMapper", mockMapper);
+
+        skipListener.onSkipInProcess(item, ex);
+
+        verify(deadLetterRepository).save(any(ReconciliationDeadLetter.class));
     }
 }

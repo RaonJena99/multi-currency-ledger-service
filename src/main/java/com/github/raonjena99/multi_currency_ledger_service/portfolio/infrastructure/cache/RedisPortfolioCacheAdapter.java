@@ -43,14 +43,33 @@ public class RedisPortfolioCacheAdapter implements PortfolioCachePort {
         redisTemplate.delete(key);
     }
 
+    private final ThreadLocal<String> lockToken = new ThreadLocal<>();
+
     @Override
     public boolean tryAcquireLock(String lockKey, long timeoutSeconds) {
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "LOCKED", Duration.ofSeconds(timeoutSeconds));
-        return Boolean.TRUE.equals(locked);
+        String token = UUID.randomUUID().toString();
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, token, Duration.ofSeconds(timeoutSeconds));
+        if (Boolean.TRUE.equals(locked)) {
+            lockToken.set(token);
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void releaseLock(String lockKey) {
-        redisTemplate.delete(lockKey);
+        String token = lockToken.get();
+        if (token != null) {
+            try {
+                String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+                redisTemplate.execute(
+                        new org.springframework.data.redis.core.script.DefaultRedisScript<>(script, Long.class),
+                        java.util.Collections.singletonList(lockKey),
+                        token
+                );
+            } finally {
+                lockToken.remove();
+            }
+        }
     }
 }
