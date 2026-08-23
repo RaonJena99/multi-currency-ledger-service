@@ -2,7 +2,6 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.6'
     id 'io.spring.dependency-management' version '1.1.7'
-    id "io.gitlab.plunts.plantuml" version "2.4.1"
     id 'jacoco'
 }
 
@@ -111,17 +110,6 @@ dependencies {
     runtimeOnly 'io.netty:netty-resolver-dns-native-macos::osx-aarch_64'
 }
 
-classDiagrams {
-    diagram {
-        name("FullArchitecture")
-        
-        // 최상위 패키지만 지정
-        include(packages().withName("com.github.raonjena99.multi_currency_ledger_service"))
-        
-        // 결과물 저장 위치
-        writeTo(project.file("docs/architecture/plantuml/full-architecture.puml"))
-    }
-}
 
 tasks.named('test') {
     useJUnitPlatform()
