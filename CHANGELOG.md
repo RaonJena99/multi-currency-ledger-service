@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.0...v1.0.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* 수수료 보정 대차 오류 및 대사 후보 무한 증식 버그 수정 ([e071717](https://github.com/RaonJena99/multi-currency-ledger-service/commit/e07171739e913139fd122db834c69251e82cd510))
+
 ## 1.0.0 (2026-08-23)
 
 
