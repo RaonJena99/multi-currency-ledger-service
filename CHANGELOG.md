@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.1...v1.0.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* 멱등성 및 대사 오매칭 등 핵심 회귀 결함 5건 수정 ([6cadb4e](https://github.com/RaonJena99/multi-currency-ledger-service/commit/6cadb4e534b1439338b9996845e90d2423c6475b))
+
 ## [1.0.1](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.0...v1.0.1) (2026-08-24)
 
 
