@@ -41,6 +41,8 @@ class ManualReconciliationServiceTest {
         
         ExternalSettlement settlement = mock(ExternalSettlement.class);
         when(settlement.getId()).thenReturn(UUID.randomUUID());
+        // 보정 수수료는 정산 통화와의 일치 검증을 거치므로 정산 금액을 스텁해 준다.
+        when(settlement.getAmount()).thenReturn(Money.of("100", AssetType.FIAT, "KRW"));
         when(settlementRepo.findByIdWithoutPartitionKey(extId)).thenReturn(Optional.of(settlement));
         
         UUID tId = UUID.randomUUID();

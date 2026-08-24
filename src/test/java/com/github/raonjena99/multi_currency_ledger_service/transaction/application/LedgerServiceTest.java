@@ -35,12 +35,16 @@ class LedgerServiceTest {
     @Mock
     private TransactionRepository transactionRepository;
 
+    @Mock
+    private com.github.raonjena99.multi_currency_ledger_service.account.AccountApi accountApi;
+
     private LedgerService ledgerService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUpService() {
         // LedgerService 는 플러그 규모를 지표로 노출하므로 MeterRegistry 를 주입받는다.
-        ledgerService = new LedgerService(transactionRepository,
+        // FEE_ADJUSTMENT 가 고객 잔고에도 반영되도록 AccountApi 를 함께 주입받는다.
+        ledgerService = new LedgerService(transactionRepository, accountApi,
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 

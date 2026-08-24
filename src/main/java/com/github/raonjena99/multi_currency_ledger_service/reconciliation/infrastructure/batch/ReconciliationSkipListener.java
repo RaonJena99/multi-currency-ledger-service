@@ -100,6 +100,9 @@ public class ReconciliationSkipListener implements SkipListener<ExternalSettleme
         if (message.contains("TIME_WINDOW_EXCEEDED")) return FailureReason.TIME_WINDOW_EXCEEDED;
         if (message.contains("AMOUNT_MISMATCH")) return FailureReason.AMOUNT_MISMATCH;
         if (message.contains("TEXT_NOT_FOUND")) return FailureReason.TEXT_NOT_FOUND;
+        // AmountToleranceRule 이 통화/자산 유형 불일치 시 내는 사유. SYSTEM_ERROR 로 뭉개면
+        // 백오피스 DLQ 분류가 오염되어 실제 시스템 오류와 구분할 수 없게 된다.
+        if (message.contains("CURRENCY_MISMATCH")) return FailureReason.CURRENCY_MISMATCH;
         return FailureReason.SYSTEM_ERROR;
     }
 }

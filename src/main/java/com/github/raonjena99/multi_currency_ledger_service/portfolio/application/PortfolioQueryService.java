@@ -72,10 +72,26 @@ public class PortfolioQueryService {
 
         for (PortfolioCacheDto.AssetBalance p : snapshot.getBalances()) {
             var rateInfo = exchangeRates.get(p.getAssetCode());
-            if (rateInfo == null) continue;
+            var quoteRateInfo = rateInfo != null ? exchangeRates.get(p.getQuoteCurrency()) : null;
 
-            var quoteRateInfo = exchangeRates.get(p.getQuoteCurrency());
-            if (quoteRateInfo == null) continue;
+            // 환율을 구하지 못한 자산을 "조용히" 제외하면 안 된다. 1 BTC 보유 계좌가 총액 0 으로
+            // 표시되어 빈 계좌와 구분되지 않는다. 평가액 없이 보유 내역만 노출하고,
+            // 응답 전체를 지연/불완전 데이터(isStaleData)로 표시해 소비자가 알 수 있게 한다.
+            if (rateInfo == null || quoteRateInfo == null) {
+                log.warn("자산 환율을 확보하지 못해 평가액 없이 응답합니다. account={}, asset={}, quote={}",
+                        accountId, p.getAssetCode(), p.getQuoteCurrency());
+                dtos.add(new AssetDetailDto(
+                        p.getAssetCode(),
+                        p.getTotalQuantity(),
+                        p.getAvgUnitPrice(),
+                        null,
+                        null,
+                        null,
+                        true
+                ));
+                finalStaleFlag = true;
+                continue;
+            }
 
             PortfolioValuation valuation = PortfolioValuation.calculate(
                 p.getTotalQuantity(), p.getAvgUnitPrice(), rateInfo.rate(), quoteRateInfo.rate()

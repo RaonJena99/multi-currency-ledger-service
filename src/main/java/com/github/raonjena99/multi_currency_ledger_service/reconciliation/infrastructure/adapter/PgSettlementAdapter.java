@@ -36,11 +36,18 @@ public class PgSettlementAdapter {
     @Retry(name = "pgSettlementApi")
     public ExternalSettlementDto fetchSettlement(String transactionId) {
         log.debug("외부 PG 정산망 데이터 Fetch 시도: {}", transactionId);
-        
-        return restClient.get()
-                .uri("/api/v1/pg/settlements/{id}", transactionId)
-                .retrieve()
-                .body(ExternalSettlementDto.class);
+
+        try {
+            return restClient.get()
+                    .uri("/api/v1/pg/settlements/{id}", transactionId)
+                    .retrieve()
+                    .body(ExternalSettlementDto.class);
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            // 존재하지 않는 정산(취소/무효 거래 등)은 장애가 아니라 정상적인 "없음" 응답이다.
+            // 예외로 올리면 재시도 낭비, 서킷 오염, 적재 실패 집계까지 3중으로 오작동한다.
+            log.warn("PG 정산 데이터가 존재하지 않습니다(404). transactionId={}", transactionId);
+            return null;
+        }
     }
 
     /**

@@ -114,7 +114,7 @@ class PortfolioQueryServiceTest {
     }
 
     @Test
-    void getPortfolioSummary_should_skip_asset_if_rate_missing() {
+    void getPortfolioSummary_should_report_asset_without_valuation_if_rate_missing() {
         UUID accountId = UUID.randomUUID();
         when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
         
@@ -127,12 +127,17 @@ class PortfolioQueryServiceTest {
 
         PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
 
-        assertThat(response.assets()).isEmpty();
+        // 환율이 없는 자산을 조용히 제외하면 1 BTC 보유 계좌가 총액 0(빈 계좌)으로 보인다.
+        // 보유 내역은 평가액 없이 노출하고, 응답 전체를 불완전 데이터로 표시해야 한다.
+        assertThat(response.assets()).hasSize(1);
+        assertThat(response.assets().get(0).totalValue()).isNull();
+        assertThat(response.assets().get(0).isRateStale()).isTrue();
+        assertThat(response.isStaleData()).isTrue();
         assertThat(response.totalAssetValue()).isEqualByComparingTo("0");
     }
 
     @Test
-    void getPortfolioSummary_should_skip_asset_if_quote_rate_missing() {
+    void getPortfolioSummary_should_report_asset_without_valuation_if_quote_rate_missing() {
         UUID accountId = UUID.randomUUID();
         when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
         
@@ -145,7 +150,9 @@ class PortfolioQueryServiceTest {
 
         PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
 
-        assertThat(response.assets()).isEmpty();
+        assertThat(response.assets()).hasSize(1);
+        assertThat(response.assets().get(0).totalValue()).isNull();
+        assertThat(response.isStaleData()).isTrue();
         assertThat(response.totalAssetValue()).isEqualByComparingTo("0");
     }
 

@@ -29,6 +29,22 @@ class OutboxEventTest {
         assertThat(event.getErrorMessage()).isEqualTo("First failure");
         assertThat(event.isDeadLetter()).isFalse();
         assertThat(event.isProcessed()).isFalse();
+        // 실패 시 다음 시도는 백오프만큼 미뤄져야 한다. 백오프 없이 폴링 주기마다 즉시
+        // 재시도하면 짧은 브로커 장애에도 재시도 예산이 소진된다.
+        assertThat(event.getNextAttemptAt()).isNotNull();
+        assertThat(event.getNextAttemptAt()).isAfter(java.time.OffsetDateTime.now());
+    }
+
+    @Test
+    void recordFailure_should_apply_exponential_backoff() {
+        OutboxEvent event = new OutboxEvent("t", "1", "e", "p", "c");
+
+        event.recordFailure("F1");
+        java.time.OffsetDateTime first = event.getNextAttemptAt();
+        event.recordFailure("F2");
+        java.time.OffsetDateTime second = event.getNextAttemptAt();
+
+        assertThat(second).isAfter(first);
     }
 
     @Test
@@ -53,16 +69,47 @@ class OutboxEventTest {
     }
 
     @Test
-    void recordFailure_should_mark_as_dead_letter_after_3_retries() {
+    void recordFailure_should_mark_as_dead_letter_only_after_max_retries() {
         OutboxEvent event = new OutboxEvent("t", "1", "e", "p", "c");
 
-        event.recordFailure("F1");
-        event.recordFailure("F2");
-        event.recordFailure("F3");
+        // 3회 실패로는 데드레터가 되지 않는다. 임계값이 너무 낮으면(백오프와 무관하게)
+        // 몇 분짜리 브로커 장애에도 이벤트가 영구 격리되어 at-least-once 가 깨진다.
+        for (int i = 0; i < OutboxEvent.MAX_RETRY_COUNT - 1; i++) {
+            event.recordFailure("F" + i);
+        }
+        assertThat(event.isDeadLetter()).isFalse();
+        assertThat(event.isProcessed()).isFalse();
 
-        assertThat(event.getRetryCount()).isEqualTo(3);
+        event.recordFailure("final");
+
+        assertThat(event.getRetryCount()).isEqualTo(OutboxEvent.MAX_RETRY_COUNT);
         assertThat(event.isDeadLetter()).isTrue();
         assertThat(event.isProcessed()).isTrue(); // Marked as processed to stop retries
+    }
+
+    @Test
+    void requeue_should_reset_dead_letter_state() {
+        OutboxEvent event = new OutboxEvent("t", "1", "e", "p", "c");
+        for (int i = 0; i < OutboxEvent.MAX_RETRY_COUNT; i++) {
+            event.recordFailure("F" + i);
+        }
+        assertThat(event.isDeadLetter()).isTrue();
+
+        event.requeue();
+
+        assertThat(event.isDeadLetter()).isFalse();
+        assertThat(event.isProcessed()).isFalse();
+        assertThat(event.getRetryCount()).isZero();
+        assertThat(event.getNextAttemptAt()).isNull();
+        assertThat(event.getLockedAt()).isNull();
+    }
+
+    @Test
+    void requeue_should_reject_non_dead_letter_events() {
+        OutboxEvent event = new OutboxEvent("t", "1", "e", "p", "c");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(event::requeue)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

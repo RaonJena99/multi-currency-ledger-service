@@ -13,7 +13,11 @@ import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.HeuristicMatchingProcessor;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.exception.UnmatchableSettlementException;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
+
+import org.springframework.web.client.RestClientException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -74,9 +78,11 @@ public class ReconciliationJobConfig {
                 .processor(heuristicMatchingProcessor)
                 .writer(reconciliationResultWriter)
                 .faultTolerant()
-                // 비즈니스 매칭 실패는 넉넉히 허용하되, 인프라 장애는 좁게 허용해
-                // "아무 일도 안 했는데 성공" 을 방지한다.
-                .skipPolicy(new ReconciliationCompositeSkipPolicy(BUSINESS_SKIP_LIMIT, INFRASTRUCTURE_SKIP_LIMIT))
+                // 커스텀 스킵 정책이 야기하던 더블 카운팅 방지를 위해 프레임워크의 무상태 스킵 정책을 사용합니다.
+                .skip(UnmatchableSettlementException.class)
+                .skip(RestClientException.class)
+                .skip(CallNotPermittedException.class)
+                .skipLimit(BUSINESS_SKIP_LIMIT)
                 .listener(skipListener)
                 .listener(pgApiSkipListener)
                 .listener((Object) heuristicMatchingProcessor)

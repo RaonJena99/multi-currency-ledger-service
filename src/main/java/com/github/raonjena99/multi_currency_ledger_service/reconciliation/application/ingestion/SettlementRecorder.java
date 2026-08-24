@@ -68,7 +68,11 @@ public class SettlementRecorder {
         );
 
         try {
-            settlementRepository.save(settlement);
+            // save() 는 INSERT 를 커밋 시점(메서드 밖, REQUIRES_NEW 프록시)까지 미루므로
+            // 아래 catch 가 절대 잡을 수 없다. saveAndFlush() 로 즉시 flush 해 유니크 제약
+            // 위반이 이 메서드 안에서 발생하게 만든다. 그렇지 않으면 동시 적재의 정상적인
+            // 중복이 호출자에서 "적재 실패"로 집계된다.
+            settlementRepository.saveAndFlush(settlement);
             return true;
         } catch (DataIntegrityViolationException e) {
             // 다른 노드가 먼저 적재한 경우. 유니크 제약이 최종 방어선이다.

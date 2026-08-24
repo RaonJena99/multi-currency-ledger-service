@@ -13,6 +13,10 @@ spring:
         enabled: false
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # Lettuce 의 커맨드 타임아웃 기본값은 60초다. Redis 가 죽는 게 아니라 "멈추면"(네트워크 파티션 등)
+      # 조용한 폴백 코드가 있어도 호출마다 60초씩 블록되어 톰캣 스레드 풀이 고갈된다.
+      timeout: 2s
+      connect-timeout: 2s
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:
@@ -69,6 +73,18 @@ spring:
       enabled: false
 
 ledger:
+  security:
+    # 게이트웨이 공유 시크릿. 설정하면 X-Gateway-Secret 헤더가 이 값과 일치하는 요청만
+    # X-Auth-* 인증 헤더를 신뢰한다. 미설정(기본)이면 게이트웨이가 클라이언트의 X-Auth-* 헤더를
+    # 반드시 제거(strip)하는 네트워크 격리 환경을 전제로 한다.
+    gateway-secret: ${GATEWAY_SHARED_SECRET:}
+  reconciliation:
+    # 정산은 수수료를 차감한 실수령액으로 적재되므로(SettlementRecorder), 내부 거래액과의
+    # 기대 오차는 PG 수수료 전액이다. 국내 PG 수수료율(1.5~3%대)을 흡수할 수 있어야
+    # 수수료 보정(FEE_ADJUSTMENT) 파이프라인에 도달한다. 0.5% 로 두면 수수료가 붙은
+    # 모든 정상 정산이 AMOUNT_MISMATCH 로 데드레터가 된다.
+    amount-tolerance-ratio: 0.005
+    amount-tolerance-min-units: 100
   external:
     # 법정화폐 환율: fxratesapi.com
     #
@@ -196,6 +212,10 @@ resilience4j:
         waitDurationInOpenState: 30s
         permittedNumberOfCallsInHalfOpenState: 5
         automaticTransitionFromOpenToHalfOpenEnabled: true
+        # 4xx 는 재시도해도 결과가 같은 영구 오류다(무효/미존재 정산 등). 장애로 집계하면
+        # 무효 거래 ID 가 30% 만 섞여도 서킷이 열려 정상 건 적재까지 30초씩 차단된다.
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException
 
   retry:
     retryAspectOrder: 2 # Inner Proxy
@@ -248,9 +268,10 @@ resilience4j:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
           - org.springframework.web.client.RestClientException
+        # 4xx 전체를 재시도에서 제외한다. 특히 404(존재하지 않는 정산)는 재시도해도
+        # 결과가 같으므로, 재시도는 적재 시간만 3배로 늘린다.
         ignoreExceptions:
-          - org.springframework.web.client.HttpClientErrorException.BadRequest
-          - org.springframework.web.client.HttpClientErrorException.Unauthorized
+          - org.springframework.web.client.HttpClientErrorException
 
 ---
 spring:

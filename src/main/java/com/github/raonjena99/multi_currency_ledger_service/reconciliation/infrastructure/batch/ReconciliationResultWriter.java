@@ -8,11 +8,14 @@ import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.SettlementStatus;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.ReconciliationDeadLetterRepository;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.SettlementMatchRecorder;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.SettlementMatchRecorder.MatchOutcome;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ReconciliationDeadLetter;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.SettlementMatch;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.event.ReconciliationFeeAdjustedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.ExternalSettlementRepository;
@@ -30,7 +33,9 @@ public class ReconciliationResultWriter implements ItemWriter<MatchedReconciliat
 
     private final ExternalSettlementRepository settlementRepository;
     private final SettlementMatchRecorder settlementMatchRecorder;
+    private final ReconciliationDeadLetterRepository deadLetterRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final tools.jackson.databind.json.JsonMapper jsonMapper;
 
     /**
      * Chunk 단위로 전달된 대사 성공 결과를 반영합니다.
@@ -56,8 +61,13 @@ public class ReconciliationResultWriter implements ItemWriter<MatchedReconciliat
                     result.matchedTransactionId(), external.getId(), external.getSettlementDate()));
 
             if (!outcome.isMatchable()) {
-                log.warn("내부 거래 {} 는 이미 다른 정산과 매칭되어 있습니다. 이 건은 미매칭으로 남깁니다. settlementId={}",
+                // PENDING 으로 방치하면 안 된다. 스케줄러는 지난달만 대상으로 하므로 이 정산은
+                // 두 번 다시 평가되지 않고, 데드레터도 없어 백오피스에서도 보이지 않는다.
+                // UNMATCHED 로 전이하고 데드레터를 남겨 수동 대사 경로로 흘려보낸다.
+                log.warn("내부 거래 {} 는 이미 다른 정산과 매칭되어 있습니다. 데드레터로 격리합니다. settlementId={}",
                         result.matchedTransactionId(), external.getId());
+                isolateTakenSettlement(external, result.matchedTransactionId());
+                settlementsToUpdate.add(external);
                 continue;
             }
 
@@ -88,5 +98,32 @@ public class ReconciliationResultWriter implements ItemWriter<MatchedReconciliat
         }
 
         log.info("대사 결과 반영 완료. 입력 {}건 중 {}건 매칭.", chunk.size(), settlementsToUpdate.size());
+    }
+
+    /**
+     * 후보 내부 거래가 이미 다른 정산에 선점된 정산 건을 수동 대사 경로로 격리합니다.
+     *
+     * <p>상태만 UNMATCHED 로 바꾸면 백오피스 데드레터 목록에 나타나지 않으므로,
+     * 스킵 리스너와 동일하게 {@link ReconciliationDeadLetter} 를 함께 남깁니다.
+     */
+    private void isolateTakenSettlement(ExternalSettlement external, java.util.UUID takenTransactionId) {
+        if (external.getStatus() == SettlementStatus.PENDING) {
+            external.markAsUnmatched();
+        }
+
+        String payloadJson;
+        try {
+            payloadJson = jsonMapper.writeValueAsString(java.util.Map.of(
+                    "description_snapshot", external.getDescription() != null ? external.getDescription() : ""));
+        } catch (Exception e) {
+            payloadJson = "{\"description_snapshot\": \"serialization_failed\"}";
+            log.error("Failed to serialize description snapshot", e);
+        }
+
+        deadLetterRepository.save(ReconciliationDeadLetter.isolate(
+                external.getId(),
+                FailureReason.DUPLICATE_MATCH,
+                "Candidate internal transaction " + takenTransactionId + " is already matched to another settlement.",
+                payloadJson));
     }
 }

@@ -30,7 +30,7 @@ class OutboxManagerTest {
         OutboxEvent event = new OutboxEvent("agg", "1", "event", "{}", "corr");
         assertThat(event.getLockedAt()).isNull();
 
-        when(outboxRepository.findUnprocessedEventsWithSkipLocked(anyInt(), any())).thenReturn(Arrays.asList(event));
+        when(outboxRepository.findUnprocessedEventsWithSkipLocked(anyInt(), any(), any())).thenReturn(Arrays.asList(event));
 
         List<OutboxEvent> result = outboxManager.claimUnprocessedEvents(10);
 

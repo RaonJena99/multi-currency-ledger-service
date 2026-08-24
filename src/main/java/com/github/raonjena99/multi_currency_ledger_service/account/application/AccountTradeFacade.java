@@ -99,6 +99,12 @@ public class AccountTradeFacade {
     private TradeContext prepare(UUID accountId, String targetAssetCode, AssetType targetAssetType,
                                  String paymentCurrency, BigDecimal unitPrice, TradeType tradeType) {
 
+        // 자산 코드와 자산 유형의 정합성을 원장 초기화 "이전"에 검증한다.
+        // 검증 없이 진행하면 예컨대 (USD, CRYPTO) 조합이 잘못된 유형의 원장 행을 만들고,
+        // (account, asset, month) 유니크 제약 때문에 올바른 행을 더는 만들 수 없어
+        // 그 달의 해당 자산 거래가 통째로 막힌다.
+        validateAssetTypeConsistency(targetAssetCode, targetAssetType, paymentCurrency);
+
         // 트랜잭션 진입 전 현재 시각 기록. 이후 모든 단계가 이 시각을 공유해야 월 경계에서 흔들리지 않는다.
         OffsetDateTime transactedAt = OffsetDateTime.now();
 
@@ -132,6 +138,41 @@ public class AccountTradeFacade {
         validatePriceAgainstMarket(unitPrice, targetRateInfo.rate(), targetAssetCode, paymentCurrency, tradeType);
 
         return new TradeContext(transactedAt, ledgerMonth, targetRateInfo.rate(), targetRateInfo.isStale(), fiatToBaseRate);
+    }
+
+    /**
+     * 자산 코드와 클라이언트가 지정한 자산 유형이 서로 모순되지 않는지 검증합니다.
+     *
+     * <p>클라이언트가 보낸 {@code targetAssetType} 은 신뢰할 수 없는 입력입니다. 검증 없이
+     * 저장하면 ISO 통화 코드가 CRYPTO 유형의 원장 행으로 만들어지는 식의 오염이 생기고,
+     * 이후 정상 거래가 통화 불일치로 계속 실패합니다.
+     */
+    private void validateAssetTypeConsistency(String targetAssetCode, AssetType targetAssetType,
+                                              String paymentCurrency) {
+        if (!isIsoCurrency(paymentCurrency)) {
+            throw new com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException(
+                    "결제 통화가 유효한 ISO 4217 코드가 아닙니다: " + paymentCurrency);
+        }
+
+        boolean targetIsIsoCurrency = isIsoCurrency(targetAssetCode);
+        if (targetAssetType == AssetType.FIAT && !targetIsIsoCurrency) {
+            throw new com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException(
+                    "FIAT 자산 코드가 유효한 ISO 4217 코드가 아닙니다: " + targetAssetCode);
+        }
+        if (targetAssetType != AssetType.FIAT && targetIsIsoCurrency) {
+            throw new IllegalArgumentException(String.format(
+                    "자산 코드 %s 는 법정화폐(ISO 4217)인데 자산 유형이 %s 로 지정되었습니다.",
+                    targetAssetCode, targetAssetType));
+        }
+    }
+
+    private boolean isIsoCurrency(String code) {
+        try {
+            java.util.Currency.getInstance(code);
+            return true;
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return false;
+        }
     }
 
     /**

@@ -36,12 +36,19 @@ public interface MonthlyAccountLedgerRepository extends JpaRepository<MonthlyAcc
      * 대상 월보다 <b>미래</b>의 원장이 이미 존재할 때 그 잔고를 과거 원장의 기초 잔고로 복사해
      * 버립니다(역방향 이월). 이월은 언제나 뒤만 봐야 합니다.
      *
+     * <p>락 모드가 {@code PESSIMISTIC_FORCE_INCREMENT} 인 이유: 단순 {@code PESSIMISTIC_WRITE} 는
+     * 이월 원본 행의 버전을 올리지 않으므로, 같은 행을 락 없이 읽어 둔 진행 중 거래의 낙관적 락
+     * 검사와 충돌하지 않습니다. 그 결과 이월이 잔고 B 를 새 달로 복사해 커밋한 <b>뒤에</b> 기존
+     * 거래가 이전 달에 B−x 를 커밋할 수 있고, 모든 조회는 최신 월만 보므로 그 거래가 보고 잔고에서
+     * 조용히 사라집니다. 버전을 강제 증가시키면 그런 거래가 커밋 시점에 충돌하여 재시도되고,
+     * 재시도는 최신 월로 재귀속됩니다({@code AccountTradeService.resolveEffectiveMonth}).
+     *
      * @param accountId   계좌 ID
      * @param assetCode   자산 코드
      * @param targetMonth 초기화 대상 월. 이 월보다 <b>이전</b> 원장만 조회합니다.
      * @return 이월 원본이 될 직전 원장
      */
-    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_FORCE_INCREMENT)
     Optional<MonthlyAccountLedger> findFirstWithLockByAccountIdAndAssetCodeAndLedgerMonthLessThanOrderByLedgerMonthDesc(
         UUID accountId, String assetCode, String targetMonth
     );

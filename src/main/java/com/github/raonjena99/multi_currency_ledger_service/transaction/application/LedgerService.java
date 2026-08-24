@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.CurrencyScaleResolver;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
@@ -34,6 +35,15 @@ public class LedgerService {
     private final TransactionRepository transactionRepository;
 
     /**
+     * 수수료 보정(FEE_ADJUSTMENT)을 고객의 실제 잔고에 반영하기 위한 계좌 모듈 공개 API.
+     *
+     * <p>보정을 분개로만 남기면 고객이 쓸 수 있는 잔고(월차 원장)는 변하지 않아,
+     * 분개 합계와 잔고 합계가 영구히 벌어집니다. 분개와 잔고 반영이 같은 트랜잭션에
+     * 묶여야 부분 실패가 불가능합니다.
+     */
+    private final AccountApi accountApi;
+
+    /**
      * 시스템 계정으로 흘려보낸 반올림 잔차의 분포.
      *
      * <p>허용 한도는 환율 증폭을 반영해야 하므로 필연적으로 넓어집니다. 그 안에 실제 계산 버그가
@@ -42,8 +52,9 @@ public class LedgerService {
      */
     private final DistributionSummary plugMagnitude;
 
-    public LedgerService(TransactionRepository transactionRepository, MeterRegistry meterRegistry) {
+    public LedgerService(TransactionRepository transactionRepository, AccountApi accountApi, MeterRegistry meterRegistry) {
         this.transactionRepository = transactionRepository;
+        this.accountApi = accountApi;
         this.plugMagnitude = DistributionSummary.builder("ledger.rounding_residual.plugged")
                 .description("SYSTEM_FX_GAIN/LOSS 로 흘려보낸 대차 잔차의 크기(기준 통화). "
                         + "추세가 커지면 반올림이 아닌 계산 오류를 의심해야 합니다.")
@@ -181,6 +192,11 @@ public class LedgerService {
                                         BigDecimal.ONE, fiatToBaseRate,
                                         fiatToBaseRate, baseCurrency);
             }
+
+            // 보정액을 고객의 실제 잔고(월차 원장)에도 반영한다. 분개만 남기면 고객이 쓸 수 있는
+            // 잔고는 변하지 않아 SUM(분개)와 SUM(잔고)가 영구히 벌어진다. 같은 트랜잭션이므로
+            // 위쪽의 거래 ID 멱등성 검사가 중복 반영도 함께 막는다.
+            accountApi.applyFiatBalanceAdjustment(cmd.accountId(), cmd.quantity(), cmd.transactedAt());
         } else {
             throw new IllegalArgumentException("Unsupported trade type for ledger recording: " + cmd.tradeType());
         }

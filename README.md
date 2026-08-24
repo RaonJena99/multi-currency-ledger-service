@@ -33,7 +33,7 @@
 * **견고한 동시성 제어 (Concurrency Control)** 
   낙관적 락(`@Version`)과 DB 유니크 제약조건, 그리고 비관적 락(`SKIP LOCKED`)을 결합하여 갱신 손실(Lost Update)을 완벽히 방지합니다.
 * **최종 정합성 보장 (Eventual Consistency)** 
-  Transactional Outbox 패턴과 Kafka 멱등성 프로듀서로 비즈니스 로직과 원장 기록을 분리합니다. 전달 보장 수준은 **at-least-once** 이며, 중복은 컨슈머 측 거래 ID 검사로 흡수합니다. 원장 기록이 영구 실패한 건은 `ledger_dead_letters` 로 격리하고 지표로 노출해 보상 처리 대상으로 남깁니다.
+  Transactional Outbox 패턴과 Kafka 멱등성 프로듀서로 비즈니스 로직과 원장 기록을 분리합니다. 전달 보장 수준은 **at-least-once** 이며, 중복은 컨슈머 측 거래 ID 검사로 흡수합니다. 아웃박스 발행 실패는 지수 백오프(30초~10분)로 최대 10회 재시도한 뒤 데드레터로 격리되며, 격리 건은 `/api/v1/admin/outbox/dead-letters` 관리자 API 로 조회·재발행할 수 있습니다. 원장 기록이 영구 실패한 건은 `ledger_dead_letters` 로 격리하고 지표로 노출해 보상 처리 대상으로 남깁니다.
 * **기능 기반 패키징 (Spring Modulith)** 
   Account, Transaction, Portfolio, Reconciliation 등 컨텍스트 단위 분리로 도메인 간 결합도를 최소화합니다.
 * **반올림 안전성 (Money Conservation)** 
@@ -105,12 +105,15 @@
 ```text
 X-Auth-Subject     : 주체 식별자 (필수)
 X-Auth-Account-Id  : 소유 계좌 UUID
-X-Auth-Roles       : ADMIN 포함 시 관리자
+X-Auth-Roles       : 쉼표 구분 역할 목록. ADMIN 또는 ROLE_ADMIN 토큰이 정확히 있을 때만 관리자
+X-Gateway-Secret   : (선택) ledger.security.gateway-secret 설정 시 필수
 ```
 
 > **운영 주의**: 위 헤더는 외부에서 직접 도달할 수 없어야 합니다. 게이트웨이가 클라이언트가 보낸
-> 동일 헤더를 반드시 제거(strip)하도록 설정하십시오. JWT 를 직접 검증해야 한다면
-> `PrincipalResolver` 를 구현한 빈 하나만 등록하면 기본 구현체는 물러납니다.
+> 동일 헤더를 반드시 제거(strip)하도록 설정하십시오. 네트워크 격리만으로 이를 보장할 수 없다면
+> `ledger.security.gateway-secret`(환경변수 `GATEWAY_SHARED_SECRET`)을 설정하십시오 — 설정 시
+> 게이트웨이가 `X-Gateway-Secret` 헤더에 같은 값을 실어 보낸 요청만 인증 헤더를 신뢰합니다.
+> JWT 를 직접 검증해야 한다면 `PrincipalResolver` 를 구현한 빈 하나만 등록하면 기본 구현체는 물러납니다.
 
 ---
 

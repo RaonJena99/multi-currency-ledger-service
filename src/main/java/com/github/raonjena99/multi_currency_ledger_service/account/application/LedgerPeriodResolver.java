@@ -54,7 +54,11 @@ public class LedgerPeriodResolver {
      * @return {@code yyyy-MM} 형식의 실효 원장 월
      */
     public String resolveLedgerMonth(UUID accountId, OffsetDateTime transactedAt) {
-        String monthOfTrade = transactedAt.format(MONTH_FORMATTER);
+        // 귀속 월은 반드시 UTC 로 정규화해 유도한다. 노드의 로컬 오프셋을 그대로 쓰면
+        // UTC+9 노드가 UTC 노드보다 최대 9시간 먼저 다음 달 원장을 열어, 월 경계에서
+        // 노드 간 귀속 월이 갈라지고 이월 경합 창이 넓어진다.
+        String monthOfTrade = transactedAt.withOffsetSameInstant(java.time.ZoneOffset.UTC)
+                .format(MONTH_FORMATTER);
 
         String latestExisting = ledgerRepository.findLatestLedgerMonthByAccountId(accountId).orElse(null);
         if (latestExisting == null || latestExisting.compareTo(monthOfTrade) <= 0) {

@@ -40,6 +40,7 @@ class AccountTradeServiceTest {
     @Mock private com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository accountRepository;
     @Mock private IdempotencyRecordRepository idempotencyRepository;
     @Mock private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
+    @Mock private MonthlyLedgerResolver monthlyLedgerResolver;
 
     @InjectMocks
     private AccountTradeService tradeService;
@@ -51,16 +52,50 @@ class AccountTradeServiceTest {
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
     }
 
+    /** 멱등성 키 신규 등록 경로를 스텁한다. 거래 완료 시 레코드에 tradeId 가 기록된다. */
+    private void stubIdempotencyRegistration() {
+        when(idempotencyRepository.saveAndFlush(any(IdempotencyRecord.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    /** 지정 자산의 원장을 리졸버 경로로 스텁한다. 서비스는 트랜잭션 안에서 월을 재확인한 뒤 리졸버로 원장을 얻는다. */
+    private void stubLedger(UUID accountId, String assetCode, MonthlyAccountLedger ledger) {
+        when(monthlyLedgerResolver.resolveOrInitializeLedger(eq(accountId), eq(assetCode), any(), anyString()))
+                .thenReturn(ledger);
+    }
+
     @Test
-    void executeBuyAsset_should_throw_on_duplicate_request() {
+    void executeBuyAsset_should_throw_on_duplicate_request_still_in_flight() {
+        // 아직 완료되지 않은(tradeId 미기록) 중복 요청은 409 로 거부된다.
         when(idempotencyRepository.saveAndFlush(any(IdempotencyRecord.class)))
             .thenThrow(new DataIntegrityViolationException("Duplicate"));
 
-        assertThatThrownBy(() -> 
-            tradeService.executeBuyAsset("idemp-key", UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", 
+        assertThatThrownBy(() ->
+            tradeService.executeBuyAsset("idemp-key", UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW",
                                          Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), MONTH,
                                          BigDecimal.ONE, false, null)
         ).isInstanceOf(DuplicateTradeRequestException.class);
+    }
+
+    @Test
+    void executeBuyAsset_should_replay_completed_trade_id_on_duplicate_request() {
+        // 이미 완료된 거래의 키로 재전송하면 새 거래 대신 기존 거래 ID 를 돌려받는다(멱등 재생).
+        // 이 경로가 없으면 타임아웃 후 재시도하는 클라이언트가 성공 여부를 알 방법이 없다.
+        UUID accountId = UUID.randomUUID();
+        UUID completedTradeId = UUID.randomUUID();
+        IdempotencyRecord completed = new IdempotencyRecord(accountId + ":BUY:idemp-key");
+        completed.complete(completedTradeId);
+
+        when(idempotencyRepository.findById(accountId + ":BUY:idemp-key"))
+            .thenReturn(Optional.of(completed));
+
+        UUID result = tradeService.executeBuyAsset("idemp-key", accountId, "BTC", AssetType.CRYPTO, "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), MONTH,
+                BigDecimal.ONE, false, null);
+
+        assertThat(result).isEqualTo(completedTradeId);
+        org.mockito.Mockito.verifyNoInteractions(monthlyLedgerResolver);
+        org.mockito.Mockito.verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -71,12 +106,11 @@ class AccountTradeServiceTest {
         
         MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
         MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
-        
+
         when(targetLedger.getBaseCurrency()).thenReturn("USD");
-        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("BTC"), anyString()))
-            .thenReturn(Optional.of(targetLedger));
-        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("KRW"), anyString()))
-            .thenReturn(Optional.of(fiatLedger));
+        stubIdempotencyRegistration();
+        stubLedger(accountId, "BTC", targetLedger);
+        stubLedger(accountId, "KRW", fiatLedger);
 
         UUID tradeId = tradeService.executeBuyAsset(
             "idemp-key", accountId, "BTC", AssetType.CRYPTO, "KRW", 
@@ -113,12 +147,11 @@ class AccountTradeServiceTest {
         MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
         MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
         when(targetLedger.getBaseCurrency()).thenReturn("KRW");
-        
-        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("BTC"), anyString()))
-            .thenReturn(Optional.of(targetLedger));
-        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("KRW"), anyString()))
-            .thenReturn(Optional.of(fiatLedger));
-            
+
+        stubIdempotencyRegistration();
+        stubLedger(accountId, "BTC", targetLedger);
+        stubLedger(accountId, "KRW", fiatLedger);
+
         when(targetLedger.subtractBalance(any())).thenReturn(BigDecimal.ZERO);
 
         UUID tradeId = tradeService.executeSellAsset(
@@ -142,14 +175,13 @@ class AccountTradeServiceTest {
         stubActiveAccount(accountId);
 
         MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
-        
+
         MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
         when(targetLedger.getBaseCurrency()).thenReturn("KRW");
 
-        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(org.mockito.ArgumentMatchers.eq(accountId), org.mockito.ArgumentMatchers.eq("USD"), org.mockito.ArgumentMatchers.anyString()))
-            .thenReturn(Optional.of(fiatLedger));
-        when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(org.mockito.ArgumentMatchers.eq(accountId), org.mockito.ArgumentMatchers.eq("BTC"), org.mockito.ArgumentMatchers.anyString()))
-            .thenReturn(Optional.of(targetLedger));
+        stubIdempotencyRegistration();
+        stubLedger(accountId, "USD", fiatLedger);
+        stubLedger(accountId, "BTC", targetLedger);
 
         when(targetLedger.subtractBalance(any())).thenReturn(BigDecimal.ZERO);
         when(monthlyAccountLedgerRepository.save(any())).thenReturn(fiatLedger);

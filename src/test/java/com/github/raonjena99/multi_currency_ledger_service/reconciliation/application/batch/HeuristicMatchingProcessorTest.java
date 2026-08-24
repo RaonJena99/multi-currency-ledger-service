@@ -44,7 +44,9 @@ class HeuristicMatchingProcessorTest {
         List<InternalTransactionCandidate> candidatesList = new ArrayList<>();
         candidatesList.add(candidate);
         
-        when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(candidatesList);
+        when(queryDao.fetchCandidatesForPeriod(any(), any()))
+            .thenReturn(candidatesList)
+            .thenReturn(new ArrayList<>());
         
         when(rule.evaluate(any(), any())).thenReturn(RuleResult.builder().passed(true).score(100).build());
 
@@ -69,7 +71,9 @@ class HeuristicMatchingProcessorTest {
         List<InternalTransactionCandidate> candidatesList = new ArrayList<>();
         candidatesList.add(candidate);
         
-        when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(candidatesList);
+        when(queryDao.fetchCandidatesForPeriod(any(), any()))
+            .thenReturn(candidatesList)
+            .thenReturn(List.of());
         
         when(rule.evaluate(any(), any())).thenReturn(RuleResult.builder().passed(false).failReason("RULE_FAILED").build());
 

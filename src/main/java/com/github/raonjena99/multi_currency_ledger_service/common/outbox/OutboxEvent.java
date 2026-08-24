@@ -64,6 +64,15 @@ public class OutboxEvent extends BaseEntity{
     private OffsetDateTime lockedAt;
 
     /**
+     * 다음 재시도가 허용되는 시각. 실패 시 지수 백오프로 미뤄집니다.
+     *
+     * <p>백오프 없이 폴링 주기(5초)마다 즉시 재시도하면, 브로커가 몇 분만 다운되어도
+     * 재시도 예산이 소진되어 그 사이의 모든 이벤트가 데드레터로 빠집니다.
+     */
+    @Column(name = "next_attempt_at")
+    private OffsetDateTime nextAttemptAt;
+
+    /**
      * OutboxEvent 객체를 생성합니다.
      *
      * @param aggregateType 이벤트를 발생시킨 애그리거트(Aggregate) 타입
@@ -87,9 +96,21 @@ public class OutboxEvent extends BaseEntity{
         this.processed = true;
     }
 
+    /** 데드레터 전환 전 허용되는 최대 재시도 횟수. */
+    static final int MAX_RETRY_COUNT = 10;
+
+    /** 첫 실패 후 재시도까지의 대기 시간(초). 이후 실패마다 2배씩 늘어난다. */
+    static final long BASE_BACKOFF_SECONDS = 30;
+
+    /** 백오프 대기 시간의 상한(초). */
+    static final long MAX_BACKOFF_SECONDS = 600;
+
     /**
-     * 전송 실패를 기록하고, 재시도 횟수를 증가시킵니다.
+     * 전송 실패를 기록하고, 재시도 횟수를 증가시킨 뒤 다음 시도 시각을 지수 백오프로 미룹니다.
      * 최대 재시도 횟수에 도달하면 Dead Letter(데드 레터) 큐로 처리하여 릴레이 워커의 무한 재시도를 방지합니다.
+     *
+     * <p>백오프(30초 → 60초 → … → 최대 10분)와 넉넉한 재시도 예산이 결합되어, 브로커가
+     * 수십 분 다운되어도 이벤트가 데드레터로 빠지지 않고 복구 후 자동 재발행됩니다.
      *
      * @param error 실패의 원인이 된 에러 메시지
      */
@@ -97,12 +118,36 @@ public class OutboxEvent extends BaseEntity{
         this.retryCount++;
         // DB 컬럼 길이 제한에 맞춰 에러 메시지를 자름
         this.errorMessage = error != null && error.length() > 500 ? error.substring(0, 500) : error;
-        
-        // 재시도 횟수가 3번 이상일 경우 수동 처리를 위해 Dead Letter 상태로 전환
-        if (this.retryCount >= 3) {
+
+        if (this.retryCount >= MAX_RETRY_COUNT) {
             this.deadLetter = true;
-            this.processed = true; 
+            this.processed = true;
+            return;
         }
+
+        long backoffSeconds = Math.min(
+                BASE_BACKOFF_SECONDS * (1L << Math.min(this.retryCount - 1, 30)),
+                MAX_BACKOFF_SECONDS);
+        this.nextAttemptAt = OffsetDateTime.now().plusSeconds(backoffSeconds);
+    }
+
+    /**
+     * 데드레터 상태의 이벤트를 다시 발행 대상으로 되돌립니다.
+     *
+     * <p>데드레터는 폴링 대상에서 영구 제외되므로, 이 경로가 없으면 브로커 장애 등으로
+     * 격리된 이벤트를 자동으로 되살릴 방법이 없어 at-least-once 보장이 깨집니다.
+     *
+     * @throws IllegalStateException 데드레터 상태가 아닌 이벤트를 재적재하려는 경우
+     */
+    public void requeue() {
+        if (!this.deadLetter) {
+            throw new IllegalStateException("Only dead-lettered events can be requeued. id=" + this.id);
+        }
+        this.deadLetter = false;
+        this.processed = false;
+        this.retryCount = 0;
+        this.nextAttemptAt = null;
+        this.lockedAt = null;
     }
 
     // 잠금 처리

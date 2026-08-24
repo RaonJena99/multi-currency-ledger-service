@@ -9,5 +9,13 @@ scrape_configs:
 
   - job_name: "multi-currency-ledger-service"
     metrics_path: "/actuator/prometheus"
+    # /actuator/** 는 SecurityConfig 에서 ROLE_ADMIN 을 요구하므로, 스크랩 요청에
+    # 인증 헤더를 실어야 한다. 이 헤더가 없으면 모든 스크랩이 401 로 떨어져
+    # 모니터링 스택이 아무 지표도 수집하지 못한다. (http_headers 는 Prometheus v2.55+)
+    http_headers:
+      X-Auth-Subject:
+        values: ["prometheus-scraper"]
+      X-Auth-Roles:
+        values: ["ADMIN"]
     static_configs:
       - targets: ["host.docker.internal:8080"]

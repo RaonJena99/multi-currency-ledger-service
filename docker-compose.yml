@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v2.45.0
+    image: prom/prometheus:v2.55.1
     container_name: ledger-prometheus
     ports:
       - "9090:9090"

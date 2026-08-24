@@ -37,7 +37,9 @@ class ReconciliationResultWriterTest {
 
     @Mock private ExternalSettlementRepository settlementRepository;
     @Mock private SettlementMatchRecorder settlementMatchRecorder;
+    @Mock private com.github.raonjena99.multi_currency_ledger_service.reconciliation.ReconciliationDeadLetterRepository deadLetterRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private tools.jackson.databind.json.JsonMapper jsonMapper;
 
     @InjectMocks private ReconciliationResultWriter writer;
 
@@ -81,8 +83,8 @@ class ReconciliationResultWriterTest {
     }
 
     @Test
-    @DisplayName("다른 정산이 내부 거래를 선점했으면 상태를 바꾸지 않고 건너뛴다")
-    void skips_when_internal_transaction_is_taken_by_another_settlement() {
+    @DisplayName("다른 정산이 내부 거래를 선점했으면 데드레터로 격리하고 UNMATCHED 로 전이한다")
+    void isolates_when_internal_transaction_is_taken_by_another_settlement() {
         when(settlementMatchRecorder.recordMatch(any())).thenReturn(MatchOutcome.TAKEN_BY_ANOTHER);
 
         ExternalSettlement pending = settlement("REF-TAKEN");
@@ -90,10 +92,13 @@ class ReconciliationResultWriterTest {
 
         writer.write(new Chunk<>(List.of(r)));
 
+        // PENDING 으로 방치하면 스케줄러(지난달 대상)가 두 번 다시 평가하지 않고,
+        // 데드레터도 없어 백오피스에서 보이지 않는다. 반드시 수동 대사 경로로 흘려보내야 한다.
         assertThat(pending.getStatus())
-                .as("선점된 건은 MATCHED 로 전이되면 안 된다")
-                .isEqualTo(SettlementStatus.PENDING);
-        verify(settlementRepository, never()).saveAll(anyList());
+                .as("선점된 건은 MATCHED 가 아니라 UNMATCHED 로 격리되어야 한다")
+                .isEqualTo(SettlementStatus.UNMATCHED);
+        verify(deadLetterRepository).save(any());
+        verify(settlementRepository).saveAll(anyList());
         verify(eventPublisher, never()).publishEvent(any(ReconciliationFeeAdjustedEvent.class));
     }
 

@@ -41,13 +41,27 @@ public class AccountTradeController {
      * @param unitPrice       거래 단가
      */
     public record TradeRequestDto(
-            @NotBlank @Size(max = 255) String idempotencyKey,
+            // 서버가 (계좌 ID + 연산 종류) 접두어를 붙여 저장하므로, 저장 컬럼(255자) 안에
+            // 안전히 들어가도록 클라이언트 키는 128자로 제한한다.
+            @NotBlank @Size(max = 128) String idempotencyKey,
             @NotBlank @Size(max = 20) String targetAssetCode,
             @NotNull AssetType targetAssetType,
             @NotBlank @Size(max = 10) String paymentCurrency,
             @NotNull @Positive BigDecimal quantity,
             @NotNull @Positive BigDecimal unitPrice
-    ) {}
+    ) {
+        public TradeRequestDto {
+            // 자산/통화 코드를 정규화한다. 원장의 asset_code 는 입력 문자열을 그대로 저장하므로,
+            // 정규화 없이 "btc" 와 "BTC" 가 들어오면 같은 자산이 서로 다른 원장 행으로 파편화되어
+            // 잔고가 갈라진다(매수는 "btc" 행에, 매도는 "BTC" 행에서 잔고 부족).
+            if (targetAssetCode != null) {
+                targetAssetCode = targetAssetCode.trim().toUpperCase();
+            }
+            if (paymentCurrency != null) {
+                paymentCurrency = paymentCurrency.trim().toUpperCase();
+            }
+        }
+    }
 
     /** 거래 생성 응답입니다. */
     public record TradeResponseDto(UUID tradeId) {}

@@ -49,6 +49,7 @@ public class AccountTradeService {
     private final AccountRepository accountRepository;
     private final IdempotencyRecordRepository idempotencyRepository;
     private final MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
+    private final MonthlyLedgerResolver monthlyLedgerResolver;
 
     /**
      * 특정 Account(계좌)에서 자산을 매수(Buy)하는 처리를 수행합니다.
@@ -78,16 +79,24 @@ public class AccountTradeService {
                                 String paymentCurrency, Money buyQuantity, BigDecimal unitPrice, OffsetDateTime transactedAt, String ledgerMonth,
                                 BigDecimal exchangeRate, boolean isStaleRate, BigDecimal fiatToBaseRate) {
 
-        registerIdempotencyKey(idempotencyKey, "이미 처리 중이거나 완료된 결제 요청입니다.");
+        IdempotencyOutcome idempotency = registerIdempotencyKey(
+                accountId, "BUY", idempotencyKey, "이미 처리 중인 결제 요청입니다.");
+        if (idempotency.replayedTradeId() != null) {
+            return idempotency.replayedTradeId();
+        }
 
         // 계좌 상태를 트랜잭션 안에서 다시 확정 검증한다.
         // Facade 의 사전 검사만 믿으면 검사와 실제 거래 사이에 계좌가 정지되어도 거래가 완료된다(TOCTOU).
         requireActiveAccount(accountId);
 
-        // 기장 월은 Facade 가 LedgerPeriodResolver 로 확정한 값을 그대로 쓴다.
-        // 여기서 transactedAt 으로 다시 유도하면 Facade 가 초기화한 원장과 다른 월을 찾게 된다.
-        MonthlyAccountLedger targetAssetLedger = requireLedger(accountId, targetAssetCode, ledgerMonth);
-        MonthlyAccountLedger fiatLedger = requireLedger(accountId, paymentCurrency, ledgerMonth);
+        // 기장 월은 Facade 가 확정한 값을 기본으로 하되, 트랜잭션 안에서 최신 월을 재확인한다.
+        // Facade 의 확정과 이 트랜잭션의 커밋 사이에 다른 거래가 다음 달 원장을 만들었으면(월 경계 경합)
+        // 이 거래를 이전 달에 기장하는 순간 조회 경로(MAX(ledger_month))에서 사라진다.
+        String effectiveMonth = resolveEffectiveMonth(accountId, ledgerMonth);
+        MonthlyAccountLedger targetAssetLedger = monthlyLedgerResolver
+                .resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, effectiveMonth);
+        MonthlyAccountLedger fiatLedger = monthlyLedgerResolver
+                .resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, effectiveMonth);
 
         // 결제 단가를 계좌의 기준 통화로 환산해 평균 단가를 일관된 통화로 유지한다.
         BigDecimal appliedFiatToBaseRate = fiatToBaseRate != null ? fiatToBaseRate : BigDecimal.ONE;
@@ -117,6 +126,10 @@ public class AccountTradeService {
             isStaleRate, transactedAt
         );
         eventPublisher.publishEvent(event);
+
+        // 완료된 거래 ID 를 멱등성 레코드에 기록한다(같은 트랜잭션이므로 원자적).
+        // 이 기록이 있어야 타임아웃 후 재전송된 동일 요청이 409 대신 기존 거래 ID 를 돌려받는다.
+        idempotency.record().complete(tradeId);
 
         log.info("Monthly Ledger updated for BUY. TradeID: {}", tradeId);
         return tradeId;
@@ -150,16 +163,24 @@ public class AccountTradeService {
                                 String paymentCurrency, Money sellQuantity, BigDecimal sellUnitPrice, OffsetDateTime transactedAt, String ledgerMonth,
                                 BigDecimal exchangeRate, boolean isStaleRate, BigDecimal fiatToBaseRate) {
 
-        registerIdempotencyKey(idempotencyKey, "이미 처리 중이거나 완료된 매도 요청입니다.");
+        IdempotencyOutcome idempotency = registerIdempotencyKey(
+                accountId, "SELL", idempotencyKey, "이미 처리 중인 매도 요청입니다.");
+        if (idempotency.replayedTradeId() != null) {
+            return idempotency.replayedTradeId();
+        }
 
         // 계좌 상태를 트랜잭션 안에서 다시 확정 검증한다.
         // Facade 의 사전 검사만 믿으면 검사와 실제 거래 사이에 계좌가 정지되어도 거래가 완료된다(TOCTOU).
         requireActiveAccount(accountId);
 
-        // 기장 월은 Facade 가 LedgerPeriodResolver 로 확정한 값을 그대로 쓴다.
-        // 여기서 transactedAt 으로 다시 유도하면 Facade 가 초기화한 원장과 다른 월을 찾게 된다.
-        MonthlyAccountLedger targetAssetLedger = requireLedger(accountId, targetAssetCode, ledgerMonth);
-        MonthlyAccountLedger fiatLedger = requireLedger(accountId, paymentCurrency, ledgerMonth);
+        // 기장 월은 Facade 가 확정한 값을 기본으로 하되, 트랜잭션 안에서 최신 월을 재확인한다.
+        // Facade 의 확정과 이 트랜잭션의 커밋 사이에 다른 거래가 다음 달 원장을 만들었으면(월 경계 경합)
+        // 이 거래를 이전 달에 기장하는 순간 조회 경로(MAX(ledger_month))에서 사라진다.
+        String effectiveMonth = resolveEffectiveMonth(accountId, ledgerMonth);
+        MonthlyAccountLedger targetAssetLedger = monthlyLedgerResolver
+                .resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, effectiveMonth);
+        MonthlyAccountLedger fiatLedger = monthlyLedgerResolver
+                .resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, effectiveMonth);
 
         // 매도로 획득한 법정 화폐 수익금 = 매도 수량 * 매도 단가.
         // 고객이 수취하는 금액이므로 DOWN 으로 정규화해 지급액이 부풀려지지 않게 한다.
@@ -190,6 +211,10 @@ public class AccountTradeService {
 
         eventPublisher.publishEvent(event);
 
+        // 완료된 거래 ID 를 멱등성 레코드에 기록한다(같은 트랜잭션이므로 원자적).
+        // 이 기록이 있어야 타임아웃 후 재전송된 동일 요청이 409 대신 기존 거래 ID 를 돌려받는다.
+        idempotency.record().complete(tradeId);
+
         log.info("Monthly Ledger updated for SELL. TradeID: {}", tradeId);
         return tradeId;
     }
@@ -202,19 +227,71 @@ public class AccountTradeService {
         }
     }
 
-    private void registerIdempotencyKey(String idempotencyKey, String duplicateMessage) {
+    /**
+     * 멱등성 키 등록 결과.
+     *
+     * @param record          새로 등록된 레코드. 재생(replay)인 경우 null
+     * @param replayedTradeId 같은 키로 이미 완료된 거래의 ID. 신규 등록인 경우 null
+     */
+    private record IdempotencyOutcome(IdempotencyRecord record, UUID replayedTradeId) {}
+
+    /**
+     * 멱등성 키를 등록합니다. 키는 (계좌, 연산 종류) 로 스코프됩니다.
+     *
+     * <p>클라이언트가 보낸 키를 전역 네임스페이스로 쓰면 (1) 다른 사용자가 이미 쓴 키와 충돌해
+     * 정상 거래가 거부되고, (2) 임의 키 선점으로 타인의 거래를 막는 공격이 가능해집니다.
+     *
+     * <p>이미 등록된 키가 <b>완료된 거래</b>를 가리키면 그 거래 ID 를 재생(replay)으로 반환해,
+     * 타임아웃 후 재시도하는 클라이언트가 성공 응답을 되찾을 수 있게 합니다. 아직 처리 중인
+     * 키(거래 ID 미기록)만 중복 요청 예외로 거부합니다.
+     */
+    private IdempotencyOutcome registerIdempotencyKey(UUID accountId, String operation,
+                                                      String idempotencyKey, String duplicateMessage) {
+        String scopedKey = accountId + ":" + operation + ":" + idempotencyKey;
+        
+        // 1. 먼저 조회하여 재시도인지 확인 (정상 완료된 거래 재생)
+        IdempotencyRecord existing = idempotencyRepository.findById(scopedKey).orElse(null);
+        if (existing != null) {
+            if (existing.getTradeId() != null) {
+                log.info("멱등 재전송 감지. 기존 거래 ID 를 반환합니다. key={}, tradeId={}", scopedKey, existing.getTradeId());
+                return new IdempotencyOutcome(null, existing.getTradeId());
+            }
+            // 이미 처리 중(tradeId = null)인 경우
+            throw new DuplicateTradeRequestException(duplicateMessage);
+        }
+
+        // 2. 없으면 새로 삽입 시도
         try {
-            idempotencyRepository.saveAndFlush(new IdempotencyRecord(idempotencyKey));
+            return new IdempotencyOutcome(
+                    idempotencyRepository.saveAndFlush(new IdempotencyRecord(scopedKey)), null);
         } catch (DataIntegrityViolationException e) {
+            // 동시성 경합으로 동시에 삽입을 시도한 경우 (Race condition)
+            // 트랜잭션은 어차피 Abort 되지만, 여기서 추가 쿼리를 하지 않고 예외를 던짐
             throw new DuplicateTradeRequestException(duplicateMessage);
         }
     }
 
-    private MonthlyAccountLedger requireLedger(UUID accountId, String assetCode, String targetMonth) {
-        return monthlyAccountLedgerRepository
-                .findByAccountIdAndAssetCodeAndLedgerMonth(accountId, assetCode, targetMonth)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Monthly ledger missing for account " + accountId + ", asset " + assetCode + ", month " + targetMonth));
+    /**
+     * 트랜잭션 안에서 실효 원장 월을 최종 확정합니다.
+     *
+     * <p>Facade 가 확정한 월과 이 트랜잭션 사이에 다른 거래가 다음 달 원장을 만들어 둔 경우
+     * (월 경계 경합) 최신 월로 재귀속합니다. 이월(Carry-forward)이 원본 행의 버전을 강제
+     * 증가시키므로({@code PESSIMISTIC_FORCE_INCREMENT}), 이전 달 행을 이미 읽어 둔 거래는
+     * 커밋 시점에 낙관적 락 충돌로 재시도되고, 재시도가 이 메서드를 다시 통과하면서 새 달로
+     * 안전하게 옮겨집니다. 이 재확인이 없으면 재시도가 같은 이전 달에 기장해 보고 잔고에서
+     * 조용히 사라집니다.
+     */
+    private String resolveEffectiveMonth(UUID accountId, String requestedMonth) {
+        String latestExisting = monthlyAccountLedgerRepository
+                .findLatestLedgerMonthByAccountId(accountId)
+                .orElse(requestedMonth);
+        if (latestExisting.compareTo(requestedMonth) > 0) {
+            log.warn("요청된 기장 월({})보다 최신 원장 월({})이 이미 존재합니다. "
+                    + "월 경계 경합으로 판단하여 최신 월에 기장합니다. accountId={}",
+                    requestedMonth, latestExisting, accountId);
+            return latestExisting;
+        }
+        return requestedMonth;
     }
 
     /**

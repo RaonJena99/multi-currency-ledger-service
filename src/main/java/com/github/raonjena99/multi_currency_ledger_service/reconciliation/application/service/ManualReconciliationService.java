@@ -70,6 +70,16 @@ public class ManualReconciliationService {
 
         // 수동 차액 보정 분개가 필요한 경우 (차액이 0이 아닐 때)
         if (feeDifference != null && !feeDifference.isZero()) {
+            // 보정 수수료는 정산 건과 같은 통화·자산 유형이어야 한다. 오타(KRW 정산에 "USD")를
+            // 그대로 받으면 잘못된 통화의 보정 분개와 잔고 조정이 만들어진다.
+            Money settlementAmount = settlement.getAmount();
+            if (feeDifference.getAssetType() != settlementAmount.getAssetType()
+                    || !feeDifference.getCurrencyCode().equals(settlementAmount.getCurrencyCode())) {
+                throw new IllegalArgumentException(String.format(
+                        "보정 수수료 통화(%s/%s)가 정산 통화(%s/%s)와 일치하지 않습니다.",
+                        feeDifference.getAssetType(), feeDifference.getCurrencyCode(),
+                        settlementAmount.getAssetType(), settlementAmount.getCurrencyCode()));
+            }
             eventPublisher.publishEvent(ReconciliationFeeAdjustedEvent.of(settlement.getId(), targetInternalTransactionId, realAccountId, feeDifference));
             log.info("Manual reconciliation completed by admin and auto-journaling event published. Settlement ID: {}", settlement.getId());
         } else {

@@ -100,6 +100,7 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
         InternalTransactionCandidate bestMatch = null;
         int highestScore = -1;
         String lastFailReason = "TIME_WINDOW_EXCEEDED";
+        int passedCount = 0;
 
         // 검색 공간의 모든 후보들을 순회하면서 규칙들을 평가합니다.
         for (InternalTransactionCandidate candidate : searchSpace) {
@@ -119,11 +120,19 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
                 totalScore += result.getScore();
             }
 
-            // 모든 규칙을 통과하고, 기존 최고 점수(highestScore)보다 높은 점수를 얻은 경우 최고 후보로 갱신합니다.
-            if (allPassed && totalScore > highestScore) {
-                highestScore = totalScore;
-                bestMatch = candidate;
+            // 모든 규칙을 통과한 후보 수 기록 및 최고 후보 갱신
+            if (allPassed) {
+                passedCount++;
+                if (totalScore > highestScore) {
+                    highestScore = totalScore;
+                    bestMatch = candidate;
+                }
             }
+        }
+        
+        // 모호성 가드: 규칙을 모두 통과한 후보가 2개 이상이면 오매칭 위험이 있으므로 수동 검토로 보냅니다.
+        if (passedCount > 1) {
+            throw new UnmatchableSettlementException("AMBIGUOUS_MATCH", external.getId().toString());
         }
 
         if (bestMatch != null) {

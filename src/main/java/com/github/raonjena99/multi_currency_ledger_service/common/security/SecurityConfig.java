@@ -36,7 +36,7 @@ public class SecurityConfig {
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(actuatorBase + "/health", actuatorBase + "/health/**", actuatorBase + "/info").permitAll()
+                .requestMatchers(actuatorBase + "/health", actuatorBase + "/health/**", actuatorBase + "/info", actuatorBase + "/prometheus").permitAll()
                 .requestMatchers(actuatorBase + "/**").hasAuthority(LedgerPrincipal.ROLE_ADMIN)
                 .requestMatchers("/api/v1/admin/**").hasAuthority(LedgerPrincipal.ROLE_ADMIN)
                 .requestMatchers("/api/v1/accounts/**", "/api/v1/portfolios/**").authenticated()

@@ -155,6 +155,25 @@ public class MonthlyAccountLedger extends BaseEntity {
     }
 
     /**
+     * 거래가 아닌 회계 보정(대사 수수료 조정 등)으로 잔고를 조정합니다.
+     *
+     * <p>{@link #subtractBalance} 와 달리 잔고 부족 검증을 하지 않습니다. 보정은 고객이 개시한
+     * 지출이 아니라 이미 발생한 사실의 정정이므로, 잔고가 부족하다고 분개까지 막으면 회계 기록
+     * 자체가 실패합니다. 음수 잔고는 고객 채권(받을 돈)으로 남아 지표·조회에서 드러납니다.
+     *
+     * <p>평균 단가는 유지합니다. 보정은 매입이 아니므로 이동 평균을 왜곡하면 안 됩니다.
+     *
+     * @param delta 조정 금액. 양수는 입금, 음수는 출금
+     * @throws IllegalArgumentException 통화가 일치하지 않는 경우
+     */
+    public void applyAdjustment(Money delta) {
+        if (delta == null || delta.isZero()) {
+            return;
+        }
+        this.balance = this.balance.add(delta);
+    }
+
+    /**
      * 자산 매도에 따른 잔고(Balance)를 감소시키고, 매도 시점의 평균 단가를 반환합니다.
      * 전량 매도시 평균 단가는 0으로 초기화됩니다.
      *

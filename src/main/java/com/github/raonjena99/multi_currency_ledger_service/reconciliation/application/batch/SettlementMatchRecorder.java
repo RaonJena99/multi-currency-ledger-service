@@ -67,13 +67,31 @@ public class SettlementMatchRecorder {
             return sameSettlement ? MatchOutcome.ALREADY_RECORDED : MatchOutcome.TAKEN_BY_ANOTHER;
         }
 
+        // 이 정산에 이미 "다른" 내부 거래로 기록된 행이 있으면, 롤백된 청크가 남긴 고아 행이다.
+        // (매칭이 완결됐다면 정산 상태가 MATCHED 여서 라이터가 이 지점까지 오지 않는다.)
+        // 고아 행을 그대로 두면 (1) 이번 삽입이 uk_settlement_match_settlement 위반으로 실패해
+        // 이 정산이 영구히 PENDING 으로 방치되고, (2) 고아 행이 참조하는 내부 거래는 어떤 정산과도
+        // 매칭될 수 없게 된다. 완결되지 않은 매칭의 잔재이므로 삭제하고 새 매칭을 기록한다.
+        settlementMatchRepository.findByExternalSettlementIdAndSettlementDate(
+                        match.getExternalSettlementId(), match.getSettlementDate())
+                .filter(orphan -> !orphan.getInternalTransactionId().equals(match.getInternalTransactionId()))
+                .ifPresent(orphan -> {
+                    log.warn("롤백된 이전 실행이 남긴 고아 매칭 행을 정리합니다. settlementId={}, "
+                                    + "orphanInternalTransactionId={}, newInternalTransactionId={}",
+                            match.getExternalSettlementId(), orphan.getInternalTransactionId(),
+                            match.getInternalTransactionId());
+                    settlementMatchRepository.delete(orphan);
+                    settlementMatchRepository.flush();
+                });
+
         try {
             settlementMatchRepository.saveAndFlush(match);
             return MatchOutcome.RECORDED;
         } catch (DataIntegrityViolationException e) {
             // 선행 조회 이후에 다른 노드가 먼저 삽입한 진짜 경쟁 상황이다.
             // 이 트랜잭션은 이미 abort 되어 재조회가 불가능하므로 보수적으로 선점된 것으로 판정한다.
-            // 다음 배치 주기에 다시 평가된다.
+            // 스케줄러는 지난달만 대상으로 하므로 "다음 주기 재평가"는 없다. 호출자(라이터)가
+            // 이 결과를 데드레터로 격리해 백오피스에서 보이게 만든다.
             log.warn("매칭 기록 경쟁에서 밀렸습니다. internalTransactionId={}, settlementId={}",
                     match.getInternalTransactionId(), match.getExternalSettlementId());
             return MatchOutcome.TAKEN_BY_ANOTHER;

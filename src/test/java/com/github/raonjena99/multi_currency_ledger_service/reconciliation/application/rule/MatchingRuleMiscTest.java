@@ -28,7 +28,10 @@ class MatchingRuleMiscTest {
         InternalTransactionCandidate internal = new InternalTransactionCandidate(java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), OffsetDateTime.now(), "$%^", Money.of("1000", AssetType.FIAT, "KRW"));
 
         RuleResult result = rule.evaluate(external, internal);
+        // 정규화 후 내용이 없는 설명은 아무것도 증명하지 못하므로 만점(100)이 아니라
+        // 중립(0점)으로 통과해야 한다. 만점을 주면 내용 없는 레코드가 실제 설명이
+        // 일치하는 후보를 제치고 선택된다.
         assertThat(result.isPassed()).isTrue();
-        assertThat(result.getScore()).isEqualTo(100);
+        assertThat(result.getScore()).isZero();
     }
 }
