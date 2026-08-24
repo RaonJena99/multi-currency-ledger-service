@@ -85,8 +85,19 @@ public class TransactionEntry {
     })
     private Money realizedPnl;
 
-    @Column(name = "exchange_rate", precision = 19, scale = 6)
+    @Column(name = "exchange_rate", precision = 36, scale = 18)
     private BigDecimal exchangeRate;
+
+    /**
+     * DB 컬럼(numeric(36,18))이 표현할 수 있는 최대 소수점 자릿수.
+     * 자바 계산과 DB 저장값이 어긋나면 대차 검증과 CHECK 제약이 함께 깨지므로,
+     * 계산에 들어가기 전에 자바 쪽에서 먼저 같은 스케일로 맞춘다.
+     */
+    private static final int DB_SCALE = 18;
+
+    private static BigDecimal toDbScale(BigDecimal value) {
+        return value.setScale(DB_SCALE, java.math.RoundingMode.HALF_EVEN);
+    }
 
     private TransactionEntry(Transaction transaction, UUID accountId, EntryType entryType, String assetCode, 
                     Money quantity, BigDecimal unitPrice, BigDecimal exchangeRate, Money realizedPnl, String baseCurrencyCode) {
@@ -96,9 +107,10 @@ public class TransactionEntry {
         this.assetCode = assetCode;
         
         this.quantity = quantity;
-        this.unitPrice = unitPrice;
-        this.exchangeRate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
-        
+        // 자바 계산과 DB 저장값이 어긋나지 않도록 단가와 환율을 컬럼 스케일로 먼저 정규화한다.
+        this.unitPrice = toDbScale(unitPrice);
+        this.exchangeRate = toDbScale(exchangeRate != null ? exchangeRate : BigDecimal.ONE);
+
         // 수량 * 단가 (외화 기준)
         BigDecimal valueBeforeExchange = this.unitPrice.multiply(this.quantity.getAmount());
 
@@ -134,37 +146,66 @@ public class TransactionEntry {
     }
 
     /**
-     * 대변(Credit)에 기록되는 매도(Sell) 엔트리를 생성합니다.
-     * 실현 손익(Realized PnL)도 함께 계산됩니다.
+     * 대변(Credit)에 기록되는 매도(Sell) 엔트리를 생성하고 실현 손익을 함께 계산합니다.
+     *
+     * <p><b>단위 규약이 이 메서드의 핵심입니다.</b>
+     * <ul>
+     *   <li>{@code sellPrice} — <b>결제 통화</b> 기준 단가. 생성자에서 {@code exchangeRate} 를 곱해
+     *       기준 통화로 환산됩니다.</li>
+     *   <li>{@code averageCostInBaseCurrency} — <b>기준 통화</b> 기준 평균 단가.
+     *       {@code MonthlyAccountLedger.averageUnitPrice} 가 기준 통화로 저장되므로 그 단위를 따릅니다.</li>
+     * </ul>
+     *
+     * <p>두 값의 단위가 다르므로 그냥 뺄 수 없습니다. 환산 없이 빼면 실현 손익과 처분 금액이
+     * 환율 배수만큼 부풀려지고, 그런데도 <b>대차는 대수적으로 상쇄되어 정확히 일치</b>합니다.
+     * ({@code amount + pnl = costPrice×qty×rate + (sellPrice−cost)×qty×rate = sellPrice×qty×rate})
+     * 즉 {@code verifyDoubleEntry()} 로는 절대 검출되지 않습니다. 그래서 단위를 파라미터 이름에
+     * 못박아 호출자가 실수할 여지를 줄였습니다.
+     *
+     * <p>{@code costPrice} 를 환율로 나누는 이유: 생성자가
+     * {@code amount = unitPrice × quantity × exchangeRate} 로 계산하므로, 최종 {@code amount} 가
+     * 기준 통화 평균 원가가 되도록 역산해야 합니다. 나눗셈 오차는
+     * {@code quantity × 1e-18 × rate} 이하로 CHECK 제약의 허용 범위 안에 있습니다.
+     *
      * @param transaction 부모 Transaction(트랜잭션)
      * @param accountId 계좌 ID
      * @param assetCode 자산 코드
      * @param sellQuantity 매도 수량
-     * @param sellPrice 매도 단가
-     * @param exchangeRate 환율
-     * @param averageCost 평균 단가
+     * @param sellPrice 결제 통화 기준 매도 단가
+     * @param exchangeRate 결제 통화 → 기준 통화 환율
+     * @param averageCostInBaseCurrency <b>기준 통화</b> 기준 평균 매입 단가. null 이면 실현 손익 없음
      * @param baseCurrencyCode 기준 통화 코드
      * @return 생성된 대변 TransactionEntry(트랜잭션 엔트리) 객체
      */
     public static TransactionEntry createSellEntry(
-            Transaction transaction, UUID accountId, String assetCode, 
-            Money sellQuantity, BigDecimal sellPrice, BigDecimal exchangeRate, BigDecimal averageCost, String baseCurrencyCode) {
-        
+            Transaction transaction, UUID accountId, String assetCode,
+            Money sellQuantity, BigDecimal sellPrice, BigDecimal exchangeRate,
+            BigDecimal averageCostInBaseCurrency, String baseCurrencyCode) {
+
+        BigDecimal rate = exchangeRate != null ? exchangeRate : BigDecimal.ONE;
+
         BigDecimal pnlValue = BigDecimal.ZERO;
         BigDecimal costPrice = sellPrice;
-        
-        if (averageCost != null) {
-            pnlValue = sellPrice.subtract(averageCost).multiply(sellQuantity.getAmount()).multiply(exchangeRate);
-            costPrice = averageCost;
+
+        if (averageCostInBaseCurrency != null) {
+            // 매도 단가를 기준 통화로 환산한 뒤 같은 단위끼리 뺀다.
+            BigDecimal sellPriceInBase = sellPrice.multiply(rate);
+            pnlValue = sellPriceInBase.subtract(averageCostInBaseCurrency)
+                    .multiply(sellQuantity.getAmount());
+
+            // 생성자가 rate 를 다시 곱하므로, amount 가 기준 통화 원가가 되도록 역산한다.
+            costPrice = rate.compareTo(BigDecimal.ZERO) != 0
+                    ? averageCostInBaseCurrency.divide(rate, DB_SCALE, java.math.RoundingMode.HALF_EVEN)
+                    : averageCostInBaseCurrency;
         }
-        
+
         Money pnl = Money.of(pnlValue, AssetType.FIAT, baseCurrencyCode);
-        
+
         return new TransactionEntry(
-                transaction, accountId, EntryType.CREDIT, assetCode, 
-                sellQuantity, 
+                transaction, accountId, EntryType.CREDIT, assetCode,
+                sellQuantity,
                 costPrice,
-                exchangeRate, 
+                rate,
                 pnl,
                 baseCurrencyCode
         );
