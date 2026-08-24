@@ -4,13 +4,10 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.infrastructure.item.database.JpaCursorItemReader;
-import org.springframework.batch.infrastructure.item.database.builder.JpaCursorItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.github.raonjena99.multi_currency_ledger_service.common.model.SettlementStatus;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 
 import jakarta.persistence.EntityManagerFactory;

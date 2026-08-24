@@ -2,7 +2,6 @@ package com.github.raonjena99.multi_currency_ledger_service.reconciliation.appli
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import org.junit.jupiter.api.Test;

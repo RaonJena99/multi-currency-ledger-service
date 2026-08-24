@@ -18,10 +18,8 @@ import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.SettlementStatus;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.exception.UnmatchableSettlementException;
-import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.rule.AmountToleranceRule;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.rule.MatchingRule;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.rule.RuleResult;
@@ -36,7 +34,7 @@ class HeuristicMatchingProcessorTest {
         MatchingRule rule = mock(MatchingRule.class);
         when(rule.getOrder()).thenReturn(1);
         
-        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of(rule), "2026-01-01");
+        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of(rule));
         
         ExternalSettlement ext = ExternalSettlement.create("ext1", "PG", OffsetDateTime.now(), "desc", Money.of("100", AssetType.FIAT, "KRW"));
         
@@ -62,7 +60,7 @@ class HeuristicMatchingProcessorTest {
         MatchingRule rule = mock(MatchingRule.class);
         when(rule.getOrder()).thenReturn(1);
         
-        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of(rule), "2026-01-01");
+        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of(rule));
         
         ExternalSettlement ext = ExternalSettlement.create("ext1", "PG", OffsetDateTime.now(), "desc", Money.of("100", AssetType.FIAT, "KRW"));
         
@@ -83,7 +81,7 @@ class HeuristicMatchingProcessorTest {
     @Test
     void process_should_return_null_if_not_pending() {
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
-        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of(), "2026-01-01");
+        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of());
         
         ExternalSettlement ext = ExternalSettlement.create("ext1", "PG", OffsetDateTime.now(), "desc", Money.of("100", AssetType.FIAT, "KRW"));
         ReflectionTestUtils.setField(ext, "status", SettlementStatus.MATCHED);
@@ -94,7 +92,7 @@ class HeuristicMatchingProcessorTest {
     @Test
     void process_should_remove_eldest_entry_when_cache_exceeds_14() {
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
-        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of(), "2026-01-01");
+        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of());
         
         when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(List.of());
 
@@ -112,7 +110,7 @@ class HeuristicMatchingProcessorTest {
     @Test
     void afterChunkError_should_clear_cache() {
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
-        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of(), "2026-01-01");
+        HeuristicMatchingProcessor processor = new HeuristicMatchingProcessor(queryDao, List.of());
         
         when(queryDao.fetchCandidatesForPeriod(any(), any())).thenReturn(List.of());
         ReflectionTestUtils.invokeMethod(processor, "getCandidatesForDate", LocalDate.now());

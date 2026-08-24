@@ -22,6 +22,7 @@ import com.github.raonjena99.multi_currency_ledger_service.account.infrastructur
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class AccountApiImplTest {
@@ -46,13 +47,14 @@ class AccountApiImplTest {
         assertThat(result).isEqualTo("KRW");
     }
 
+
     @Test
     void getBaseCurrency_should_throw_if_not_found() {
         UUID accountId = UUID.randomUUID();
         when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> accountApiImpl.getBaseCurrency(accountId))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(AccountNotFoundException.class);
     }
 
     @Test

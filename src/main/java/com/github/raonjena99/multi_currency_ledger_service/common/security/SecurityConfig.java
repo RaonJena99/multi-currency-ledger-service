@@ -55,6 +55,8 @@ public class SecurityConfig {
                             String code, String message) throws java.io.IOException {
         response.setStatus(status.value());
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}");
+        // JSON 특수문자 이스케이프를 보장하기 위해 직접 조립 대신 Map 을 직렬화한다.
+        var body = java.util.Map.of("code", code, "message", message);
+        new com.fasterxml.jackson.databind.ObjectMapper().writeValue(response.getWriter(), body);
     }
 }

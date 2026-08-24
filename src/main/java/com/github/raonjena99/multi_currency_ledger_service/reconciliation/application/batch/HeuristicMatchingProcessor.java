@@ -7,13 +7,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
@@ -37,7 +35,6 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
 
     private final InternalTransactionQueryDao queryDao;
     private final List<MatchingRule> rules;
-    private final String startOfMonthStr;
 
     private final Map<LocalDate, List<InternalTransactionCandidate>> dailyCandidatesCache = 
         Collections.synchronizedMap(
@@ -49,17 +46,15 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
                 }
             }
         );
-    private LocalDate latestTargetDate = null;
+
 
     public HeuristicMatchingProcessor(
             InternalTransactionQueryDao queryDao,
-            List<MatchingRule> rules,
-            @Value("#{jobParameters['startOfMonth']}") String startOfMonthStr) {
+            List<MatchingRule> rules) {
         this.queryDao = queryDao;
         // [수정] 규칙들이 우선순위(getOrder)대로 정렬되지 않아, 무거운 연산(레벤슈타인 거리)이 먼저 실행되는 심각한 성능 비효율 방지
         this.rules = new ArrayList<>(rules);
         this.rules.sort(java.util.Comparator.comparingInt(MatchingRule::getOrder));
-        this.startOfMonthStr = startOfMonthStr;
     }
 
     private List<InternalTransactionCandidate> getCandidatesForDate(LocalDate date) {

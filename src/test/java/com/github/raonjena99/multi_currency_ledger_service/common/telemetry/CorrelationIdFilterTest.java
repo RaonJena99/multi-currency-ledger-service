@@ -2,7 +2,6 @@ package com.github.raonjena99.multi_currency_ledger_service.common.telemetry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 

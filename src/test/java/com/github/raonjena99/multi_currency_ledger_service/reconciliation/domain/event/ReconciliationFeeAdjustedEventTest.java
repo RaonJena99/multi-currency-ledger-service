@@ -3,7 +3,6 @@ package com.github.raonjena99.multi_currency_ledger_service.reconciliation.domai
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;

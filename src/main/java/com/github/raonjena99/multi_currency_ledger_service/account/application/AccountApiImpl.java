@@ -10,6 +10,7 @@ import com.github.raonjena99.multi_currency_ledger_service.account.AccountApi;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,7 +29,7 @@ public class AccountApiImpl implements AccountApi {
     @Override
     public String getBaseCurrency(UUID accountId) {
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
         return account.getBaseCurrency();
     }
 

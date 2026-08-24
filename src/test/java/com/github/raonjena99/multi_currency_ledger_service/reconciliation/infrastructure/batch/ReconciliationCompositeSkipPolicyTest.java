@@ -12,7 +12,6 @@ import org.springframework.web.client.RestClientException;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.exception.UnmatchableSettlementException;
 
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 
 class ReconciliationCompositeSkipPolicyTest {
 

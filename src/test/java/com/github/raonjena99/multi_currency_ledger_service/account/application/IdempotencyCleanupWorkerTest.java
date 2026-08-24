@@ -1,6 +1,5 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
