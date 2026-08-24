@@ -30,6 +30,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeR
 @ExtendWith(MockitoExtension.class)
 class AccountTradeFacadeTest {
 
+    @Mock private com.github.raonjena99.multi_currency_ledger_service.account.application.LedgerPeriodResolver periodResolver;
     @Mock private MonthlyLedgerResolver ledgerResolver;
     @Mock private AccountTradeService tradeService;
     @Mock private AccountRepository accountRepository;
@@ -38,13 +39,21 @@ class AccountTradeFacadeTest {
     @InjectMocks
     private AccountTradeFacade facade;
 
+    /** Facade 는 LedgerPeriodResolver 로 실효 원장 월을 확정해 서비스에 넘긴다. */
+    @org.junit.jupiter.api.BeforeEach
+    void stubLedgerMonth() {
+        org.mockito.Mockito.lenient().when(periodResolver.resolveLedgerMonth(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn("2026-08");
+    }
+
     @Test
     void buyAsset_should_throw_if_account_not_found() {
         UUID accountId = UUID.randomUUID();
         when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> facade.buyAsset("idemp", accountId, "BTC", AssetType.CRYPTO, "KRW", null, null))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException.class);
     }
 
     @Test
@@ -75,7 +84,7 @@ class AccountTradeFacadeTest {
 
         verify(tradeService).executeBuyAsset(
             eq("idemp"), eq(accountId), eq("BTC"), eq(AssetType.CRYPTO), eq("KRW"), eq(quantity), 
-            eq(new BigDecimal("50000000")), any(OffsetDateTime.class), eq(new BigDecimal("50000000")), 
+            eq(new BigDecimal("50000000")), any(OffsetDateTime.class), anyString(), eq(new BigDecimal("50000000")), 
             eq(false), eq(new BigDecimal("0.00075"))
         );
     }
@@ -96,7 +105,7 @@ class AccountTradeFacadeTest {
 
         verify(tradeService).executeSellAsset(
             eq("idemp"), eq(accountId), eq("BTC"), eq(AssetType.CRYPTO), eq("KRW"), eq(quantity), 
-            eq(new BigDecimal("50000000")), any(OffsetDateTime.class), eq(new BigDecimal("50000000")), 
+            eq(new BigDecimal("50000000")), any(OffsetDateTime.class), anyString(), eq(new BigDecimal("50000000")), 
             eq(true), eq(null) // null fiatToBaseRate
         );
     }
@@ -107,7 +116,7 @@ class AccountTradeFacadeTest {
         when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> facade.sellAsset("idemp", accountId, "BTC", AssetType.CRYPTO, "KRW", null, null))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException.class);
     }
 
     @Test
@@ -144,7 +153,7 @@ class AccountTradeFacadeTest {
         java.math.BigDecimal sellUnitPrice = new java.math.BigDecimal("50000");
 
         when(tradeService.executeSellAsset(eq(idempotencyKey), eq(accountId), eq("BTC"), eq(AssetType.CRYPTO),
-                eq("USD"), eq(sellQuantity), eq(sellUnitPrice), any(OffsetDateTime.class),
+                eq("USD"), eq(sellQuantity), eq(sellUnitPrice), any(OffsetDateTime.class), anyString(),
                 eq(new java.math.BigDecimal("50000")), eq(false), eq(new java.math.BigDecimal("1300"))))
                 .thenReturn(UUID.randomUUID());
 

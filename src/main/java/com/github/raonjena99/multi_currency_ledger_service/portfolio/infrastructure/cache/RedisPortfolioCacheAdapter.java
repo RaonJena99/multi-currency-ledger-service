@@ -43,14 +43,23 @@ public class RedisPortfolioCacheAdapter implements PortfolioCachePort {
         redisTemplate.delete(key);
     }
 
-    private final ThreadLocal<String> lockToken = new ThreadLocal<>();
+    /**
+     * 락 키별 소유 토큰. 단일 토큰을 쓰면 한 스레드가 서로 다른 키를 연달아 잠글 때
+     * 앞의 토큰이 덮어써져 자기 락을 해제하지 못한다.
+     */
+    private final ThreadLocal<java.util.Map<String, String>> lockTokens = ThreadLocal.withInitial(java.util.HashMap::new);
+
+    private static final org.springframework.data.redis.core.script.DefaultRedisScript<Long> RELEASE_SCRIPT =
+            new org.springframework.data.redis.core.script.DefaultRedisScript<>(
+                    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                    Long.class);
 
     @Override
     public boolean tryAcquireLock(String lockKey, long timeoutSeconds) {
         String token = UUID.randomUUID().toString();
         Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, token, Duration.ofSeconds(timeoutSeconds));
         if (Boolean.TRUE.equals(locked)) {
-            lockToken.set(token);
+            lockTokens.get().put(lockKey, token);
             return true;
         }
         return false;
@@ -58,17 +67,17 @@ public class RedisPortfolioCacheAdapter implements PortfolioCachePort {
 
     @Override
     public void releaseLock(String lockKey) {
-        String token = lockToken.get();
-        if (token != null) {
-            try {
-                String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
-                redisTemplate.execute(
-                        new org.springframework.data.redis.core.script.DefaultRedisScript<>(script, Long.class),
-                        java.util.Collections.singletonList(lockKey),
-                        token
-                );
-            } finally {
-                lockToken.remove();
+        java.util.Map<String, String> tokens = lockTokens.get();
+        String token = tokens.remove(lockKey);
+        if (token == null) {
+            return;
+        }
+        try {
+            // 토큰이 일치할 때만 삭제한다. TTL 만료 후 다른 소유자가 잡은 락을 지우지 않기 위함이다.
+            redisTemplate.execute(RELEASE_SCRIPT, java.util.Collections.singletonList(lockKey), token);
+        } finally {
+            if (tokens.isEmpty()) {
+                lockTokens.remove();
             }
         }
     }

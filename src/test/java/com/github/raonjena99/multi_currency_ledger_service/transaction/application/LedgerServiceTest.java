@@ -1,244 +1,304 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
-import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
+import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.TransactionRepository;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("단위 테스트: LedgerService 복식부기 분개")
 class LedgerServiceTest {
+
+    private static final OffsetDateTime TRADED_AT = OffsetDateTime.parse("2026-07-15T10:00:00Z");
 
     @Mock
     private TransactionRepository transactionRepository;
 
-    @Mock
-    private ExchangeRateProvider exchangeRateProvider;
-
-    @InjectMocks
     private LedgerService ledgerService;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUpService() {
+        // LedgerService 는 플러그 규모를 지표로 노출하므로 MeterRegistry 를 주입받는다.
+        ledgerService = new LedgerService(transactionRepository,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
+    }
+
+    /** 커맨드 빌더. 테스트마다 필요한 값만 바꿔 쓴다. */
+    private LedgerRecordingCommand cmd(UUID tradeId, String tradeType, String fiatCode, String baseCurrency,
+                                      Money quantity, BigDecimal unitPrice, BigDecimal fiatToBaseRate,
+                                      BigDecimal averageCost) {
+        return new LedgerRecordingCommand(
+                tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, fiatCode, baseCurrency, tradeType,
+                quantity, unitPrice, BigDecimal.ONE, fiatToBaseRate, averageCost, false, TRADED_AT);
+    }
+
+    private Transaction capture() {
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).saveAndFlush(captor.capture());
+        return captor.getValue();
+    }
+
+    private BigDecimal debitTotal(Transaction tx) {
+        return tx.getEntries().stream()
+                .filter(e -> e.getEntryType() == EntryType.DEBIT)
+                .map(e -> e.getAmount().getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal creditTotalWithPnl(Transaction tx) {
+        BigDecimal credit = tx.getEntries().stream()
+                .filter(e -> e.getEntryType() == EntryType.CREDIT)
+                .map(e -> e.getAmount().getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal pnl = tx.getEntries().stream()
+                .filter(e -> e.getRealizedPnl() != null && !e.getRealizedPnl().isZero())
+                .map(e -> e.getRealizedPnl().getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return credit.add(pnl);
+    }
+
     @Test
-    void recordDoubleEntry_should_ignore_duplicate() {
+    @DisplayName("이미 기록된 거래는 중복 기록하지 않는다")
+    void ignores_duplicate() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(true);
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "USD", "USD", "BUY", Money.of("1", AssetType.CRYPTO, "BTC"),
-            new BigDecimal("1000"), null, null, false
-        );
-
-        ledgerService.recordDoubleEntry(cmd);
+        ledgerService.recordDoubleEntry(cmd(tradeId, "BUY", "USD", "USD",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("1000"), BigDecimal.ONE, null));
 
         verify(transactionRepository, never()).saveAndFlush(any());
     }
 
     @Test
-    void recordDoubleEntry_should_handle_buy_with_fx_gain() {
+    @DisplayName("커맨드에 실린 환율을 사용하고, 원장 기록 시점에 환율을 재조회하지 않는다")
+    void uses_rate_from_command_without_refetching() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
-        when(exchangeRateProvider.getExchangeRate("KRW", "USD")).thenReturn(
-            new ExchangeRateProvider.ExchangeRate(new BigDecimal("0.0008"), false)
-        );
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "USD", "BUY", Money.of("1", AssetType.CRYPTO, "BTC"),
-            new BigDecimal("100000"), null, null, true
-        );
+        BigDecimal appliedRate = new BigDecimal("1300");
 
-        ledgerService.recordDoubleEntry(cmd);
+        // 결제 통화(USD)와 기준 통화(KRW)가 다르지만, LedgerService 는 환율 제공자를 의존하지 않는다.
+        // 의존성 자체가 없으므로 재조회가 구조적으로 불가능하다.
+        ledgerService.recordDoubleEntry(cmd(tradeId, "BUY", "USD", "KRW",
+                Money.of("2", AssetType.CRYPTO, "BTC"), new BigDecimal("10"), appliedRate, null));
 
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        Transaction tx = capture();
+
+        assertThat(tx.getEntries())
+                .as("모든 엔트리가 커맨드의 환율을 그대로 사용해야 한다")
+                .allSatisfy(e -> assertThat(e.getExchangeRate()).isEqualByComparingTo(appliedRate));
+
+        // 차변: 2 BTC × 10 USD × 1300 = 26000 KRW
+        assertThat(debitTotal(tx)).isEqualByComparingTo("26000");
+        assertThat(creditTotalWithPnl(tx)).isEqualByComparingTo(debitTotal(tx));
     }
 
     @Test
-    void recordDoubleEntry_should_handle_sell_with_fx_loss() {
+    @DisplayName("원장의 거래 시각은 소비 시각이 아니라 커맨드의 거래 시각을 따른다")
+    void uses_transacted_at_from_command() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
-        when(exchangeRateProvider.getExchangeRate("KRW", "USD")).thenReturn(
-            new ExchangeRateProvider.ExchangeRate(new BigDecimal("0.0008"), false)
-        );
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "USD", "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
-            new BigDecimal("100000"), null, new BigDecimal("90000"), false
-        );
+        ledgerService.recordDoubleEntry(cmd(tradeId, "BUY", "KRW", "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("1000"), BigDecimal.ONE, null));
 
-        ledgerService.recordDoubleEntry(cmd);
-
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        assertThat(capture().getTransactedAt()).isEqualTo(TRADED_AT);
     }
 
     @Test
-    void recordDoubleEntry_should_handle_fee_deduction() {
+    @DisplayName("매수는 자산 차변과 법정화폐 대변으로 균형을 맞춘다")
+    void buy_balances() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_DEDUCTION", Money.of("10", AssetType.FIAT, "KRW"),
-            new BigDecimal("1"), null, null, false
-        );
+        ledgerService.recordDoubleEntry(cmd(tradeId, "BUY", "KRW", "KRW",
+                Money.of("3", AssetType.CRYPTO, "BTC"), new BigDecimal("1000"), BigDecimal.ONE, null));
 
-        ledgerService.recordDoubleEntry(cmd);
-
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        Transaction tx = capture();
+        assertThat(debitTotal(tx)).isEqualByComparingTo("3000");
+        assertThat(creditTotalWithPnl(tx)).isEqualByComparingTo("3000");
     }
 
     @Test
-    void recordDoubleEntry_should_handle_fee_adjustment_gain() {
+    @DisplayName("매도는 실현 손익을 포함해 균형을 맞춘다")
+    void sell_balances_with_realized_pnl() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_ADJUSTMENT", Money.of("10", AssetType.FIAT, "KRW"),
-            new BigDecimal("1"), null, null, false
-        );
+        // 평균 단가 800 에 사서 1000 에 2개 매도 → 실현이익 400
+        ledgerService.recordDoubleEntry(cmd(tradeId, "SELL", "KRW", "KRW",
+                Money.of("2", AssetType.CRYPTO, "BTC"), new BigDecimal("1000"), BigDecimal.ONE, new BigDecimal("800")));
 
-        ledgerService.recordDoubleEntry(cmd);
+        Transaction tx = capture();
+        assertThat(debitTotal(tx)).isEqualByComparingTo("2000");
+        assertThat(creditTotalWithPnl(tx)).isEqualByComparingTo("2000");
 
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        BigDecimal pnl = tx.getEntries().stream()
+                .filter(e -> e.getRealizedPnl() != null)
+                .map(e -> e.getRealizedPnl().getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(pnl).isEqualByComparingTo("400");
     }
 
     @Test
-    void recordDoubleEntry_should_handle_fee_adjustment_loss() {
+    @DisplayName("baseCurrency 가 없으면 결제 통화를 기준 통화로 사용한다")
+    void falls_back_to_fiat_code_as_base_currency() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_ADJUSTMENT", Money.of("-10", AssetType.FIAT, "KRW"),
-            new BigDecimal("1"), null, null, false
-        );
+        ledgerService.recordDoubleEntry(cmd(tradeId, "SELL", "USD", null,
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("100"), BigDecimal.ONE, new BigDecimal("90")));
 
-        ledgerService.recordDoubleEntry(cmd);
-
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        assertThat(capture().getEntries())
+                .allSatisfy(e -> assertThat(e.getAmount().getCurrencyCode()).isEqualTo("USD"));
     }
 
     @Test
-    void recordDoubleEntry_should_handle_fee_adjustment_zero() {
+    @DisplayName("수수료 차감은 고객 대변과 시스템 수수료 계정 차변으로 균형을 맞춘다")
+    void fee_deduction_balances() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_ADJUSTMENT", Money.of("0", AssetType.FIAT, "KRW"),
-            new BigDecimal("1"), null, null, false
-        );
+        ledgerService.recordDoubleEntry(cmd(tradeId, "FEE_DEDUCTION", "KRW", "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("500"), BigDecimal.ONE, new BigDecimal("400")));
 
-        ledgerService.recordDoubleEntry(cmd);
-
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        Transaction tx = capture();
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
     }
 
     @Test
-    void recordDoubleEntry_should_handle_fiat_not_equal_to_base_currency_and_fx_gain() {
+    @DisplayName("수수료 보정(초과 수취)은 고객 계좌 차변으로 기록되고 균형을 맞춘다")
+    void fee_adjustment_gain_balances() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
-        when(exchangeRateProvider.getExchangeRate("KRW", "USD")).thenReturn(
-            new ExchangeRateProvider.ExchangeRate(new BigDecimal("2.0"), false)
-        );
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "USD", "BUY", Money.of("1", AssetType.CRYPTO, "BTC"),
-            new BigDecimal("100"), null, null, true
-        );
+        LedgerRecordingCommand command = cmd(tradeId, "FEE_ADJUSTMENT", "KRW", "KRW",
+                Money.of("50", AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO);
 
-        ledgerService.recordDoubleEntry(cmd);
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+
+        // 차변(입금)은 반드시 커맨드의 고객 계좌로 귀속되어야 한다.
+        assertThat(tx.getEntries().stream()
+                .filter(e -> e.getEntryType() == EntryType.DEBIT)
+                .map(e -> e.getAccountId()))
+                .contains(command.accountId());
     }
 
     @Test
-    void recordDoubleEntry_should_handle_sell_with_null_base_currency_and_average_cost() {
+    @DisplayName("수수료 보정(초과 지불)도 균형을 맞춘다")
+    void fee_adjustment_loss_balances() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        // fiatCode is KRW, baseCurrency is null -> baseCurrency becomes KRW, so no exchange rate API call
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", null, "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
-            new BigDecimal("100"), null, new BigDecimal("80"), false
-        );
+        ledgerService.recordDoubleEntry(cmd(tradeId, "FEE_ADJUSTMENT", "KRW", "KRW",
+                Money.of("-50", AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO));
 
-        ledgerService.recordDoubleEntry(cmd);
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        Transaction tx = capture();
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
     }
 
     @Test
-    void recordDoubleEntry_should_handle_fee_deduction_with_average_cost_not_null() {
+    @DisplayName("수수료 보정 금액이 0 이면 엔트리를 만들지 않는다")
+    void fee_adjustment_zero_creates_no_entries() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "KRW", AssetType.FIAT, "KRW", "KRW", "FEE_DEDUCTION", Money.of("10", AssetType.FIAT, "KRW"),
-            new BigDecimal("1"), null, new BigDecimal("1.2"), false
-        );
+        ledgerService.recordDoubleEntry(cmd(tradeId, "FEE_ADJUSTMENT", "KRW", "KRW",
+                Money.of("0", AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO));
 
-        ledgerService.recordDoubleEntry(cmd);
-        verify(transactionRepository).saveAndFlush(any(Transaction.class));
+        assertThat(capture().getEntries()).isEmpty();
     }
-    
+
     @Test
-    void recordDoubleEntry_should_plugin_system_fx_gain_when_debit_exceeds_credit() {
+    @DisplayName("알 수 없는 거래 유형은 조용히 빈 분개를 만들지 않고 거부한다")
+    void rejects_unknown_trade_type() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        // To trigger difference > 0, we need debit > credit.
-        // KRW has scale 0, rounding HALF_EVEN.
-        // qty = 1, fx = 1.
-        // unitPrice = 1.5, avgCost = 0.5.
-        // debit: Round(1.5) = 2.
-        // credit: Round(0.5) + Round(1.0) = 0 + 1 = 1.
-        // difference = 2 - 1 = 1 > 0.
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
-            new BigDecimal("1.5"), null, new BigDecimal("0.5"), false
-        );
+        assertThatThrownBy(() -> ledgerService.recordDoubleEntry(cmd(tradeId, "TRANSFER", "KRW", "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("100"), BigDecimal.ONE, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported trade type");
 
-        ledgerService.recordDoubleEntry(cmd);
-        
-        org.mockito.ArgumentCaptor<Transaction> captor = org.mockito.ArgumentCaptor.forClass(Transaction.class);
-        verify(transactionRepository).saveAndFlush(captor.capture());
-        
-        Transaction saved = captor.getValue();
-        org.assertj.core.api.Assertions.assertThat(saved).isNotNull();
+        verify(transactionRepository, never()).saveAndFlush(any());
     }
-    
+
     @Test
-    void recordDoubleEntry_should_plugin_system_fx_loss_when_credit_exceeds_debit() {
+    @DisplayName("반올림 잔차 범위의 차액은 시스템 계정으로 흡수한다")
+    void absorbs_rounding_residual() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        // To trigger difference < 0, we need credit > debit.
-        // KRW has scale 0, rounding HALF_EVEN.
-        // qty = 1, fx = 1.
-        // unitPrice = 2.5, avgCost = 1.5.
-        // debit: Round(2.5) = 2.
-        // credit: Round(1.5) + Round(1.0) = 2 + 1 = 3.
-        // difference = 2 - 3 = -1 < 0.
-        LedgerRecordingCommand cmd = new LedgerRecordingCommand(
-            tradeId, UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", "KRW", "SELL", Money.of("1", AssetType.CRYPTO, "BTC"),
-            new BigDecimal("2.5"), null, new BigDecimal("1.5"), false
-        );
+        // KRW(스케일 0) 기준. 환율 소수로 인해 차변/대변 정규화 결과가 1원 단위로 어긋날 수 있다.
+        ledgerService.recordDoubleEntry(cmd(tradeId, "BUY", "USD", "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("10.5"), new BigDecimal("1300.7"), null));
 
-        ledgerService.recordDoubleEntry(cmd);
-        
-        org.mockito.ArgumentCaptor<Transaction> captor = org.mockito.ArgumentCaptor.forClass(Transaction.class);
-        verify(transactionRepository).saveAndFlush(captor.capture());
-        
-        Transaction saved = captor.getValue();
-        org.assertj.core.api.Assertions.assertThat(saved).isNotNull();
+        Transaction tx = capture();
+        assertThat(debitTotal(tx))
+                .as("플러그 엔트리 추가 후 대차가 정확히 일치해야 한다")
+                .isEqualByComparingTo(creditTotalWithPnl(tx));
+        // 검증이 통과했다는 것 자체가 불변식이 지켜졌다는 뜻이다.
+        tx.verifyDoubleEntry();
+    }
+
+    @Test
+    @DisplayName("애그리거트의 대차 검증은 저장 전에 명시적으로 수행되고, 불균형을 그대로 통과시키지 않는다")
+    void verify_double_entry_is_public_and_enforced() {
+        Transaction tx = Transaction.record(UUID.randomUUID(), "BUY", "manual", TRADED_AT);
+        tx.addBuyEntry(UUID.randomUUID(), "BTC", Money.of("1", AssetType.CRYPTO, "BTC"),
+                new BigDecimal("100"), BigDecimal.ONE, "KRW");
+
+        // 대변이 없으므로 불균형이다. JPA 콜백(@PreUpdate)은 부모 행이 dirty 하지 않으면 발동하지
+        // 않으므로, 애플리케이션이 저장 전에 직접 호출해 즉시 검출해야 한다.
+        assertThatThrownBy(tx::verifyDoubleEntry)
+                .isInstanceOf(DoubleEntryImbalanceException.class)
+                .hasMessageContaining("KRW");
+    }
+
+    @Test
+    @DisplayName("모든 분개 경로는 플러그 허용 한도(엔트리 수 × 통화 최소 단위) 안에서만 균형을 맞춘다")
+    void plug_stays_within_rounding_allowance() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        ledgerService.recordDoubleEntry(cmd(tradeId, "BUY", "USD", "KRW",
+                Money.of("7", AssetType.CRYPTO, "BTC"), new BigDecimal("3.33"), new BigDecimal("1301.77"), null));
+
+        Transaction tx = capture();
+
+        // 플러그 엔트리가 있다면 그 금액은 반올림 잔차 수준이어야 한다.
+        BigDecimal plug = tx.getEntries().stream()
+                .filter(e -> e.getAssetCode().startsWith("SYSTEM_FX"))
+                .map(e -> e.getAmount().getAmount().abs())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal allowance = BigDecimal.ONE.multiply(BigDecimal.valueOf(tx.getEntries().size()));
+        assertThat(plug)
+                .as("플러그 금액이 반올림 허용 한도를 넘으면 계산 오류를 숨기는 것이다")
+                .isLessThanOrEqualTo(allowance);
     }
 }

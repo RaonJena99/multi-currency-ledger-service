@@ -39,7 +39,8 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
 
     @AfterEach
     void tearDown() {
-        jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transactions, transaction_entries, monthly_account_ledgers, accounts CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transactions, transaction_entries, monthly_account_ledgers CASCADE");
+        deleteTestAccounts();
     }
 
     @Test
@@ -72,7 +73,7 @@ class AccountTradeConcurrencyTest extends IntegrationTestSupport {
         java.math.BigDecimal unitPrice = new java.math.BigDecimal("50000000");
 
         org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
-            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(java.math.BigDecimal.ONE, false));
+            .thenReturn(new com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate(unitPrice, false));
 
         // when
         for (int i = 0; i < threadCount; i++) {

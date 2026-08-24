@@ -42,9 +42,12 @@ public class ReconciliationReaderConfig {
         return new org.springframework.batch.infrastructure.item.database.builder.JpaPagingItemReaderBuilder<ExternalSettlement>()
             .name("externalSettlementReader")
             .entityManagerFactory(entityManagerFactory)
+            // 정렬은 반드시 결정적이어야 한다. settlementDate 만으로 정렬하면 같은 시각을 가진
+            // 행들의 순서가 페이지마다 달라져 LIMIT/OFFSET 페이징이 행을 건너뛰거나 중복 처리한다.
+            // id 를 2차 정렬 키로 넣어 전순서(total order)를 보장한다.
             .queryString("SELECT e FROM ExternalSettlement e " +
                         "WHERE e.settlementDate >= :start AND e.settlementDate < :end " +
-                        "ORDER BY e.settlementDate ASC")
+                        "ORDER BY e.settlementDate ASC, e.id ASC")
             .parameterValues(Map.of(
                     "start", startOfMonth, 
                     "end", endOfMonth))

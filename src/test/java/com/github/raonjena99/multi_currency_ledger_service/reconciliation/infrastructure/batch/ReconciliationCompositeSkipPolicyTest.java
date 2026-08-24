@@ -19,7 +19,7 @@ class ReconciliationCompositeSkipPolicyTest {
     @Test
     @DisplayName("shouldSkip - 복합 예외 조건 검증")
     void shouldSkip() throws Exception {
-        ReconciliationCompositeSkipPolicy policy = new ReconciliationCompositeSkipPolicy(2);
+        ReconciliationCompositeSkipPolicy policy = new ReconciliationCompositeSkipPolicy(2, 100);
         CallNotPermittedException ex = mock(CallNotPermittedException.class);
         
         assertThat(policy.shouldSkip(ex, 0)).isTrue();

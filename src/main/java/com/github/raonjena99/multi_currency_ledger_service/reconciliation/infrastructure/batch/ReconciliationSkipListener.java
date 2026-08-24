@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
+import tools.jackson.databind.json.JsonMapper;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.batch.MatchedReconciliationResult;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.exception.UnmatchableSettlementException;
@@ -32,7 +32,7 @@ public class ReconciliationSkipListener implements SkipListener<ExternalSettleme
 
     private final ExternalSettlementRepository settlementRepository;
     private final ReconciliationDeadLetterRepository deadLetterRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper;
 
     /**
      * ItemProcessor에서 발생한 예외로 인해 스킵된 항목을 처리합니다.
@@ -55,8 +55,8 @@ public class ReconciliationSkipListener implements SkipListener<ExternalSettleme
 
             String payloadJson;
             try {
-                payloadJson = objectMapper.writeValueAsString(Map.of("description_snapshot", descriptionSnapshot));
-            } catch (JsonProcessingException e) {
+                payloadJson = jsonMapper.writeValueAsString(Map.of("description_snapshot", descriptionSnapshot));
+            } catch (Exception e) {
                 payloadJson = "{\"description_snapshot\": \"serialization_failed\"}";
                 log.error("Failed to serialize description snapshot", e);
             }

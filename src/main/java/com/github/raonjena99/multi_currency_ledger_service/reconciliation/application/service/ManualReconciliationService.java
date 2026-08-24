@@ -3,6 +3,7 @@ package com.github.raonjena99.multi_currency_ledger_service.reconciliation.appli
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,8 +11,10 @@ import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.ReconciliationDeadLetterRepository;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ReconciliationDeadLetter;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.SettlementMatch;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.event.ReconciliationFeeAdjustedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.ExternalSettlementRepository;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.SettlementMatchRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,7 @@ public class ManualReconciliationService {
 
     private final ReconciliationDeadLetterRepository deadLetterRepository;
     private final ExternalSettlementRepository settlementRepository;
+    private final SettlementMatchRepository settlementMatchRepository;
     private final ApplicationEventPublisher eventPublisher; 
     private final com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionQueryDao internalTransactionQueryDao;
 
@@ -48,8 +52,13 @@ public class ManualReconciliationService {
         ExternalSettlement settlement = settlementRepository.findByIdWithoutPartitionKey(deadLetter.getExternalSettlementId())
                 .orElseThrow(() -> new IllegalStateException("원천 정산 데이터를 찾을 수 없습니다. ID: " + deadLetter.getExternalSettlementId()));
         
-        // 수동 매핑 1:1 제약조건 확인
-        if (settlementRepository.existsByMatchedInternalTransactionId(targetInternalTransactionId)) {
+        // 1:1 매칭을 DB 제약으로 확정한다.
+        // existsBy... 로 확인한 뒤 저장하는 check-then-act 만으로는 관리자 두 명이 동시에
+        // 처리할 때 같은 내부 거래가 두 정산에 매칭되는 것을 막을 수 없다.
+        try {
+            settlementMatchRepository.saveAndFlush(SettlementMatch.of(
+                    targetInternalTransactionId, settlement.getId(), settlement.getSettlementDate()));
+        } catch (DataIntegrityViolationException e) {
             throw new IllegalStateException("해당 내부 거래는 이미 다른 외부 정산과 매칭되었습니다.");
         }
 

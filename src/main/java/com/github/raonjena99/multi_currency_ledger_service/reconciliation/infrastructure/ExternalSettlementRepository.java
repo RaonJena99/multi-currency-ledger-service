@@ -35,5 +35,6 @@ public interface ExternalSettlementRepository extends JpaRepository<ExternalSett
      */
     Optional<ExternalSettlement> findByInstitutionCodeAndExternalReferenceId(String institutionCode, String externalReferenceId);
 
-    boolean existsByMatchedInternalTransactionId(UUID matchedInternalTransactionId);
+    // 1:1 매칭 검사는 SettlementMatchRepository 의 DB 제약으로 대체되었습니다.
+    // existsBy... 로 확인한 뒤 저장하는 check-then-act 는 동시 실행을 막지 못합니다.
 }

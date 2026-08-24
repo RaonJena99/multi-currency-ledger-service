@@ -5,10 +5,9 @@ spring:
   main:
     allow-bean-definition-overriding: true
 
-  datasource:
-    url: jdbc:tc:postgresql:15.2:///ledger_test_db
-    username: test
-    password: test
+  # datasource / redis / kafka 접속 정보는 IntegrationTestSupport 의 @DynamicPropertySource 가
+  # Testcontainers 로부터 주입합니다. 여기에 jdbc:tc: URL 을 또 적으면 IntegrationTestSupport 를
+  # 상속하지 않는 테스트가 두 번째 Postgres 컨테이너를 띄워 빌드가 느려집니다.
 
   jpa:
     hibernate:

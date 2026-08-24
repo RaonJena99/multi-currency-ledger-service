@@ -1,7 +1,6 @@
 package com.github.raonjena99.multi_currency_ledger_service.portfolio.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -75,7 +74,7 @@ class PortfolioQueryServiceTest {
             .thenReturn(Optional.empty()) // First check
             .thenReturn(Optional.empty()); // Double check
 
-        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(true);
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 10)).thenReturn(true);
         
         when(accountApi.getBalances(accountId)).thenReturn(List.of(
             new AccountApi.AccountBalanceDto("BTC", new BigDecimal("1"), new BigDecimal("10000"), "KRW")
@@ -98,16 +97,21 @@ class PortfolioQueryServiceTest {
     }
 
     @Test
-    void getPortfolioSummary_should_throw_if_lock_acquisition_fails() {
+    void getPortfolioSummary_should_fall_back_to_db_if_lock_acquisition_fails() {
         UUID accountId = UUID.randomUUID();
         when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
         when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(Optional.empty());
 
-        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(false);
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 10)).thenReturn(false);
+        when(accountApi.getBalances(accountId)).thenReturn(java.util.List.of());
 
-        assertThatThrownBy(() -> service.getPortfolioSummary(accountId))
-            .isInstanceOf(RuntimeException.class)
-            .hasMessageContaining("Failed to acquire lock");
+        // 락 획득 실패는 캐시 스탬피드 방어 실패일 뿐이다. 조회 자체는 DB 로 폴백해 성공해야 한다.
+        // 예전처럼 예외를 던지면 락 경합만으로 조회 API 가 500 을 반환한다.
+        var response = service.getPortfolioSummary(accountId);
+
+        assertThat(response.accountId()).isEqualTo(accountId);
+        assertThat(response.assets()).isEmpty();
+        verify(accountApi).getBalances(accountId);
     }
 
     @Test
@@ -147,20 +151,21 @@ class PortfolioQueryServiceTest {
     }
 
     @Test
-    void getPortfolioSummary_should_throw_on_interruption_during_lock() {
+    void getPortfolioSummary_should_fall_back_to_db_on_interruption_during_lock() {
         UUID accountId = UUID.randomUUID();
         when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
         when(portfolioCachePort.getPortfolioCache(accountId)).thenReturn(Optional.empty());
 
-        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(false);
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 10)).thenReturn(false);
+        when(accountApi.getBalances(accountId)).thenReturn(java.util.List.of());
 
         Thread.currentThread().interrupt();
 
-        assertThatThrownBy(() -> service.getPortfolioSummary(accountId))
-            .isInstanceOf(RuntimeException.class)
-            .hasMessageContaining("Lock interrupted")
-            .hasCauseInstanceOf(InterruptedException.class);
-            
+        // 인터럽트가 걸려도 조회는 DB 폴백으로 완주하고, 인터럽트 상태는 보존되어야 한다.
+        var response = service.getPortfolioSummary(accountId);
+        assertThat(response.accountId()).isEqualTo(accountId);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+
         Thread.interrupted(); // Clear interrupt flag
     }
 
@@ -177,7 +182,7 @@ class PortfolioQueryServiceTest {
             .thenReturn(Optional.empty()) 
             .thenReturn(Optional.of(cacheDto)); 
 
-        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 5)).thenReturn(true);
+        when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 10)).thenReturn(true);
 
         when(exchangeRateProvider.getExchangeRates(List.of("BTC", "KRW"), "KRW"))
             .thenReturn(Map.of(

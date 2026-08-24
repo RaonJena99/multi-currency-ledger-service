@@ -32,22 +32,18 @@ public class OutboxRelayWorker {
         List<Long> successIds = new CopyOnWriteArrayList<>();
         List<OutboxEvent> failedEvents = new CopyOnWriteArrayList<>();
 
-        List<CompletableFuture<Void>> futures = events.stream().map(event -> messageDispatcher.dispatch(event)
-                .thenAccept(result -> {
-                    // 성공 시 메모리 객체를 수정하지 않고 ID만 수집합니다.
-                    successIds.add(event.getId());
-                })
-                .exceptionally(ex -> {
-                    log.error("Failed to process OutboxEvent ID: {}", event.getId(), ex);
-                    // 실패 시 에러 사유를 객체에 기록하고 실패 리스트에 담습니다.
-                    event.recordFailure(ex.getMessage());
-                    event.unlock();
-                    failedEvents.add(event);
-                    return null;
-                })).toList();
-
-        // 모든 발송 대기
+        // 발송 준비와 대기를 모두 try 안에서 수행한다.
+        //
+        // KafkaTemplate.send 는 버퍼 고갈, 직렬화 실패, 메타데이터 타임아웃 등에서 동기 예외를
+        // 던질 수 있다. 이 루프가 try 밖에 있으면 예외가 finally 를 건너뛰어 이미 성공한 이벤트의
+        // successIds 가 버려지고(중복 발행), 선점된 100건이 실패 기록 없이 5분간 잠긴 채 남는다.
         try {
+            List<CompletableFuture<Void>> futures = events.stream()
+                    .map(this::dispatchSafely)
+                    .map(stage -> stage.futureFor(successIds, failedEvents))
+                    .toList();
+
+            // 모든 발송 대기
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         } catch (Exception e) {
             if (e.getCause() instanceof InterruptedException || Thread.currentThread().isInterrupted()) {
@@ -58,6 +54,44 @@ public class OutboxRelayWorker {
         } finally {
             // 일괄(Bulk) 업데이트 처리
             outboxManager.updateResults(successIds, failedEvents);
+        }
+    }
+
+    /**
+     * 개별 이벤트의 발송을 시도하고, 동기 예외까지 결과로 흡수합니다.
+     * 한 건의 발송 실패가 나머지 이벤트의 결과 반영을 막지 않도록 합니다.
+     */
+    private DispatchStage dispatchSafely(OutboxEvent event) {
+        try {
+            return new DispatchStage(event, messageDispatcher.dispatch(event), null);
+        } catch (Exception e) {
+            log.error("Synchronous failure while dispatching OutboxEvent ID: {}", event.getId(), e);
+            return new DispatchStage(event, null, e);
+        }
+    }
+
+    private record DispatchStage(OutboxEvent event,
+                                 CompletableFuture<org.springframework.kafka.support.SendResult<String, String>> future,
+                                 Exception synchronousFailure) {
+
+        CompletableFuture<Void> futureFor(List<Long> successIds, List<OutboxEvent> failedEvents) {
+            if (synchronousFailure != null) {
+                recordFailure(failedEvents, synchronousFailure);
+                return CompletableFuture.completedFuture(null);
+            }
+            return future
+                    .thenAccept(result -> successIds.add(event.getId()))
+                    .exceptionally(ex -> {
+                        recordFailure(failedEvents, ex);
+                        return null;
+                    });
+        }
+
+        private void recordFailure(List<OutboxEvent> failedEvents, Throwable ex) {
+            log.error("Failed to process OutboxEvent ID: {}", event.getId(), ex);
+            event.recordFailure(ex.getMessage());
+            event.unlock();
+            failedEvents.add(event);
         }
     }
 }

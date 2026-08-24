@@ -84,8 +84,10 @@ class MonthlyAccountLedgerTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.subtractBalance(Money.of("0", AssetType.CRYPTO, "BTC")))
             .isInstanceOf(IllegalArgumentException.class);
             
+        // 잔고 부족은 입력 형식 오류가 아니라 계좌 상태와의 충돌이므로 전용 예외로 구분된다.
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> ledger.subtractBalance(Money.of("20", AssetType.CRYPTO, "BTC")))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.InsufficientBalanceException.class)
+            .hasMessageContaining("Insufficient balance");
     }
 
     @Test

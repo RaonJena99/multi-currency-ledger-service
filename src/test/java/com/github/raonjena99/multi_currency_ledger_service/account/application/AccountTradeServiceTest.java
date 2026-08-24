@@ -33,12 +33,23 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
 @ExtendWith(MockitoExtension.class)
 class AccountTradeServiceTest {
 
+    /** 실효 원장 월. Facade 가 LedgerPeriodResolver 로 확정해 넘기는 값이다. */
+    private static final String MONTH = OffsetDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository accountRepository;
     @Mock private IdempotencyRecordRepository idempotencyRepository;
     @Mock private MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
 
     @InjectMocks
     private AccountTradeService tradeService;
+
+    /** 트랜잭션 안에서 계좌 상태를 재검증하므로(TOCTOU 방지) 활성 계좌를 스텁해 준다. */
+    private void stubActiveAccount(UUID accountId) {
+        var account = com.github.raonjena99.multi_currency_ledger_service.account.domain.Account
+                .open(accountId, "TEST", "KRW");
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+    }
 
     @Test
     void executeBuyAsset_should_throw_on_duplicate_request() {
@@ -47,7 +58,7 @@ class AccountTradeServiceTest {
 
         assertThatThrownBy(() -> 
             tradeService.executeBuyAsset("idemp-key", UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", 
-                                         Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), 
+                                         Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), MONTH,
                                          BigDecimal.ONE, false, null)
         ).isInstanceOf(DuplicateTradeRequestException.class);
     }
@@ -55,6 +66,7 @@ class AccountTradeServiceTest {
     @Test
     void executeBuyAsset_should_process_successfully_with_fiat_to_base_rate() {
         UUID accountId = UUID.randomUUID();
+        stubActiveAccount(accountId);
         OffsetDateTime now = OffsetDateTime.now();
         
         MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
@@ -68,7 +80,7 @@ class AccountTradeServiceTest {
 
         UUID tradeId = tradeService.executeBuyAsset(
             "idemp-key", accountId, "BTC", AssetType.CRYPTO, "KRW", 
-            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("10000"), now, 
+            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("10000"), now, MONTH,
             new BigDecimal("10000"), false, new BigDecimal("0.00075")
         );
 
@@ -87,7 +99,7 @@ class AccountTradeServiceTest {
 
         assertThatThrownBy(() -> 
             tradeService.executeSellAsset("idemp-key", UUID.randomUUID(), "BTC", AssetType.CRYPTO, "KRW", 
-                                         Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), 
+                                         Money.of("1", AssetType.CRYPTO, "BTC"), BigDecimal.ONE, OffsetDateTime.now(), MONTH,
                                          BigDecimal.ONE, false, null)
         ).isInstanceOf(DuplicateTradeRequestException.class);
     }
@@ -95,12 +107,11 @@ class AccountTradeServiceTest {
     @Test
     void executeSellAsset_should_process_successfully_without_fiat_to_base_rate() {
         UUID accountId = UUID.randomUUID();
+        stubActiveAccount(accountId);
         OffsetDateTime now = OffsetDateTime.now();
         
         MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
         MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
-        
-        when(fiatLedger.getBaseCurrency()).thenReturn("KRW");
         when(targetLedger.getBaseCurrency()).thenReturn("KRW");
         
         when(monthlyAccountLedgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(eq(accountId), eq("BTC"), anyString()))
@@ -112,7 +123,7 @@ class AccountTradeServiceTest {
 
         UUID tradeId = tradeService.executeSellAsset(
             "idemp-key", accountId, "BTC", AssetType.CRYPTO, "KRW", 
-            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("10000"), now, 
+            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("10000"), now, MONTH,
             new BigDecimal("10000"), false, null
         );
 
@@ -128,9 +139,9 @@ class AccountTradeServiceTest {
     void executeSellAsset_should_use_provided_fiat_to_base_rate() {
         OffsetDateTime now = OffsetDateTime.now();
         UUID accountId = UUID.randomUUID();
+        stubActiveAccount(accountId);
 
         MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
-        when(fiatLedger.getBaseCurrency()).thenReturn("KRW");
         
         MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
         when(targetLedger.getBaseCurrency()).thenReturn("KRW");
@@ -145,7 +156,7 @@ class AccountTradeServiceTest {
 
         UUID tradeId = tradeService.executeSellAsset(
             "idemp-key-fx", accountId, "BTC", AssetType.CRYPTO, "USD", 
-            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("100"), now, 
+            Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("100"), now, MONTH,
             new BigDecimal("100"), false, new BigDecimal("1300")
         );
 

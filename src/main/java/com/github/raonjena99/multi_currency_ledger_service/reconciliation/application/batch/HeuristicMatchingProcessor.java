@@ -88,7 +88,12 @@ public class HeuristicMatchingProcessor implements ItemProcessor<ExternalSettlem
             return null;
         }
 
-        LocalDate targetDate = external.getSettlementDate().toLocalDate();
+        // 검색 범위의 기준 날짜도 UTC 로 정규화해야 한다.
+        // getCandidatesForDate 는 UTC 일 단위 윈도를 만들고 TimeToleranceRule 도 UTC 로 정규화하는데,
+        // 여기서만 원본 오프셋의 날짜를 쓰면 UTC 가 아닌 오프셋에서 검색 공간이 하루 밀린다.
+        LocalDate targetDate = external.getSettlementDate()
+                .withOffsetSameInstant(java.time.ZoneOffset.UTC)
+                .toLocalDate();
         
         List<InternalTransactionCandidate> searchSpace = new ArrayList<>();
 

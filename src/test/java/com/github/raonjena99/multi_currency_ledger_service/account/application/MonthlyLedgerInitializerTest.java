@@ -40,7 +40,7 @@ class MonthlyLedgerInitializerTest {
 
         initializer.initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, "2024-01");
 
-        verify(ledgerRepository, never()).findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(any(), any());
+        verify(ledgerRepository, never()).findFirstWithLockByAccountIdAndAssetCodeAndLedgerMonthLessThanOrderByLedgerMonthDesc(any(), any(), any());
     }
 
     @Test
@@ -51,7 +51,7 @@ class MonthlyLedgerInitializerTest {
 
         MonthlyAccountLedger prevLedger = MonthlyAccountLedger.initialize(accountId, "BTC", AssetType.CRYPTO, "2024-01", "KRW");
         
-        when(ledgerRepository.findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, "BTC"))
+        when(ledgerRepository.findFirstWithLockByAccountIdAndAssetCodeAndLedgerMonthLessThanOrderByLedgerMonthDesc(org.mockito.ArgumentMatchers.eq(accountId), org.mockito.ArgumentMatchers.eq("BTC"), org.mockito.ArgumentMatchers.anyString()))
             .thenReturn(Optional.of(prevLedger));
 
         initializer.initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, "2024-02");
@@ -65,7 +65,7 @@ class MonthlyLedgerInitializerTest {
         when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2024-01"))
             .thenReturn(Optional.empty());
 
-        when(ledgerRepository.findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, "BTC"))
+        when(ledgerRepository.findFirstWithLockByAccountIdAndAssetCodeAndLedgerMonthLessThanOrderByLedgerMonthDesc(org.mockito.ArgumentMatchers.eq(accountId), org.mockito.ArgumentMatchers.eq("BTC"), org.mockito.ArgumentMatchers.anyString()))
             .thenReturn(Optional.empty());
 
         Account account = org.mockito.Mockito.mock(Account.class);
@@ -83,12 +83,12 @@ class MonthlyLedgerInitializerTest {
         when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", "2024-01"))
             .thenReturn(Optional.empty());
 
-        when(ledgerRepository.findFirstWithLockByAccountIdAndAssetCodeOrderByLedgerMonthDesc(accountId, "BTC"))
+        when(ledgerRepository.findFirstWithLockByAccountIdAndAssetCodeAndLedgerMonthLessThanOrderByLedgerMonthDesc(org.mockito.ArgumentMatchers.eq(accountId), org.mockito.ArgumentMatchers.eq("BTC"), org.mockito.ArgumentMatchers.anyString()))
             .thenReturn(Optional.empty());
 
         when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> initializer.initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, "2024-01"))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException.class);
     }
 }

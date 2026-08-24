@@ -81,7 +81,7 @@ class InternalTransactionQueryDaoTest {
 
         when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class), any(RowMapper.class)))
             .thenAnswer(invocation -> {
-                RowMapper<String> mapper = invocation.getArgument(2);
+                RowMapper<?> mapper = invocation.getArgument(2);
                 return List.of(mapper.mapRow(rs, 1));
             });
             

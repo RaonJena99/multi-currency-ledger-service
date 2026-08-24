@@ -1,6 +1,12 @@
 spring:
   application:
     name: multi-currency-ledger-service
+  task:
+    scheduling:
+      pool:
+        # 기본값은 1 이다. 아웃박스 릴레이(5초 주기), 지표 갱신(5분), 멱등성 키 정리(매일 03시)가
+        # 스레드 하나를 공유하면 야간 정리 작업이 도는 동안 아웃박스 릴레이가 통째로 멈춘다.
+        size: 4
   data:
     redis:
       repositories:
@@ -9,8 +15,28 @@ spring:
       port: ${REDIS_PORT:6379}
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        # 요청 스레드의 correlation id 를 Kafka 헤더로 옮기는 인터셉터
+        interceptor.classes: com.github.raonjena99.multi_currency_ledger_service.common.telemetry.KafkaCorrelationInterceptor
     consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # 원장 커맨드가 유실되면 잔고와 원장이 영구히 벌어진다. 기본값 latest 는 컨슈머 그룹이
+      # 처음 붙기 전에 발행된 메시지를 조용히 버리므로 earliest 를 명시한다.
+      auto-offset-reset: earliest
       isolation-level: read_committed
+      enable-auto-commit: false
+      properties:
+        # 아웃박스 릴레이가 만든 토픽을 컨슈머가 빨리 인지하도록 메타데이터 갱신 주기를 줄인다.
+        metadata.max.age.ms: 10000
+    listener:
+      ack-mode: record
+      missing-topics-fatal: false
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/ledger_db
     username: ${DB_USER:ledger_admin}
@@ -25,6 +51,12 @@ spring:
       hibernate:
         format_sql: true
         default_batch_fetch_size: 1000
+        # default_batch_fetch_size 는 읽기 측 설정이다. 쓰기 배칭은 jdbc.batch_size 로 켜야 하며,
+        # 켜지 않으면 대사 라이터의 saveAll(1000건)이 1000번의 개별 INSERT 로 나간다.
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
     open-in-view: false
   flyway:
     enabled: true
@@ -36,6 +68,60 @@ spring:
     job:
       enabled: false
 
+ledger:
+  external:
+    # 법정화폐 환율: fxratesapi.com
+    #
+    # 무료 플랜은 API 키 없이 동작하며 분당 61건입니다(x-ratelimit-limit: 61). 갱신은 분 단위입니다.
+    # 대안으로 검토한 Frankfurter(ECB) 와 open.er-api.com 은 둘 다 일 단위 갱신이라 탈락했습니다.
+    # 이 서비스는 5분을 넘긴 환율에 ArbitrageRiskException 을 던져 거래를 차단하므로, 하루 지난
+    # 시세로는 구조 자체가 성립하지 않습니다.
+    exchange-rate:
+      base-url: ${EXCHANGE_RATE_API_URL:https://api.fxratesapi.com}
+      api-key: ${EXCHANGE_RATE_API_KEY:}
+      connect-timeout: 2s
+      # slowCallDurationThreshold(2000ms) 보다 약간 길게 둔다. 소켓 타임아웃이 더 짧으면
+      # 서킷 브레이커가 "느린 호출"을 관측할 기회 없이 항상 실패로만 집계된다.
+      read-timeout: 3s
+      # 이 값 미만의 환율은 공급자 쪽 양자화로 유효숫자를 잃으므로 역방향 조회로 대체한다.
+      # 실측: KRW→BTC 참값 9.3461e-9 을 9e-9 로 반환(오차 3.7%), places 파라미터로도 복구 불가.
+      precision-floor: 0.0001
+
+    # 암호화폐 시세: CoinGecko
+    #
+    # 암호화폐를 법정화폐로 직접 호가받기 위해 별도 공급자를 씁니다. fxratesapi 의 암호화폐 값은
+    # USD 교차환산이라 실측에서 0.15% 차이가 났습니다(BTC→KRW: 106,995,446 vs 106,837,062).
+    # ids 와 vs_currencies 를 모두 복수로 받으므로 포트폴리오 조회를 1회 호출로 묶을 수 있습니다.
+    crypto:
+      base-url: ${CRYPTO_PRICE_API_URL:https://api.coingecko.com}
+      api-key: ${CRYPTO_PRICE_API_KEY:}
+      connect-timeout: 2s
+      read-timeout: 3s
+      # 심볼 → CoinGecko coin id. 이 목록이 라우팅 기준도 겸한다.
+      # 여기 없는 코드는 ISO 4217 통화가 아니면 UnsupportedAssetCodeException 으로 거부된다.
+      symbol-ids:
+        BTC: bitcoin
+        ETH: ethereum
+        SOL: solana
+        XRP: ripple
+        ADA: cardano
+        DOGE: dogecoin
+        DOT: polkadot
+        AVAX: avalanche-2
+        LINK: chainlink
+        MATIC: matic-network
+        USDT: tether
+        USDC: usd-coin
+
+    # PG 정산망
+    #
+    # 기본값이 없습니다. 개인이 PG 정산망에 접속할 수 없으므로 이 연동은 미구성 상태로 둡니다.
+    # 미설정이면 기동 시 경고만 남기고, 대사 배치는 적재된 데이터가 없어 아무 일도 하지 않습니다.
+    pg:
+      base-url: ${PG_API_URL:}
+      connect-timeout: 2s
+      read-timeout: 5s
+
 management:
   endpoints:
     web:
@@ -43,7 +129,9 @@ management:
         include: health, info, prometheus
   endpoint:
     health:
-      show-details: always
+      # 상세 정보에는 DB/Redis/서킷브레이커 내부 상태가 담긴다. 권한 있는 호출자에게만 노출한다.
+      show-details: when-authorized
+      roles: ROLE_ADMIN
     prometheus:
       enabled: true
   metrics:
@@ -53,7 +141,8 @@ management:
 logging:
   level:
     root: info
-    org.hibernate.SQL: debug
+    # SQL 로깅은 local 프로파일에만 둔다. 기본 프로파일에 두면 프로덕션에서 모든 쿼리와
+    # 바인딩 값이 로그로 나가 성능이 떨어지고 민감 데이터가 노출된다.
 
 resilience4j:
   circuitbreaker:
@@ -71,6 +160,29 @@ resilience4j:
         waitDurationInOpenState: 5s
         permittedNumberOfCallsInHalfOpenState: 2
         automaticTransitionFromOpenToHalfOpenEnabled: true
+        # 지원하지 않는 자산 코드는 재시도해도 결과가 같은 영구 오류다. 장애로 집계하면
+        # 존재하지 않는 자산 요청 몇 건이 정상 환율 조회까지 차단한다.
+        ignoreExceptions:
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException
+
+      # 1-2. 암호화폐 시세 API 서킷 브레이커
+      # 공급자를 분리했으므로 서킷도 분리한다. 하나로 합치면 한쪽 공급자 장애가
+      # 다른 자산군의 정상 조회까지 차단한다.
+      cryptoPriceApi:
+        registerHealthIndicator: true
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000ms
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        ignoreExceptions:
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException
 
       # 2. PG사 정산 대사 API 서킷 브레이커
       pgSettlementApi:
@@ -104,6 +216,25 @@ resilience4j:
           - org.springframework.web.client.HttpClientErrorException.BadRequest
           - org.springframework.web.client.HttpClientErrorException.Unauthorized
           - com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException
+
+      # 암호화폐 시세 API 리트라이
+      cryptoPriceApi:
+        maxAttempts: 3
+        waitDuration: 100ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.2
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.RestClientException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException.BadRequest
+          - org.springframework.web.client.HttpClientErrorException.Unauthorized
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException
+          - com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException
 
       # PG사 정산 대사 API 리트라이
       pgSettlementApi:
@@ -129,4 +260,5 @@ spring:
 
 logging:
   level:
+    org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace

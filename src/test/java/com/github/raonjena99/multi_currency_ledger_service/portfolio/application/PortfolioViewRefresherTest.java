@@ -43,7 +43,7 @@ class PortfolioViewRefresherTest {
         UUID tradeId = UUID.randomUUID();
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "USD", TradeType.BUY, 
-            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
+            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
         );
 
         when(portfolioCachePort.tryAcquireLock(anyString(), anyLong())).thenReturn(true);
@@ -64,7 +64,7 @@ class PortfolioViewRefresherTest {
         UUID tradeId = UUID.randomUUID();
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "USD", TradeType.BUY, 
-            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
+            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
         );
 
         when(portfolioCachePort.tryAcquireLock(anyString(), anyLong())).thenReturn(true);
@@ -82,7 +82,7 @@ class PortfolioViewRefresherTest {
         UUID tradeId = UUID.randomUUID();
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "USD", TradeType.BUY, 
-            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
+            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
         );
 
         when(portfolioCachePort.tryAcquireLock(anyString(), anyLong())).thenReturn(false);
@@ -99,7 +99,7 @@ class PortfolioViewRefresherTest {
         UUID tradeId = UUID.randomUUID();
         TradeExecutedEvent event = new TradeExecutedEvent(
             tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "USD", TradeType.BUY, 
-            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
+            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
         );
 
         when(portfolioCachePort.tryAcquireLock(anyString(), anyLong())).thenReturn(false);

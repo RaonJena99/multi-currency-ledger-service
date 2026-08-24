@@ -25,6 +25,7 @@ class ReconciliationSkipListenerTest {
 
     @Mock private ExternalSettlementRepository settlementRepository;
     @Mock private ReconciliationDeadLetterRepository deadLetterRepository;
+    @Mock private tools.jackson.databind.json.JsonMapper jsonMapper;
 
     
     @InjectMocks private ReconciliationSkipListener skipListener;
@@ -106,7 +107,7 @@ class ReconciliationSkipListenerTest {
     }
 
     @Test
-    @DisplayName("[SkipListener] JsonProcessingException 발생 시 로깅하고 에러 페이로드를 사용한다")
+    @DisplayName("[SkipListener] 직렬화 실패 시 로깅하고 에러 페이로드를 사용한다")
     void onSkipInProcess_jsonProcessingException() throws Exception {
         ExternalSettlement item = Mockito.mock(ExternalSettlement.class);
         when(item.getId()).thenReturn(UUID.randomUUID());
@@ -114,10 +115,10 @@ class ReconciliationSkipListenerTest {
 
         UnmatchableSettlementException ex = new UnmatchableSettlementException("TIME_WINDOW_EXCEEDED", item.getId().toString());
 
-        com.fasterxml.jackson.databind.ObjectMapper mockMapper = org.mockito.Mockito.mock(com.fasterxml.jackson.databind.ObjectMapper.class);
-        when(mockMapper.writeValueAsString(any())).thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("test") {});
+        tools.jackson.databind.json.JsonMapper mockMapper = org.mockito.Mockito.mock(tools.jackson.databind.json.JsonMapper.class);
+        when(mockMapper.writeValueAsString(any())).thenThrow(new tools.jackson.core.JacksonException("test") {});
         
-        org.springframework.test.util.ReflectionTestUtils.setField(skipListener, "objectMapper", mockMapper);
+        org.springframework.test.util.ReflectionTestUtils.setField(skipListener, "jsonMapper", mockMapper);
 
         skipListener.onSkipInProcess(item, ex);
 

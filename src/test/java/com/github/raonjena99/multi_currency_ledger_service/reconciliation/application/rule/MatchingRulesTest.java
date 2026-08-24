@@ -18,7 +18,7 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infras
 class MatchingRulesTest {
 
     private final TimeToleranceRule timeRule = new TimeToleranceRule();
-    private final AmountToleranceRule amountRule = new AmountToleranceRule();
+    private final AmountToleranceRule amountRule = new AmountToleranceRule(new java.math.BigDecimal("0.005"), new java.math.BigDecimal("100"));
     private final FuzzyTextMatchingRule textRule = new FuzzyTextMatchingRule();
 
     @Test

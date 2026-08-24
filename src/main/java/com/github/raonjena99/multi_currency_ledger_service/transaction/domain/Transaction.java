@@ -54,22 +54,41 @@ public class Transaction implements Persistable<UUID> {
     @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransactionEntry> entries = new ArrayList<>();
 
-    private Transaction(UUID id, String transactionType, String description) {
+    private Transaction(UUID id, String transactionType, String description, OffsetDateTime transactedAt) {
         this.id = id;
         this.transactionType = transactionType;
         this.description = description;
-        this.transactedAt = OffsetDateTime.now();
+        this.transactedAt = transactedAt != null ? transactedAt : OffsetDateTime.now();
     }
 
     /**
      * 새로운 Transaction(트랜잭션) 엔티티를 생성하여 기록을 시작합니다.
+     * 거래 시각은 현재 시각으로 설정됩니다.
+     *
      * @param id 트랜잭션 ID
      * @param transactionType 트랜잭션 유형
      * @param description 트랜잭션 설명
      * @return 생성된 Transaction(트랜잭션) 객체
      */
     public static Transaction record(UUID id, String transactionType, String description) {
-        return new Transaction(id, transactionType, description);
+        return new Transaction(id, transactionType, description, null);
+    }
+
+    /**
+     * 거래 시각을 명시하여 Transaction(트랜잭션) 엔티티를 생성합니다.
+     *
+     * 원장 기록은 Kafka 소비 시점에 비동기로 이루어지므로, 시각을 주입하지 않으면
+     * transacted_at 이 <b>소비 시각</b>이 되어 월차 원장의 귀속월과 어긋납니다.
+     * 월 경계 근처에서는 잔고는 N월, 분개는 N+1월에 기록되는 문제가 생깁니다.
+     *
+     * @param id 트랜잭션 ID
+     * @param transactionType 트랜잭션 유형
+     * @param description 트랜잭션 설명
+     * @param transactedAt 실제 거래가 발생한 시각. null 이면 현재 시각을 사용합니다.
+     * @return 생성된 Transaction(트랜잭션) 객체
+     */
+    public static Transaction record(UUID id, String transactionType, String description, OffsetDateTime transactedAt) {
+        return new Transaction(id, transactionType, description, transactedAt);
     }
 
     /**
@@ -93,16 +112,26 @@ public class Transaction implements Persistable<UUID> {
      * @param quantity 수량
      * @param unitPrice 단가
      * @param exchangeRate 환율
-     * @param averageCost 평균 단가
+     * @param averageCostInBaseCurrency <b>기준 통화</b> 기준 평균 매입 단가
      * @param baseCurrencyCode 기준 통화 코드
      */
-    public void addSellEntry(UUID accountId, String assetCode, Money quantity, BigDecimal unitPrice, BigDecimal exchangeRate, BigDecimal averageCost, String baseCurrencyCode) {
-        TransactionEntry entry = TransactionEntry.createSellEntry(this, accountId, assetCode, quantity, unitPrice, exchangeRate, averageCost, baseCurrencyCode);
+    public void addSellEntry(UUID accountId, String assetCode, Money quantity, BigDecimal unitPrice,
+                             BigDecimal exchangeRate, BigDecimal averageCostInBaseCurrency, String baseCurrencyCode) {
+        TransactionEntry entry = TransactionEntry.createSellEntry(this, accountId, assetCode, quantity,
+                unitPrice, exchangeRate, averageCostInBaseCurrency, baseCurrencyCode);
         this.entries.add(entry);
     }
 
-    // 이종 자산 간 복식부기 정합성 검증
-    private void verifyDoubleEntry() {
+    /**
+     * 이종 자산 간 복식부기 정합성(대차평균)을 검증합니다.
+     *
+     * 저장 직전에 애플리케이션에서 <b>명시적으로</b> 호출하십시오. JPA 라이프사이클 콜백만으로는
+     * 부족합니다. {@code @PreUpdate} 는 부모 엔티티 행이 dirty 하지 않으면 발동하지 않으므로,
+     * 자식 엔트리만 추가·변경된 경우 검증이 조용히 건너뛰어집니다.
+     *
+     * @throws DoubleEntryImbalanceException 어떤 통화에서든 차변과 대변이 일치하지 않을 경우
+     */
+    public void verifyDoubleEntry() {
         Map<String, BigDecimal> debitBalances = new HashMap<>();
         Map<String, BigDecimal> creditBalances = new HashMap<>();
 

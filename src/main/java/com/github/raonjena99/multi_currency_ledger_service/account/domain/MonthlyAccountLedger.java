@@ -167,9 +167,13 @@ public class MonthlyAccountLedger extends BaseEntity {
             throw new IllegalArgumentException("Invalid quantity to subtract");
         }
         
-        // 보유 잔고보다 매도 수량이 많은지 검증
+        // 보유 잔고보다 매도 수량이 많은지 검증.
+        // 입력 형식 오류가 아니라 계좌 상태와의 충돌이므로 전용 예외로 구분한다.
         if (this.balance.compareTo(quantityToSubtract) < 0) {
-            throw new IllegalArgumentException("Insufficient balance");
+            throw new com.github.raonjena99.multi_currency_ledger_service.common.exception.InsufficientBalanceException(
+                    "Insufficient balance for " + this.assetCode
+                            + ": held " + this.balance.getAmount().toPlainString()
+                            + ", requested " + quantityToSubtract.getAmount().toPlainString());
         }
         
         // 매도에 따른 수량 차감 처리

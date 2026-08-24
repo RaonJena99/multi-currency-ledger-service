@@ -18,6 +18,7 @@ import com.github.raonjena99.multi_currency_ledger_service.portfolio.application
 @ExtendWith(MockitoExtension.class)
 class PortfolioControllerTest {
     @Mock private PortfolioQueryService portfolioQueryService;
+    @Mock private com.github.raonjena99.multi_currency_ledger_service.common.security.AccountOwnershipGuard ownershipGuard;
     @InjectMocks private PortfolioController controller;
 
     @Test
@@ -28,6 +29,7 @@ class PortfolioControllerTest {
 
         ResponseEntity<PortfolioSummaryResponse> res = controller.getPortfolioSummary(id);
         
+        verify(ownershipGuard).requireOwnership(id);
         verify(portfolioQueryService).getPortfolioSummary(id);
         org.assertj.core.api.Assertions.assertThat(res.getBody()).isEqualTo(mockResponse);
         org.assertj.core.api.Assertions.assertThat(res.getStatusCode().is2xxSuccessful()).isTrue();

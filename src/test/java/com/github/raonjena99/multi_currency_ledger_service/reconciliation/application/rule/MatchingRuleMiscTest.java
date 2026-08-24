@@ -17,7 +17,7 @@ class MatchingRuleMiscTest {
     @Test
     void getOrder_returnsCorrectValues() {
         assertThat(new TimeToleranceRule().getOrder()).isEqualTo(1);
-        assertThat(new AmountToleranceRule().getOrder()).isEqualTo(2);
+        assertThat(new AmountToleranceRule(new java.math.BigDecimal("0.005"), new java.math.BigDecimal("100")).getOrder()).isEqualTo(2);
         assertThat(new FuzzyTextMatchingRule().getOrder()).isEqualTo(3);
     }
 

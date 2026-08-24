@@ -43,7 +43,7 @@ class MonthlyLedgerResolverTest {
         when(ledgerRepository.findByAccountIdAndAssetCodeAndLedgerMonth(accountId, "BTC", targetMonth))
             .thenReturn(Optional.of(ledger));
 
-        MonthlyAccountLedger result = resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, now);
+        MonthlyAccountLedger result = resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, targetMonth);
 
         assertThat(result).isEqualTo(ledger);
     }
@@ -60,7 +60,7 @@ class MonthlyLedgerResolverTest {
             .thenReturn(Optional.empty()) // First check
             .thenReturn(Optional.of(ledger)); // Second check after initialization
 
-        MonthlyAccountLedger result = resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, now);
+        MonthlyAccountLedger result = resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, targetMonth);
 
         assertThat(result).isEqualTo(ledger);
         verify(ledgerInitializer).initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, targetMonth);
@@ -81,7 +81,7 @@ class MonthlyLedgerResolverTest {
         doThrow(new DataIntegrityViolationException("Duplicate"))
             .when(ledgerInitializer).initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, targetMonth);
 
-        MonthlyAccountLedger result = resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, now);
+        MonthlyAccountLedger result = resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, targetMonth);
 
         assertThat(result).isEqualTo(ledger);
         verify(ledgerInitializer).initializeInNewTransaction(accountId, "BTC", AssetType.CRYPTO, targetMonth);
@@ -97,7 +97,7 @@ class MonthlyLedgerResolverTest {
             .thenReturn(Optional.empty()) // First check
             .thenReturn(Optional.empty()); // Second check after initialization
 
-        assertThatThrownBy(() -> resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, now))
+        assertThatThrownBy(() -> resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, targetMonth))
             .isInstanceOf(IllegalStateException.class);
     }
 }

@@ -3,6 +3,9 @@ name: Java CI with Gradle
 on:
   pull_request:
     branches: ["main", "master"]
+  # main 에 직접 푸시된 커밋도 검증한다. PR 트리거만 두면 main 이 검증 없이 깨질 수 있다.
+  push:
+    branches: ["main", "master"]
 
 permissions:
   contents: read
@@ -31,7 +34,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Tests & Coverage
-        run: ./gradlew test jacocoTestReport
+        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification
 
       - name: Upload Test Report
         uses: actions/upload-artifact@v4

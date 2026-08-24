@@ -15,6 +15,9 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component
+// 프로덕션 컨텍스트에 모의 환율 제공자가 올라가 있으면, 한정자 실수 한 번으로 실제 거래에
+// 가짜 환율이 적용될 수 있다. 개발·테스트 프로파일에서만 등록한다.
+@org.springframework.context.annotation.Profile({"local", "test", "dev"})
 public class DummyExchangeRateAdapter implements ExchangeRateProvider {
     
     /**

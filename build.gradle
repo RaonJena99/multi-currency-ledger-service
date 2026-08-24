@@ -19,6 +19,10 @@ repositories {
 }
 
 dependencies {
+    // 인증 및 인가 (Spring Security)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    testImplementation 'org.springframework.security:spring-security-test'
+
     // 공통 및 웹 애플리케이션 계층
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
@@ -40,7 +44,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-batch'
 
     // 비동기 이벤트 기반 통신 (Kafka)
-    implementation 'org.springframework.kafka:spring-kafka'
+    // 주의: spring-kafka 만 선언하면 Spring Boot 4 의 Kafka 자동 설정 모듈(spring-boot-kafka)이
+    // 클래스패스에 올라오지 않아 ConsumerFactory / KafkaListenerContainerFactory 가 아예 만들어지지
+    // 않는다. 그 결과 @KafkaListener 가 전부 무력화되고 spring.kafka.* 속성도 무시된다.
+    // 반드시 스타터로 선언해야 한다.
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
 
     // 외부 API 연동 복원력 및 장애 격리 (Resilience4j)
     implementation platform('org.springframework.cloud:spring-cloud-dependencies:2025.1.1')
@@ -103,8 +111,6 @@ dependencies {
     // Spring Batch 통합 테스트를 위한 의존성 (Batch Test)
     testImplementation 'org.springframework.batch:spring-batch-test'
 
-    // 테스트용 인메모리 DB (H2)
-    testImplementation 'com.h2database:h2'
 
     // Mac 환경 DNS 경고 제거용 (Netty)
     runtimeOnly 'io.netty:netty-resolver-dns-native-macos::osx-aarch_64'
@@ -123,4 +129,20 @@ jacocoTestReport {
         xml.required = true
         csv.required = true
     }
+}
+// 커버리지 리포트만 업로드하면 회귀를 막지 못한다. 최소선을 CI 에서 강제한다.
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                minimum = 0.70
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }

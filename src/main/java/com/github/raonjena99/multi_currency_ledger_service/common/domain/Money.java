@@ -33,14 +33,18 @@ public class Money {
     private String currencyCode;
 
     private Money(BigDecimal amount, AssetType assetType, String currencyCode) {
-        if (amount == null || assetType == null || currencyCode == null) {
-            throw new IllegalArgumentException("Amount, AssetType, and CurrencyCode cannot be null");
+        this(amount, assetType, currencyCode, RoundingMode.HALF_EVEN);
+    }
+
+    private Money(BigDecimal amount, AssetType assetType, String currencyCode, RoundingMode roundingMode) {
+        if (amount == null || assetType == null || currencyCode == null || roundingMode == null) {
+            throw new IllegalArgumentException("Amount, AssetType, CurrencyCode, and RoundingMode cannot be null");
         }
 
         this.assetType = assetType;
         this.currencyCode = currencyCode.toUpperCase();
         // 내부 생성 시점에 소수점 스케일 및 반올림 정규화를 항상 수행하여 데이터 일관성을 유지함
-        this.amount = CurrencyScaleResolver.normalize(amount, this.assetType, this.currencyCode);
+        this.amount = CurrencyScaleResolver.normalize(amount, this.assetType, this.currencyCode, roundingMode);
     }
 
     /**
@@ -53,6 +57,22 @@ public class Money {
      */
     public static Money of(BigDecimal amount, AssetType assetType, String currencyCode) {
         return new Money(amount, assetType, currencyCode);
+    }
+
+    /**
+     * 반올림 방향을 명시하여 Money 객체를 생성합니다.
+     *
+     * 고객이 지불하는 금액은 {@link RoundingMode#UP}, 고객이 수취하는 금액은
+     * {@link RoundingMode#DOWN} 을 사용해야 반올림이 통화를 만들어내지 않습니다.
+     *
+     * @param amount       금액
+     * @param assetType    자산 타입
+     * @param currencyCode 통화 코드
+     * @param roundingMode 반올림 방향
+     * @return 생성된 Money 객체
+     */
+    public static Money of(BigDecimal amount, AssetType assetType, String currencyCode, RoundingMode roundingMode) {
+        return new Money(amount, assetType, currencyCode, roundingMode);
     }
 
     /**

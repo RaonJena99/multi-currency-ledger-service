@@ -28,6 +28,12 @@ public class ReconciliationJobConfig {
 
     private static final int CHUNK_SIZE = 1000;
 
+    /** 매칭 실패(비즈니스) 허용 건수. 이 이상이면 룰 엔진이나 데이터에 문제가 있다고 본다. */
+    private static final int BUSINESS_SKIP_LIMIT = 50_000;
+
+    /** 통신 장애 허용 건수. 넘으면 배치를 실패로 끝내 장애가 드러나게 한다. */
+    private static final int INFRASTRUCTURE_SKIP_LIMIT = 100;
+
     private final JobRepository jobRepository;
     
     private final PlatformTransactionManager transactionManager;
@@ -69,7 +75,9 @@ public class ReconciliationJobConfig {
                 .processor(heuristicMatchingProcessor)
                 .writer(reconciliationResultWriter)
                 .faultTolerant()
-                .skipPolicy(new ReconciliationCompositeSkipPolicy(50000))
+                // 비즈니스 매칭 실패는 넉넉히 허용하되, 인프라 장애는 좁게 허용해
+                // "아무 일도 안 했는데 성공" 을 방지한다.
+                .skipPolicy(new ReconciliationCompositeSkipPolicy(BUSINESS_SKIP_LIMIT, INFRASTRUCTURE_SKIP_LIMIT))
                 .listener(skipListener)
                 .listener(pgApiSkipListener)
                 .listener((Object) heuristicMatchingProcessor)

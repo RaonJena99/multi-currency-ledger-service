@@ -19,6 +19,7 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.Reconc
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ExternalSettlement;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.domain.ReconciliationDeadLetter;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.ExternalSettlementRepository;
+import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.SettlementMatchRepository;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.query.InternalTransactionQueryDao;
 
 class ManualReconciliationServiceTest {
@@ -30,7 +31,8 @@ class ManualReconciliationServiceTest {
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
         
-        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, eventPublisher, queryDao);
+        SettlementMatchRepository matchRepo = mock(SettlementMatchRepository.class);
+        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, matchRepo, eventPublisher, queryDao);
         
         ReconciliationDeadLetter dlq = mock(ReconciliationDeadLetter.class);
         when(dlqRepo.findById(1L)).thenReturn(Optional.of(dlq));
@@ -42,7 +44,7 @@ class ManualReconciliationServiceTest {
         when(settlementRepo.findByIdWithoutPartitionKey(extId)).thenReturn(Optional.of(settlement));
         
         UUID tId = UUID.randomUUID();
-        when(settlementRepo.existsByMatchedInternalTransactionId(tId)).thenReturn(false);
+        
         when(queryDao.findAccountIdByTransactionId(tId)).thenReturn(UUID.randomUUID());
         
         service.resolveManually(1L, tId, Money.of("10", AssetType.FIAT, "KRW"));
@@ -59,7 +61,8 @@ class ManualReconciliationServiceTest {
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
         
-        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, eventPublisher, queryDao);
+        SettlementMatchRepository matchRepo = mock(SettlementMatchRepository.class);
+        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, matchRepo, eventPublisher, queryDao);
         
         ReconciliationDeadLetter dlq = mock(ReconciliationDeadLetter.class);
         when(dlqRepo.findById(1L)).thenReturn(Optional.of(dlq));
@@ -70,7 +73,7 @@ class ManualReconciliationServiceTest {
         when(settlementRepo.findByIdWithoutPartitionKey(extId)).thenReturn(Optional.of(settlement));
         
         UUID tId = UUID.randomUUID();
-        when(settlementRepo.existsByMatchedInternalTransactionId(tId)).thenReturn(false);
+        
         when(queryDao.findAccountIdByTransactionId(tId)).thenReturn(UUID.randomUUID());
         
         service.resolveManually(1L, tId, Money.zero(AssetType.FIAT, "KRW"));
@@ -85,7 +88,8 @@ class ManualReconciliationServiceTest {
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
         
-        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, eventPublisher, queryDao);
+        SettlementMatchRepository matchRepo = mock(SettlementMatchRepository.class);
+        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, matchRepo, eventPublisher, queryDao);
         
         when(dlqRepo.findById(1L)).thenReturn(Optional.empty());
         
@@ -100,7 +104,8 @@ class ManualReconciliationServiceTest {
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
         
-        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, eventPublisher, queryDao);
+        SettlementMatchRepository matchRepo = mock(SettlementMatchRepository.class);
+        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, matchRepo, eventPublisher, queryDao);
         
         ReconciliationDeadLetter dlq = mock(ReconciliationDeadLetter.class);
         when(dlqRepo.findById(1L)).thenReturn(Optional.of(dlq));
@@ -120,7 +125,8 @@ class ManualReconciliationServiceTest {
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         InternalTransactionQueryDao queryDao = mock(InternalTransactionQueryDao.class);
         
-        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, eventPublisher, queryDao);
+        SettlementMatchRepository matchRepo = mock(SettlementMatchRepository.class);
+        ManualReconciliationService service = new ManualReconciliationService(dlqRepo, settlementRepo, matchRepo, eventPublisher, queryDao);
         
         ReconciliationDeadLetter dlq = mock(ReconciliationDeadLetter.class);
         when(dlqRepo.findById(1L)).thenReturn(Optional.of(dlq));
@@ -131,7 +137,8 @@ class ManualReconciliationServiceTest {
         when(settlementRepo.findByIdWithoutPartitionKey(extId)).thenReturn(Optional.of(settlement));
         
         UUID tId = UUID.randomUUID();
-        when(settlementRepo.existsByMatchedInternalTransactionId(tId)).thenReturn(true);
+        org.mockito.Mockito.when(matchRepo.saveAndFlush(org.mockito.ArgumentMatchers.any()))
+            .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate match"));
         
         assertThatThrownBy(() -> service.resolveManually(1L, tId, Money.zero(AssetType.FIAT, "KRW")))
             .isInstanceOf(IllegalStateException.class);

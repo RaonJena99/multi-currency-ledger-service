@@ -20,7 +20,7 @@ class TradeExecutedEventTest {
         Money quantity = Money.of("1.5", AssetType.CRYPTO, "BTC");
         
         TradeExecutedEvent event = new TradeExecutedEvent(
-            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, quantity.getAmount(), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, null
+            tradeId, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, quantity.getAmount(), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, null
         );
         
         assertThat(event.tradeId()).isEqualTo(tradeId);
@@ -34,7 +34,7 @@ class TradeExecutedEventTest {
         Money quantity = Money.of("1.5", AssetType.CRYPTO, "BTC");
         
         assertThatThrownBy(() -> new TradeExecutedEvent(
-            null, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, quantity.getAmount(), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, null
+            null, accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, quantity.getAmount(), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, null
         )).isInstanceOf(NullPointerException.class);
     }
 
@@ -44,7 +44,7 @@ class TradeExecutedEventTest {
         Money quantity = Money.of("1.5", AssetType.CRYPTO, "BTC");
         
         assertThatThrownBy(() -> new TradeExecutedEvent(
-            tradeId, null, "BTC", AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, quantity.getAmount(), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, null
+            tradeId, null, "BTC", AssetType.CRYPTO, "KRW", "KRW", com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType.BUY, quantity.getAmount(), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, false, null
         )).isInstanceOf(NullPointerException.class);
     }
 }

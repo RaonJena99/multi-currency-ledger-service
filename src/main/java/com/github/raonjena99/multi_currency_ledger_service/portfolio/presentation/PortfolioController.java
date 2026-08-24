@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.security.AccountOwnershipGuard;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.PortfolioQueryService;
 import com.github.raonjena99.multi_currency_ledger_service.portfolio.application.dto.PortfolioSummaryResponse;
 
@@ -24,18 +25,22 @@ import lombok.extern.slf4j.Slf4j;
 public class PortfolioController {
 
     private final PortfolioQueryService portfolioQueryService;
+    private final AccountOwnershipGuard ownershipGuard;
 
     /**
      * CQRS Read Model 엔드포인트를 통해 특정 계좌의 포트폴리오 요약을 조회합니다.
+     *
      * @param accountId 조회할 계좌 ID
-     * @return PortfolioSummaryResponse(포트폴리오 요약 응답) 객체를 포함한 ResponseEntity
+     * @return PortfolioSummaryResponse(포트폴리오 요약) 객체를 포함한 ResponseEntity
      */
     @GetMapping("/{accountId}")
     public ResponseEntity<PortfolioSummaryResponse> getPortfolioSummary(@PathVariable UUID accountId) {
+        ownershipGuard.requireOwnership(accountId);
+
         log.debug("Fetching materialized portfolio summary for account: {}", accountId);
-        
+
         PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(accountId);
-        
+
         return ResponseEntity.ok(response);
     }
 }

@@ -27,7 +27,7 @@ class OrderToLedgerAclTest {
         String payload = "{}";
         LedgerRecordingCommand cmd = org.mockito.Mockito.mock(LedgerRecordingCommand.class);
         when(jsonMapper.readValue(payload, LedgerRecordingCommand.class)).thenReturn(cmd);
-        acl.consumeLedgerCommand(payload);
+        acl.consumeLedgerCommand(payload, null);
         verify(ledgerService).recordDoubleEntry(cmd);
     }
 
@@ -35,7 +35,7 @@ class OrderToLedgerAclTest {
     void consumeLedgerCommand_exception() throws Exception {
         String payload = "{}";
         when(jsonMapper.readValue(payload, LedgerRecordingCommand.class)).thenThrow(new RuntimeException("error"));
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> acl.consumeLedgerCommand(payload))
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> acl.consumeLedgerCommand(payload, null))
             .isInstanceOf(RuntimeException.class);
     }
 }

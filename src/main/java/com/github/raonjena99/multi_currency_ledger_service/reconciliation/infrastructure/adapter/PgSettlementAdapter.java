@@ -1,5 +1,6 @@
 package com.github.raonjena99.multi_currency_ledger_service.reconciliation.infrastructure.adapter;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class PgSettlementAdapter {
 
+    @Qualifier("pgRestClient")
     private final RestClient restClient;
     private final MeterRegistry meterRegistry;
 
@@ -29,7 +31,9 @@ public class PgSettlementAdapter {
      */
     @Timed(value = "external.api.pg_settlement.response", description = "Time taken to fetch settlement from PG")
     @CircuitBreaker(name = "pgSettlementApi", fallbackMethod = "fallbackSettlement")
-    @Retry(name = "pgSettlementApi", fallbackMethod = "fallbackSettlement")
+    // fallbackMethod 는 가장 바깥 애노테이션(@CircuitBreaker)에만 둔다. 내부 @Retry 에도 두면
+    // 폴백이 예외를 삼켜 외부 서킷 브레이커가 실패를 관측하지 못한다.
+    @Retry(name = "pgSettlementApi")
     public ExternalSettlementDto fetchSettlement(String transactionId) {
         log.debug("외부 PG 정산망 데이터 Fetch 시도: {}", transactionId);
         

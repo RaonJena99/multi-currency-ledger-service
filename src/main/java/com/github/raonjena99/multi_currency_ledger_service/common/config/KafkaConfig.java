@@ -3,22 +3,23 @@ package com.github.raonjena99.multi_currency_ledger_service.common.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.KafkaOperations;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ConsumerRecordRecoverer;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
+/**
+ * Kafka 컨슈머 오류 처리 정책을 정의하는 설정 클래스입니다.
+ */
 @Configuration
 public class KafkaConfig {
+
     @Bean
     public DefaultErrorHandler errorHandler(KafkaOperations<?, ?> kafkaOperations) {
-        
+
         // DLT(Dead Letter Topic)로 메시지를 보내는 Recoverer 생성
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaOperations);
-        
+
         // DLT 발행 시 발생하는 예외를 삼켜 무한 재시도(Poison Pill)를 방지하는 래퍼 생성
         ConsumerRecordRecoverer safeRecoverer = (record, exception) -> {
             try {
@@ -31,11 +32,18 @@ public class KafkaConfig {
 
         // 백오프 정책 설정: 1초 대기 후 최대 3번 재시도
         FixedBackOff backOff = new FixedBackOff(1000L, 3L);
-        // 기존 recoverer 대신 safeRecoverer 를 주입!
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(safeRecoverer, backOff);
-        // 재시도해도 의미 없는 예외는 재시도 없이 즉시 DLT로 직행
-        errorHandler.addNotRetryableExceptions(JsonProcessingException.class);
-        
+
+        // 재시도해도 결과가 달라지지 않는 예외는 재시도 없이 즉시 DLT로 직행시킨다.
+        //
+        // 이 애플리케이션의 JSON 처리는 Jackson 3(tools.jackson)을 사용하므로 역직렬화 실패는
+        // tools.jackson.core.JacksonException 으로 올라온다. Jackson 2 의
+        // com.fasterxml.jackson.core.JsonProcessingException 을 등록하면 클래스패스에 두 버전이
+        // 공존하는 탓에 컴파일은 되지만 분류가 절대 매칭되지 않아 재시도만 낭비된다.
+        errorHandler.addNotRetryableExceptions(
+                tools.jackson.core.JacksonException.class,
+                IllegalArgumentException.class);
+
         return errorHandler;
     }
 }

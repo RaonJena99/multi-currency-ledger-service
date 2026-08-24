@@ -59,7 +59,7 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
         jdbcTemplate.update("DELETE FROM outbox_events"); 
         jdbcTemplate.update("DELETE FROM transaction_entries");
         jdbcTemplate.update("DELETE FROM transactions");
-        jdbcTemplate.update("DELETE FROM accounts");
+        deleteTestAccounts();
 
         successSettlementDate = OffsetDateTime.parse("2026-06-15T10:00:00Z");
         ExternalSettlement successExt = ExternalSettlement.create(
@@ -101,7 +101,7 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
         jdbcTemplate.update("DELETE FROM outbox_events");
         jdbcTemplate.update("DELETE FROM transaction_entries");
         jdbcTemplate.update("DELETE FROM transactions");
-        jdbcTemplate.update("DELETE FROM accounts");
+        deleteTestAccounts();
     }
 
     @Test

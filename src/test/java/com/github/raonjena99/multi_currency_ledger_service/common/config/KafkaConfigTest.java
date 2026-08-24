@@ -35,9 +35,8 @@ class KafkaConfigTest {
         org.springframework.kafka.listener.MessageListenerContainer container = org.mockito.Mockito.mock(org.springframework.kafka.listener.MessageListenerContainer.class);
         org.apache.kafka.clients.consumer.Consumer<?, ?> consumer = org.mockito.Mockito.mock(org.apache.kafka.clients.consumer.Consumer.class);
         
-        // This will eventually call the recoverer if backoff is exhausted or not retryable
-        // We added JsonProcessingException as not retryable. Let's use that.
-        Exception notRetryableEx = new com.fasterxml.jackson.core.JsonProcessingException("test"){};
+        // 재시도 불가로 등록한 예외는 Jackson 3(tools.jackson) 계열이어야 한다.
+        Exception notRetryableEx = new tools.jackson.core.JacksonException("test") {};
         
         org.assertj.core.api.Assertions.assertThatCode(() -> 
             handler.handleRemaining(notRetryableEx, java.util.List.of(record), consumer, container)

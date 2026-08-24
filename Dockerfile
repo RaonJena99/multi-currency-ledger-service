@@ -8,35 +8,43 @@ COPY gradle gradle
 COPY build.gradle .
 COPY settings.gradle .
 
-# Grant execute permission for gradlew
 RUN chmod +x gradlew
 
-# Download dependencies (this layer will be cached unless build.gradle changes)
-# Since we don't have the src code yet, we just run dependencies resolution
+# Warm the dependency cache. This layer is reused unless build.gradle changes.
 RUN ./gradlew dependencies --no-daemon || true
 
-# Copy source code
 COPY src src
 
-# Build the application (exclude tests as they are run in CI)
+# Tests run in CI (they need Docker for Testcontainers), so skip them here.
 RUN ./gradlew bootJar --no-daemon -x test
 
 # Runtime Stage
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Add a non-root user for security
+# 원장은 UTC 기준으로 월차 귀속과 대사 시간창을 계산한다.
+# 애플리케이션에서 TimeZone.setDefault 를 호출하더라도 일부 빈은 그보다 먼저 생성되므로
+# 컨테이너 수준에서 확정해 두는 편이 안전하다.
+ENV TZ=UTC
+
+# HEALTHCHECK 에서 사용한다. jre 이미지에는 curl 이 포함되어 있지 않다.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd -r spring && useradd -r -g spring spring
+
+# jar 소유권을 실행 사용자에게 준다.
+COPY --from=builder --chown=spring:spring /app/build/libs/*.jar app.jar
+
 USER spring:spring
 
-# Copy the built jar from the builder stage
-COPY --from=builder /app/build/libs/*.jar app.jar
-
-# Expose default application port
 EXPOSE 8080
 
-# Environment variables to optimize JVM
-ENV JAVA_OPTS="-XX:+UseZGC -XX:+ZGenerational -XshowSettings:vm"
+# 컨테이너 메모리 한도를 인식하게 하고(MaxRAMPercentage), 세대별 ZGC 를 사용한다.
+ENV JAVA_OPTS="-XX:+UseZGC -XX:+ZGenerational -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 
-# Run the application
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD ["sh", "-c", "curl -fsS http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
