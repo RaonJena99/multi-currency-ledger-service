@@ -102,4 +102,28 @@ class MonthlyAccountLedgerTest {
         assertThat(ledger.getBalance().isZero()).isTrue();
         assertThat(ledger.getAverageUnitPrice().compareTo(BigDecimal.ZERO) == 0).isTrue();
     }
+
+    @Test
+    @DisplayName("수수료 보정으로 음수가 된 잔고를 입금이 정확히 0 으로 메워도 0 나눗셈 없이 처리된다")
+    void addBalance_fills_negative_balance_to_exactly_zero() {
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(UUID.randomUUID(), "USD", AssetType.FIAT, "2026-05", "USD");
+        ledger.applyAdjustment(Money.of("-5.00", AssetType.FIAT, "USD"));
+
+        ledger.addBalance(Money.of("5.00", AssetType.FIAT, "USD"), BigDecimal.ONE);
+
+        assertThat(ledger.getBalance().getAmount()).isEqualByComparingTo("0");
+        assertThat(ledger.getAverageUnitPrice()).isEqualByComparingTo("1");
+    }
+
+    @Test
+    @DisplayName("음수 잔고에 입금하면 음수 수량을 가중치로 쓰지 않고 입금 단가를 평균 단가로 삼는다")
+    void addBalance_on_negative_balance_uses_incoming_unit_price() {
+        MonthlyAccountLedger ledger = MonthlyAccountLedger.initialize(UUID.randomUUID(), "USD", AssetType.FIAT, "2026-05", "KRW");
+        ledger.applyAdjustment(Money.of("-5.00", AssetType.FIAT, "USD"));
+
+        ledger.addBalance(Money.of("10.00", AssetType.FIAT, "USD"), new BigDecimal("1380"));
+
+        assertThat(ledger.getBalance().getAmount()).isEqualByComparingTo("5.00");
+        assertThat(ledger.getAverageUnitPrice()).isEqualByComparingTo("1380");
+    }
 }

@@ -104,12 +104,29 @@ public class MarketDataRouter implements ExchangeRateProvider {
                     () -> misses.add(requested));
         }
 
-        batchFetchCrypto(misses, quote, result);
+        boolean cryptoDown = !batchFetchCrypto(misses, quote, result);
+        boolean fiatDown = false;
 
         // 배치로 채우지 못한 나머지는 단건 경로로 처리한다.
+        //
+        // 공급자가 응답 없이 멈춘 경우 단건 조회는 건당 (재시도 3회 × 읽기 타임아웃)을 기다린다.
+        // 한 번 실패한 공급자에 남은 자산을 계속 물으면 조회 한 번이 수십 초로 늘어나므로,
+        // 그 공급자의 나머지 자산은 캐시로만 채운다.
         for (String requested : misses) {
-            if (!result.containsKey(requested)) {
-                fetchForDisplay(requested, quote, result);
+            if (result.containsKey(requested)) {
+                continue;
+            }
+            boolean crypto = isCryptoPair(requested, quote);
+            if (crypto ? cryptoDown : fiatDown) {
+                fillFromCache(requested, quote, result);
+                continue;
+            }
+            if (!fetchForDisplay(requested, quote, result)) {
+                if (crypto) {
+                    cryptoDown = true;
+                } else {
+                    fiatDown = true;
+                }
             }
         }
         return result;
@@ -121,30 +138,51 @@ public class MarketDataRouter implements ExchangeRateProvider {
      * <p>단건 경로의 폴백은 허용 나이를 넘긴 캐시를 거래 보호를 위해 예외로 막습니다. 이 메서드는
      * 거래가 아닌 조회에서만 쓰이므로, 공급자 장애 시 낡은 캐시라도 지연 데이터로 보여줍니다.
      * 캐시마저 없으면 결과에서 빼고, 호출자가 평가액 없이 지연 데이터로 표시합니다.
+     *
+     * <p>지원하지 않는 자산(상장 폐지된 코인 등)도 예외를 던지지 않고 결과에서 뺍니다. 던지면 그
+     * 자산 하나 때문에 포트폴리오 전체가 422 가 되어, 해당 계좌는 조회 자체를 할 수 없게 됩니다.
+     *
+     * @return 공급자 호출이 일시 장애로 실패했으면 false
      */
-    private void fetchForDisplay(String requested, String quote, Map<String, ExchangeRate> result) {
+    private boolean fetchForDisplay(String requested, String quote, Map<String, ExchangeRate> result) {
         try {
             result.put(requested, getExchangeRate(requested, quote));
+            return true;
         } catch (UnsupportedAssetCodeException e) {
-            throw e;
+            log.warn("{}/{} 시세를 제공하는 공급자가 없어 평가액 없이 표시합니다: {}",
+                    requested, quote, e.getMessage());
+            return true;
         } catch (RuntimeException e) {
             log.warn("{}/{} 시세 조회 실패. 캐시된 시세를 지연 데이터로 표시합니다: {}",
                     requested, quote, e.getMessage());
-            cache.read(normalize(requested), quote)
-                    .ifPresent(cached -> result.put(requested, new ExchangeRate(cached.rate(), true)));
+            fillFromCache(requested, quote, result);
+            return false;
         }
     }
 
+    private void fillFromCache(String requested, String quote, Map<String, ExchangeRate> result) {
+        cache.read(normalize(requested), quote)
+                .ifPresent(cached -> result.put(requested, new ExchangeRate(cached.rate(), true)));
+    }
+
+    private boolean isCryptoPair(String requested, String quote) {
+        return cryptoAssets.isCrypto(normalize(requested)) || cryptoAssets.isCrypto(quote);
+    }
+
     /**
-     * 암호화폐 미스를 CoinGecko 다중 조회로 한 번에 채웁니다. 이 최적화가 실패하면 호출자가
-     * 단건 경로로 되돌아가므로 예외를 삼킵니다.
+     * 암호화폐 미스를 CoinGecko 다중 조회로 한 번에 채웁니다.
+     *
+     * <p>일부만 채워진 경우 나머지는 호출자가 단건 경로로 처리합니다. 호출 자체가 실패하면
+     * 공급자 장애로 보고 false 를 반환해, 호출자가 단건 재조회 없이 캐시로 채우게 합니다.
+     *
+     * @return 다중 조회 호출이 실패했으면 false
      */
-    private void batchFetchCrypto(List<String> misses, String quote, Map<String, ExchangeRate> result) {
+    private boolean batchFetchCrypto(List<String> misses, String quote, Map<String, ExchangeRate> result) {
         List<String> cryptoMisses = misses.stream()
                 .filter(requested -> cryptoAssets.isCrypto(normalize(requested)))
                 .toList();
         if (cryptoMisses.size() < 2 || !isFiat(quote)) {
-            return;
+            return true;
         }
 
         try {
@@ -157,8 +195,10 @@ public class MarketDataRouter implements ExchangeRateProvider {
                     result.put(requested, new ExchangeRate(rate, false));
                 }
             }
+            return true;
         } catch (Exception e) {
-            log.warn("암호화폐 시세 다중 조회 실패. 단건 조회로 처리합니다: {}", e.getMessage());
+            log.warn("암호화폐 시세 다중 조회 실패. 캐시된 시세로 표시합니다: {}", e.getMessage());
+            return false;
         }
     }
 

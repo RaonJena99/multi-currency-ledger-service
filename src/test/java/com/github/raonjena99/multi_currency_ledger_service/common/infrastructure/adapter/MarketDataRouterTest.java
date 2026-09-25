@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -151,21 +152,30 @@ class MarketDataRouterTest {
     }
 
     @Test
-    @DisplayName("다중 조회: 배치가 실패하면 단건 경로로 되돌아간다")
-    void batchFailureFallsBackToSingleCalls() {
+    @DisplayName("다중 조회: 배치가 실패하면 단건 재조회 없이 캐시된 시세를 지연 데이터로 쓴다")
+    void batchFailureUsesCacheWithoutSingleCalls() {
         when(cryptoAdapter.getRates(anyList(), anyString()))
                 .thenThrow(new RuntimeException("CoinGecko down"));
-        when(cryptoAdapter.getRate("BTC", "KRW"))
-                .thenReturn(new ExchangeRate(new BigDecimal("106000000"), true));
-        when(cryptoAdapter.getRate("ETH", "KRW"))
-                .thenReturn(new ExchangeRate(new BigDecimal("3300000"), true));
+        when(cache.read("BTC", "KRW")).thenReturn(Optional.of(new ExchangeRateCache.CachedRate(
+                new BigDecimal("106000000"), Instant.now().minus(Duration.ofMinutes(30)))));
+        when(cache.read("ETH", "KRW")).thenReturn(Optional.empty());
 
         Map<String, ExchangeRate> result = router.getExchangeRates(List.of("BTC", "ETH"), "KRW");
 
-        assertThat(result).hasSize(2);
+        assertThat(result).containsOnlyKeys("BTC");
         assertThat(result.get("BTC").isStale()).isTrue();
-        verify(cryptoAdapter).getRate("BTC", "KRW");
-        verify(cryptoAdapter).getRate("ETH", "KRW");
+        verify(cryptoAdapter, never()).getRate(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("다중 조회: 단건 조회가 한 번 실패한 공급자에는 나머지 자산을 다시 묻지 않는다")
+    void singleFailureStopsFurtherCallsToSameProvider() {
+        when(fiatAdapter.getRate(anyString(), anyString()))
+                .thenThrow(new MarketDataUnavailableException("fxratesapi down", new RuntimeException()));
+
+        router.getExchangeRates(List.of("USD", "EUR", "JPY"), "KRW");
+
+        verify(fiatAdapter, times(1)).getRate(anyString(), anyString());
     }
 
     @Test
@@ -237,9 +247,13 @@ class MarketDataRouterTest {
     }
 
     @Test
-    @DisplayName("다중 조회: 지원하지 않는 자산 코드는 폴백하지 않고 그대로 거부한다")
-    void batchStillRejectsUnsupportedAsset() {
-        assertThatThrownBy(() -> router.getExchangeRates(List.of("AAPL"), "USD"))
-                .isInstanceOf(UnsupportedAssetCodeException.class);
+    @DisplayName("다중 조회: 시세를 제공하지 않는 자산은 예외 대신 결과에서 빼 포트폴리오 전체를 막지 않는다")
+    void batchOmitsUnsupportedAssetInsteadOfFailing() {
+        when(cryptoAdapter.getRate("BTC", "KRW"))
+                .thenThrow(new UnsupportedAssetCodeException("CoinGecko 가 BTC/KRW 시세를 제공하지 않습니다."));
+
+        Map<String, ExchangeRate> result = router.getExchangeRates(List.of("BTC", "AAPL", "KRW"), "KRW");
+
+        assertThat(result).containsOnlyKeys("KRW");
     }
 }

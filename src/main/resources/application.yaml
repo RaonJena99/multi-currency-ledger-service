@@ -84,7 +84,7 @@ ledger:
     # 기대 오차는 PG 수수료 전액이다. 국내 PG 수수료율(1.5~3%대)을 흡수할 수 있어야
     # 수수료 보정(FEE_ADJUSTMENT) 파이프라인에 도달한다. 0.5% 로 두면 수수료가 붙은
     # 모든 정상 정산이 AMOUNT_MISMATCH 로 데드레터가 된다.
-    amount-tolerance-ratio: 0.005
+    amount-tolerance-ratio: 0.035
     amount-tolerance-min-units: 100
   external:
     # 법정화폐 환율: fxratesapi.com

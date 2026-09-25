@@ -41,7 +41,7 @@ public class AmountToleranceRule implements MatchingRule {
      * @param toleranceMinUnits 통화 최소 단위의 허용 배수
      */
     public AmountToleranceRule(
-            @Value("${ledger.reconciliation.amount-tolerance-ratio:0.005}") BigDecimal toleranceRatio,
+            @Value("${ledger.reconciliation.amount-tolerance-ratio:0.035}") BigDecimal toleranceRatio,
             @Value("${ledger.reconciliation.amount-tolerance-min-units:100}") BigDecimal toleranceMinUnits) {
         this.toleranceRatio = toleranceRatio;
         this.toleranceMinUnits = toleranceMinUnits;

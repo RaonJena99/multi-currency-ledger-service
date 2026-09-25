@@ -160,4 +160,31 @@ class AccountTradeFacadeTest {
 
         org.assertj.core.api.Assertions.assertThat(result).isNotNull();
     }
+
+    @Test
+    void buyAsset_should_return_completed_trade_on_replay_without_revalidating() {
+        UUID accountId = UUID.randomUUID();
+        UUID completedTradeId = UUID.randomUUID();
+        when(tradeService.findCompletedTradeId(accountId, "BUY", "idemp")).thenReturn(Optional.of(completedTradeId));
+
+        // 이미 완료된 거래의 재전송은 시세가 움직였거나 공급자가 장애여도 원래 거래 ID 를 돌려받아야 한다.
+        UUID result = facade.buyAsset("idemp", accountId, "BTC", AssetType.CRYPTO, "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("1"));
+
+        org.assertj.core.api.Assertions.assertThat(result).isEqualTo(completedTradeId);
+        org.mockito.Mockito.verifyNoInteractions(exchangeRateProvider, accountRepository);
+    }
+
+    @Test
+    void sellAsset_should_return_completed_trade_on_replay_without_revalidating() {
+        UUID accountId = UUID.randomUUID();
+        UUID completedTradeId = UUID.randomUUID();
+        when(tradeService.findCompletedTradeId(accountId, "SELL", "idemp")).thenReturn(Optional.of(completedTradeId));
+
+        UUID result = facade.sellAsset("idemp", accountId, "BTC", AssetType.CRYPTO, "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("1"));
+
+        org.assertj.core.api.Assertions.assertThat(result).isEqualTo(completedTradeId);
+        org.mockito.Mockito.verifyNoInteractions(exchangeRateProvider, accountRepository);
+    }
 }
