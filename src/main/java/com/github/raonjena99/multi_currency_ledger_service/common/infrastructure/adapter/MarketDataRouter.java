@@ -106,12 +106,33 @@ public class MarketDataRouter implements ExchangeRateProvider {
 
         batchFetchCrypto(misses, quote, result);
 
-        // 배치로 채우지 못한 나머지는 단건 경로로 처리한다. 단건 경로에는 서킷 브레이커와
-        // 캐시 폴백이 걸려 있으므로 여기서 예외를 삼키지 않는다.
+        // 배치로 채우지 못한 나머지는 단건 경로로 처리한다.
         for (String requested : misses) {
-            result.computeIfAbsent(requested, key -> getExchangeRate(key, quote));
+            if (!result.containsKey(requested)) {
+                fetchForDisplay(requested, quote, result);
+            }
         }
         return result;
+    }
+
+    /**
+     * 조회 화면용 단건 시세를 채웁니다.
+     *
+     * <p>단건 경로의 폴백은 허용 나이를 넘긴 캐시를 거래 보호를 위해 예외로 막습니다. 이 메서드는
+     * 거래가 아닌 조회에서만 쓰이므로, 공급자 장애 시 낡은 캐시라도 지연 데이터로 보여줍니다.
+     * 캐시마저 없으면 결과에서 빼고, 호출자가 평가액 없이 지연 데이터로 표시합니다.
+     */
+    private void fetchForDisplay(String requested, String quote, Map<String, ExchangeRate> result) {
+        try {
+            result.put(requested, getExchangeRate(requested, quote));
+        } catch (UnsupportedAssetCodeException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            log.warn("{}/{} 시세 조회 실패. 캐시된 시세를 지연 데이터로 표시합니다: {}",
+                    requested, quote, e.getMessage());
+            cache.read(normalize(requested), quote)
+                    .ifPresent(cached -> result.put(requested, new ExchangeRate(cached.rate(), true)));
+        }
     }
 
     /**

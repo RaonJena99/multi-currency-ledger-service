@@ -16,6 +16,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
 import com.github.raonjena99.multi_currency_ledger_service.common.security.AccountOwnershipGuard;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -47,9 +48,8 @@ public class AccountTradeController {
             @NotBlank @Size(max = 20) String targetAssetCode,
             @NotNull AssetType targetAssetType,
             @NotBlank @Size(max = 10) String paymentCurrency,
-            @NotNull @Positive BigDecimal quantity,
-            @NotNull @Positive BigDecimal unitPrice
-    ) {
+            @NotNull @Positive @Digits(integer = 20, fraction = 18) BigDecimal quantity,
+            @NotNull @Positive @Digits(integer = 20, fraction = 18) BigDecimal unitPrice) {
         public TradeRequestDto {
             // 자산/통화 코드를 정규화한다. 원장의 asset_code 는 입력 문자열을 그대로 저장하므로,
             // 정규화 없이 "btc" 와 "BTC" 가 들어오면 같은 자산이 서로 다른 원장 행으로 파편화되어
@@ -64,7 +64,8 @@ public class AccountTradeController {
     }
 
     /** 거래 생성 응답입니다. */
-    public record TradeResponseDto(UUID tradeId) {}
+    public record TradeResponseDto(UUID tradeId) {
+    }
 
     @PostMapping("/buy")
     public ResponseEntity<TradeResponseDto> buyAsset(
@@ -80,8 +81,7 @@ public class AccountTradeController {
                 request.targetAssetType(),
                 request.paymentCurrency(),
                 Money.of(request.quantity(), request.targetAssetType(), request.targetAssetCode()),
-                request.unitPrice()
-        );
+                request.unitPrice());
 
         return ResponseEntity.ok(new TradeResponseDto(tradeId));
     }
@@ -100,8 +100,7 @@ public class AccountTradeController {
                 request.targetAssetType(),
                 request.paymentCurrency(),
                 Money.of(request.quantity(), request.targetAssetType(), request.targetAssetCode()),
-                request.unitPrice()
-        );
+                request.unitPrice());
 
         return ResponseEntity.ok(new TradeResponseDto(tradeId));
     }

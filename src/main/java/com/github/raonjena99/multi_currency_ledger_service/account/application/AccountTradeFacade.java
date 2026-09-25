@@ -23,10 +23,12 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 계좌의 자산 매수 및 매도 거래를 처리하는 Facade(중재자) 역할을 수행합니다.
  *
- * <p>DB 트랜잭션과 외부 통신을 분리하는 것이 이 계층의 존재 이유입니다. 환율 조회와 원장 초기화를
+ * <p>
+ * DB 트랜잭션과 외부 통신을 분리하는 것이 이 계층의 존재 이유입니다. 환율 조회와 원장 초기화를
  * 트랜잭션 밖에서 먼저 끝내고, 트랜잭션 안에서는 순수 DB 연산만 수행합니다.
  *
- * <p>낙관적 락 재시도는 {@link AccountTradeService} 쪽에 걸려 있습니다. Facade 에 재시도를 걸면
+ * <p>
+ * 낙관적 락 재시도는 {@link AccountTradeService} 쪽에 걸려 있습니다. Facade 에 재시도를 걸면
  * 재시도마다 원장 초기화와 환율 조회(외부 HTTP)가 함께 반복되어 거래 1건에 최대 6번의 외부 호출이
  * 발생하고, 시도마다 다른 환율이 적용될 수 있습니다.
  */
@@ -45,7 +47,7 @@ public class AccountTradeFacade {
      * 클라이언트가 제시한 단가가 시장 시세에서 벗어날 수 있는 최대 비율입니다.
      * 0 이하로 설정하면 검증을 끕니다.
      */
-    @Value("${ledger.trade.max-price-deviation-ratio:0.10}")
+    @Value("${ledger.trade.max-price-deviation-ratio:0.02}")
     private BigDecimal maxPriceDeviationRatio;
 
     /**
@@ -61,9 +63,10 @@ public class AccountTradeFacade {
      * @return 생성된 거래 ID
      */
     public UUID buyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType,
-                         String paymentCurrency, Money buyQuantity, BigDecimal unitPrice) {
+            String paymentCurrency, Money buyQuantity, BigDecimal unitPrice) {
 
-        TradeContext context = prepare(accountId, targetAssetCode, targetAssetType, paymentCurrency, unitPrice, TradeType.BUY);
+        TradeContext context = prepare(accountId, targetAssetCode, targetAssetType, paymentCurrency, unitPrice,
+                TradeType.BUY);
 
         return tradeService.executeBuyAsset(idempotencyKey, accountId, targetAssetCode, targetAssetType,
                 paymentCurrency, buyQuantity, unitPrice, context.transactedAt(), context.ledgerMonth(),
@@ -83,9 +86,10 @@ public class AccountTradeFacade {
      * @return 생성된 거래 ID
      */
     public UUID sellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType,
-                          String paymentCurrency, Money sellQuantity, BigDecimal sellUnitPrice) {
+            String paymentCurrency, Money sellQuantity, BigDecimal sellUnitPrice) {
 
-        TradeContext context = prepare(accountId, targetAssetCode, targetAssetType, paymentCurrency, sellUnitPrice, TradeType.SELL);
+        TradeContext context = prepare(accountId, targetAssetCode, targetAssetType, paymentCurrency, sellUnitPrice,
+                TradeType.SELL);
 
         return tradeService.executeSellAsset(idempotencyKey, accountId, targetAssetCode, targetAssetType,
                 paymentCurrency, sellQuantity, sellUnitPrice, context.transactedAt(), context.ledgerMonth(),
@@ -97,7 +101,7 @@ public class AccountTradeFacade {
      * 원장 존재 보장, 계좌 조회, 환율 조회, 단가 검증이 여기에 속합니다.
      */
     private TradeContext prepare(UUID accountId, String targetAssetCode, AssetType targetAssetType,
-                                 String paymentCurrency, BigDecimal unitPrice, TradeType tradeType) {
+            String paymentCurrency, BigDecimal unitPrice, TradeType tradeType) {
 
         // 자산 코드와 자산 유형의 정합성을 원장 초기화 "이전"에 검증한다.
         // 검증 없이 진행하면 예컨대 (USD, CRYPTO) 조합이 잘못된 유형의 원장 행을 만들고,
@@ -137,18 +141,20 @@ public class AccountTradeFacade {
 
         validatePriceAgainstMarket(unitPrice, targetRateInfo.rate(), targetAssetCode, paymentCurrency, tradeType);
 
-        return new TradeContext(transactedAt, ledgerMonth, targetRateInfo.rate(), targetRateInfo.isStale(), fiatToBaseRate);
+        return new TradeContext(transactedAt, ledgerMonth, targetRateInfo.rate(), targetRateInfo.isStale(),
+                fiatToBaseRate);
     }
 
     /**
      * 자산 코드와 클라이언트가 지정한 자산 유형이 서로 모순되지 않는지 검증합니다.
      *
-     * <p>클라이언트가 보낸 {@code targetAssetType} 은 신뢰할 수 없는 입력입니다. 검증 없이
+     * <p>
+     * 클라이언트가 보낸 {@code targetAssetType} 은 신뢰할 수 없는 입력입니다. 검증 없이
      * 저장하면 ISO 통화 코드가 CRYPTO 유형의 원장 행으로 만들어지는 식의 오염이 생기고,
      * 이후 정상 거래가 통화 불일치로 계속 실패합니다.
      */
     private void validateAssetTypeConsistency(String targetAssetCode, AssetType targetAssetType,
-                                              String paymentCurrency) {
+            String paymentCurrency) {
         if (!isIsoCurrency(paymentCurrency)) {
             throw new com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException(
                     "결제 통화가 유효한 ISO 4217 코드가 아닙니다: " + paymentCurrency);
@@ -164,6 +170,12 @@ public class AccountTradeFacade {
                     "자산 코드 %s 는 법정화폐(ISO 4217)인데 자산 유형이 %s 로 지정되었습니다.",
                     targetAssetCode, targetAssetType));
         }
+
+        if (targetAssetCode.equals(paymentCurrency) && targetAssetType.equals(AssetType.FIAT)) {
+            throw new IllegalArgumentException(String.format(
+                    "자산 코드 %s 와 결제 통화 %s 가 동일합니다. 같은 통화끼리는 거래할 수 없습니다.",
+                    targetAssetCode, paymentCurrency));
+        }
     }
 
     private boolean isIsoCurrency(String code) {
@@ -178,11 +190,12 @@ public class AccountTradeFacade {
     /**
      * 클라이언트가 제시한 단가가 시장 시세에서 크게 벗어나지 않는지 검증합니다.
      *
-     * <p>이 검증이 없으면 클라이언트가 임의 가격으로 매수·매도할 수 있습니다. 조회한 시세를
+     * <p>
+     * 이 검증이 없으면 클라이언트가 임의 가격으로 매수·매도할 수 있습니다. 조회한 시세를
      * 이벤트에 기록만 하고 검증에 쓰지 않으면 시세 조회 자체가 무의미해집니다.
      */
     private void validatePriceAgainstMarket(BigDecimal unitPrice, BigDecimal marketRate,
-                                            String assetCode, String paymentCurrency, TradeType tradeType) {
+            String assetCode, String paymentCurrency, TradeType tradeType) {
         if (maxPriceDeviationRatio == null || maxPriceDeviationRatio.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
@@ -213,5 +226,6 @@ public class AccountTradeFacade {
      * @param fiatToBaseRate 결제 통화 → 기준 통화 환율. 두 통화가 같으면 null
      */
     private record TradeContext(OffsetDateTime transactedAt, String ledgerMonth, BigDecimal targetRate,
-                                boolean isStaleRate, BigDecimal fiatToBaseRate) {}
+            boolean isStaleRate, BigDecimal fiatToBaseRate) {
+    }
 }

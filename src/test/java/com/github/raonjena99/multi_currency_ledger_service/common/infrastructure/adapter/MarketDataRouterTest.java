@@ -10,6 +10,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.MarketDataUnavailableException;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider.ExchangeRate;
 
@@ -204,5 +208,38 @@ class MarketDataRouterTest {
         assertThat(result.get("KRW").rate()).isEqualByComparingTo("1");
         assertThat(result.get("USD").rate()).isEqualByComparingTo("1384.72");
         verify(fiatAdapter).getRate("USD", "KRW");
+    }
+
+    @Test
+    @DisplayName("다중 조회: 공급자 장애로 단건 폴백이 막혀도 낡은 캐시를 지연 데이터로 보여준다")
+    void batchShowsExpiredCacheAsStaleOnProviderFailure() {
+        when(fiatAdapter.getRate("USD", "KRW"))
+                .thenThrow(new ArbitrageRiskException("시세 데이터 만료"));
+        when(cache.read("USD", "KRW")).thenReturn(Optional.of(new ExchangeRateCache.CachedRate(
+                new BigDecimal("1380"), Instant.now().minus(Duration.ofMinutes(30)))));
+
+        Map<String, ExchangeRate> result = router.getExchangeRates(List.of("USD"), "KRW");
+
+        assertThat(result.get("USD").rate()).isEqualByComparingTo("1380");
+        assertThat(result.get("USD").isStale()).isTrue();
+    }
+
+    @Test
+    @DisplayName("다중 조회: 공급자 장애에 캐시도 없으면 예외 대신 결과에서 뺀다")
+    void batchOmitsAssetWhenProviderAndCacheBothFail() {
+        when(fiatAdapter.getRate("USD", "KRW"))
+                .thenThrow(new MarketDataUnavailableException("캐시 고갈", new RuntimeException()));
+        when(cache.read("USD", "KRW")).thenReturn(Optional.empty());
+
+        Map<String, ExchangeRate> result = router.getExchangeRates(List.of("USD", "KRW"), "KRW");
+
+        assertThat(result).containsOnlyKeys("KRW");
+    }
+
+    @Test
+    @DisplayName("다중 조회: 지원하지 않는 자산 코드는 폴백하지 않고 그대로 거부한다")
+    void batchStillRejectsUnsupportedAsset() {
+        assertThatThrownBy(() -> router.getExchangeRates(List.of("AAPL"), "USD"))
+                .isInstanceOf(UnsupportedAssetCodeException.class);
     }
 }

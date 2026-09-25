@@ -20,13 +20,16 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 시세 캐시를 Redis 에 읽고 쓰는 공용 컴포넌트입니다. 모든 시세 어댑터가 이 캐시를 공유합니다.
  *
- * <p>공급자별로 캐시 로직을 복제하면 신선도 기준과 키 규칙이 갈라집니다. 실제로 그렇게 되면
+ * <p>
+ * 공급자별로 캐시 로직을 복제하면 신선도 기준과 키 규칙이 갈라집니다. 실제로 그렇게 되면
  * 단건 조회는 만료로 거래를 차단하는데 배치 조회는 같은 낡은 값을 정상 데이터로 표시하는,
  * 눈에 잘 안 보이는 불일치가 생깁니다. 그래서 한 곳에 모았습니다.
  *
- * <p><b>역방향 동시 기록이 이 클래스의 핵심 기능입니다.</b> 무료 시세 공급자는 환율을 절대
+ * <p>
+ * <b>역방향 동시 기록이 이 클래스의 핵심 기능입니다.</b> 무료 시세 공급자는 환율을 절대
  * 소수 자릿수로 양자화하므로, 1 보다 훨씬 작은 환율은 유효숫자가 통째로 날아갑니다.
- * (fxratesapi 실측: {@code KRW→BTC} 참값 {@code 9.3461e-9} 를 {@code 9e-9} 로 반환, 오차 3.7%.
+ * (fxratesapi 실측: {@code KRW→BTC} 참값 {@code 9.3461e-9} 를 {@code 9e-9} 로 반환, 오차
+ * 3.7%.
  * {@code places} 파라미터로도 복구되지 않습니다.) 값이 큰 방향을 한 번 조회해 역수를
  * {@code BigDecimal} 로 계산해 두면 공급자의 역방향 값보다 정밀하고, 분당 호출 쿼터도 절약됩니다.
  */
@@ -37,13 +40,18 @@ public class ExchangeRateCache {
 
     private static final String KEY_PREFIX = "ledger:exchange-rate:";
 
-    /** 캐시 TTL. 만료 나이({@link #MAX_AGE})와 같게 두어 만료된 값이 남지 않게 합니다. */
-    private static final Duration TTL = Duration.ofMinutes(5);
+    /**
+     * 캐시 TTL. 만료 나이({@link #MAX_AGE})보다 길게 두어, 공급자 장애 시 조회 화면이 낡은 시세를
+     * 지연 데이터로 보여줄 수 있게 합니다. 신선도는 저장된 타임스탬프로 판정하므로 거래 차단에는
+     * 영향이 없습니다.
+     */
+    private static final Duration TTL = Duration.ofHours(1);
 
     /**
      * 캐시된 시세를 신선하다고 인정하는 최대 나이.
      *
-     * <p>{@code Duration.toMinutes()} 는 절삭이므로 {@code toMinutes() <= 5} 로 비교하면
+     * <p>
+     * {@code Duration.toMinutes()} 는 절삭이므로 {@code toMinutes() <= 5} 로 비교하면
      * 실제로는 5분 59초까지 통과합니다. "5분 하드 리밋"을 지키려면 시간 단위로 비교해야 합니다.
      */
     public static final Duration MAX_AGE = Duration.ofMinutes(5);
@@ -108,7 +116,8 @@ public class ExchangeRateCache {
     /**
      * 조회한 시세를 정방향과 역방향에 함께 기록합니다.
      *
-     * <p>쓰기 실패는 삼킵니다. 캐시는 성능·복원력 보조 수단이므로 핵심 거래 흐름을 막아서는
+     * <p>
+     * 쓰기 실패는 삼킵니다. 캐시는 성능·복원력 보조 수단이므로 핵심 거래 흐름을 막아서는
      * 안 됩니다.
      *
      * @param base  기준 자산 코드
@@ -129,7 +138,8 @@ public class ExchangeRateCache {
      * 캐시만으로 응답할 수 있는지 판단합니다. 공급자를 호출하기 전에 이 메서드로 빠른 경로를
      * 확인합니다.
      *
-     * <p>이 판정을 어댑터마다 복제하면 신선도 정책이 갈라집니다. 실제로 그렇게 되면 단건 조회는
+     * <p>
+     * 이 판정을 어댑터마다 복제하면 신선도 정책이 갈라집니다. 실제로 그렇게 되면 단건 조회는
      * 만료로 거래를 차단하는데 배치 조회는 같은 낡은 값을 {@code isStale=false} 로 표시해
      * 정상 데이터처럼 보여주는 불일치가 생깁니다.
      *
@@ -179,7 +189,8 @@ public class ExchangeRateCache {
         CachedRate cached = read(base, quote)
                 .orElseThrow(() -> new MarketDataUnavailableException(
                         "외부 시세 API 장애 및 캐시 고갈로 " + base + "/" + quote
-                                + " 시세를 확보할 수 없습니다.", cause));
+                                + " 시세를 확보할 수 없습니다.",
+                        cause));
 
         // 타임스탬프가 있는데 허용 나이를 넘겼다면 거래를 차단한다. 낡은 시세로 체결하면
         // 차익거래에 노출된다.

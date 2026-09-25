@@ -27,6 +27,7 @@ spring:
         enable.idempotence: true
         # 요청 스레드의 correlation id 를 Kafka 헤더로 옮기는 인터셉터
         interceptor.classes: com.github.raonjena99.multi_currency_ledger_service.common.telemetry.KafkaCorrelationInterceptor
+        max.block.ms: 5000
     consumer:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -235,6 +236,7 @@ resilience4j:
         ignoreExceptions:
           - org.springframework.web.client.HttpClientErrorException.BadRequest
           - org.springframework.web.client.HttpClientErrorException.Unauthorized
+          - org.springframework.web.client.HttpClientErrorException.TooManyRequests
           - com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException
           - com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException
 
@@ -253,6 +255,7 @@ resilience4j:
         ignoreExceptions:
           - org.springframework.web.client.HttpClientErrorException.BadRequest
           - org.springframework.web.client.HttpClientErrorException.Unauthorized
+          - org.springframework.web.client.HttpClientErrorException.TooManyRequests
           - com.github.raonjena99.multi_currency_ledger_service.common.exception.ArbitrageRiskException
           - com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException
 
