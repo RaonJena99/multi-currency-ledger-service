@@ -79,6 +79,8 @@ public class AccountApiImpl implements AccountApi {
         String ledgerMonth = ledgerPeriodResolver.resolveLedgerMonth(accountId, transactedAt);
         MonthlyAccountLedger fiatLedger = monthlyLedgerResolver.resolveOrInitializeLedger(
                 accountId, adjustment.getCurrencyCode(), AssetType.FIAT, ledgerMonth);
+        // 월 경계 이월 경합 방지. 충돌 시 Kafka 재시도가 최신 월로 다시 기장한다.
+        monthlyLedgerResolver.requireStillLatestMonth(accountId, ledgerMonth);
 
         // 보정은 매수/매도가 아니라 회계 정정이므로 전용 메서드를 쓴다. 잔고 부족으로 분개까지
         // 막지 않고(음수 잔고 = 고객 채권), 이동 평균 단가도 왜곡하지 않는다.

@@ -13,6 +13,7 @@ import com.github.raonjena99.multi_currency_ledger_service.account.infrastructur
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException;
+import com.github.raonjena99.multi_currency_ledger_service.common.infrastructure.adapter.CryptoAssetProperties;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType;
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
@@ -42,6 +43,7 @@ public class AccountTradeFacade {
     private final AccountTradeService tradeService;
     private final AccountRepository accountRepository;
     private final ExchangeRateProvider exchangeRateProvider;
+    private final CryptoAssetProperties cryptoAssets;
 
     /**
      * 클라이언트가 제시한 단가가 시장 시세에서 벗어날 수 있는 최대 비율입니다.
@@ -127,11 +129,7 @@ public class AccountTradeFacade {
         // 읽기 경로가 보는 월보다 과거에 기장하면 거래가 보고 잔고에서 사라진다.
         String ledgerMonth = periodResolver.resolveLedgerMonth(accountId, transactedAt);
 
-        // 1. 트랜잭션 외부에서 원장 존재 여부 보장 (커넥션 풀 데드락 방지)
-        ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, ledgerMonth);
-        ledgerResolver.resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, ledgerMonth);
-
-        // 2. 외부 API 통신을 DB 트랜잭션 밖에서 수행 (Connection Pool 고갈 방지)
+        // 외부 API 통신을 DB 트랜잭션 밖에서 수행 (Connection Pool 고갈 방지)
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
 
@@ -150,6 +148,15 @@ public class AccountTradeFacade {
         }
 
         validatePriceAgainstMarket(unitPrice, targetRateInfo.rate(), targetAssetCode, paymentCurrency, tradeType);
+
+        // 트랜잭션 외부에서 원장 존재 여부 보장 (커넥션 풀 데드락 방지)
+        //
+        // 원장 초기화는 REQUIRES_NEW 로 즉시 커밋되므로 반드시 모든 검증을 통과한 "뒤"에 한다.
+        // 검증 전에 만들면 계좌 정지·시세 없음·단가 이탈로 거절된 요청도 원장 행을 남긴다.
+        // 그 행이 잘못된 자산 유형이면 이후 정상 요청까지 통화 불일치로 영구히 막히고, 오타 코드면
+        // 잔고 0 인 행이 포트폴리오에 남아 시세 조회가 계속 실패한다.
+        ledgerResolver.resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, ledgerMonth);
+        ledgerResolver.resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, ledgerMonth);
 
         return new TradeContext(transactedAt, ledgerMonth, targetRateInfo.rate(), targetRateInfo.isStale(),
                 fiatToBaseRate);
@@ -178,6 +185,13 @@ public class AccountTradeFacade {
         if (targetAssetType != AssetType.FIAT && targetIsIsoCurrency) {
             throw new IllegalArgumentException(String.format(
                     "자산 코드 %s 는 법정화폐(ISO 4217)인데 자산 유형이 %s 로 지정되었습니다.",
+                    targetAssetCode, targetAssetType));
+        }
+        // 시세 계층은 자산 유형이 아니라 코드로 암호화폐를 판별한다(MarketDataRouter). 그래서
+        // (BTC, STOCK) 같은 조합도 시세 조회를 통과해, 잘못된 유형의 원장 행이 만들어진다.
+        if (cryptoAssets.isCrypto(targetAssetCode) && targetAssetType != AssetType.CRYPTO) {
+            throw new IllegalArgumentException(String.format(
+                    "자산 코드 %s 는 암호화폐인데 자산 유형이 %s 로 지정되었습니다.",
                     targetAssetCode, targetAssetType));
         }
 

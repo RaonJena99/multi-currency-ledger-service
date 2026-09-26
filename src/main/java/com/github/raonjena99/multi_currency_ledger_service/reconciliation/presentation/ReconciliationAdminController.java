@@ -14,6 +14,9 @@ import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.service.ManualReconciliationService;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -30,8 +33,10 @@ public class ReconciliationAdminController {
      * 수동 매칭 요청 데이터를 담는 DTO(Data Transfer Object) 레코드입니다.
      */
     public record ManualResolutionRequest(
-            UUID internalTransactionId,
-            BigDecimal feeAmount,     
+            @NotNull UUID internalTransactionId,
+            // Money 생성 시 자산 단위로 반올림(setScale)하므로, 1e999999999 같은 극단적인 지수는
+            // 거대한 정수를 만들며 스레드를 멈추게 한다. 거래 API 와 같은 자릿수 상한을 둔다.
+            @Digits(integer = 18, fraction = 36) BigDecimal feeAmount,
             AssetType feeAssetType,
             String feeCurrency
     ) {
@@ -75,7 +80,7 @@ public class ReconciliationAdminController {
     @PostMapping("/dead-letters/{deadLetterId}/resolve")
     public ResponseEntity<Void> resolveDeadLetter(
             @PathVariable Long deadLetterId,
-            @RequestBody ManualResolutionRequest request) {
+            @Valid @RequestBody ManualResolutionRequest request) {
         
         manualReconciliationService.resolveManually(
                 deadLetterId, 

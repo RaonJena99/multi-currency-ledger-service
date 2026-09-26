@@ -34,6 +34,7 @@ class AccountTradeFacadeTest {
     @Mock private AccountTradeService tradeService;
     @Mock private AccountRepository accountRepository;
     @Mock private ExchangeRateProvider exchangeRateProvider;
+    @Mock private com.github.raonjena99.multi_currency_ledger_service.common.infrastructure.adapter.CryptoAssetProperties cryptoAssets;
 
     @InjectMocks
     private AccountTradeFacade facade;
@@ -186,5 +187,49 @@ class AccountTradeFacadeTest {
 
         org.assertj.core.api.Assertions.assertThat(result).isEqualTo(completedTradeId);
         org.mockito.Mockito.verifyNoInteractions(exchangeRateProvider, accountRepository);
+    }
+
+    @Test
+    void buyAsset_should_reject_registered_crypto_with_non_crypto_type_before_creating_ledger() {
+        UUID accountId = UUID.randomUUID();
+        when(cryptoAssets.isCrypto("BTC")).thenReturn(true);
+
+        // (BTC, STOCK) 은 시세 조회를 통과하므로, 막지 않으면 STOCK 유형의 BTC 원장 행이 남아
+        // 이후 정상 CRYPTO 요청까지 통화 불일치로 영구히 실패한다.
+        assertThatThrownBy(() -> facade.buyAsset("idemp", accountId, "BTC", AssetType.STOCK, "KRW",
+                Money.of("1", AssetType.STOCK, "BTC"), new BigDecimal("50000000")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("암호화폐");
+        org.mockito.Mockito.verifyNoInteractions(ledgerResolver, exchangeRateProvider);
+    }
+
+    @Test
+    void buyAsset_should_not_create_ledger_when_market_data_rejects_asset() {
+        UUID accountId = UUID.randomUUID();
+        Account account = org.mockito.Mockito.mock(Account.class);
+        when(account.isActive()).thenReturn(true);
+        when(account.getBaseCurrency()).thenReturn("KRW");
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        when(exchangeRateProvider.getExchangeRate("BTX", "KRW")).thenThrow(
+                new com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException("no provider"));
+
+        // 원장 초기화는 REQUIRES_NEW 로 즉시 커밋되므로, 거절될 요청이 원장 행을 남기면 안 된다.
+        assertThatThrownBy(() -> facade.buyAsset("idemp", accountId, "BTX", AssetType.CRYPTO, "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTX"), new BigDecimal("1")))
+            .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException.class);
+        org.mockito.Mockito.verifyNoInteractions(ledgerResolver);
+    }
+
+    @Test
+    void buyAsset_should_not_create_ledger_when_account_inactive() {
+        UUID accountId = UUID.randomUUID();
+        Account account = org.mockito.Mockito.mock(Account.class);
+        when(account.isActive()).thenReturn(false);
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> facade.buyAsset("idemp", accountId, "BTC", AssetType.CRYPTO, "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("1")))
+            .isInstanceOf(InvalidAccountStateException.class);
+        org.mockito.Mockito.verifyNoInteractions(ledgerResolver);
     }
 }

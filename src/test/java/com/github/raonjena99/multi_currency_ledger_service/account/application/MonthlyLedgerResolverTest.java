@@ -98,4 +98,23 @@ class MonthlyLedgerResolverTest {
         assertThatThrownBy(() -> resolver.resolveOrInitializeLedger(accountId, "BTC", AssetType.CRYPTO, targetMonth))
             .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    void requireStillLatestMonth_should_pass_when_no_newer_month_exists() {
+        UUID accountId = UUID.randomUUID();
+        when(ledgerRepository.findLatestLedgerMonthByAccountId(accountId)).thenReturn(java.util.Optional.of("2026-09"));
+
+        org.assertj.core.api.Assertions.assertThatCode(() -> resolver.requireStillLatestMonth(accountId, "2026-09"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void requireStillLatestMonth_should_fail_when_carry_forward_created_newer_month() {
+        UUID accountId = UUID.randomUUID();
+        // 최신 월 조회와 원장 행 조회 사이에 다른 요청이 다음 달로 이월한 경우
+        when(ledgerRepository.findLatestLedgerMonthByAccountId(accountId)).thenReturn(java.util.Optional.of("2026-10"));
+
+        assertThatThrownBy(() -> resolver.requireStillLatestMonth(accountId, "2026-09"))
+                .isInstanceOf(org.springframework.dao.OptimisticLockingFailureException.class);
+    }
 }
