@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.8'
+    id 'org.springframework.boot' version '4.1.1'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
 }
@@ -67,7 +67,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // 소스코드를 MSA처럼 쪼개서 유지 (Spring Modulith)
-    implementation platform('org.springframework.modulith:spring-modulith-bom:2.0.3')
+    implementation platform('org.springframework.modulith:spring-modulith-bom:2.1.1')
     implementation 'org.springframework.modulith:spring-modulith-starter-core'
 
     // Fuzzy Matching을 위한 Levenshtein Distance 지원 (Apache Commons Text)
