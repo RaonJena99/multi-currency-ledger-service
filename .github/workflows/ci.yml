@@ -2,7 +2,8 @@ name: CI
 
 # PR 과 main 푸시마다 두 가지를 검증한다.
 #   1. test        : 전체 테스트와 커버리지 (Testcontainers 로 PostgreSQL/Redis/Kafka 를 띄운다)
-#   2. image-smoke : Docker 이미지를 실제로 빌드해 운영용 스택으로 띄우고 기동·기본 API 를 확인한다
+#   2. image-smoke : Docker 이미지를 실제로 빌드해 운영용 스택으로 띄우고 기동·기본 API 를 확인한 뒤,
+#                    고칠 수 있는 HIGH/CRITICAL 취약점이 있는지 스캔한다
 # 테스트는 로컬 빌드 산출물로 돌기 때문에 "이미지로 만든 jar 가 뜨는가"는 2번만 잡을 수 있다.
 on:
   pull_request:
@@ -10,6 +11,9 @@ on:
   # main 에 직접 푸시된 커밋도 검증한다. PR 트리거만 두면 main 이 검증 없이 깨질 수 있다.
   push:
     branches: ["main"]
+  # 코드가 그대로여도 새 취약점은 계속 공개된다. 매주 main 을 다시 검증해 실패하면 알림을 받는다.
+  schedule:
+    - cron: "0 0 * * 1"
 
 permissions:
   contents: read
@@ -72,3 +76,14 @@ jobs:
 
       - name: Smoke test
         run: deploy/smoke-test.sh ledger:ci
+
+      # 수정판이 나온 취약점만 실패로 본다(--ignore-unfixed). 수정판이 없으면 할 수 있는 조치가 없어 알림만 늘어난다.
+      # 악용 불가로 판단한 항목은 .trivyignore 에 근거와 함께 적는다.
+      - name: Vulnerability scan
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/.trivyignore:/.trivyignore:ro" \
+            aquasec/trivy:0.74.0 image \
+            --timeout 20m --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /.trivyignore --exit-code 1 ledger:ci

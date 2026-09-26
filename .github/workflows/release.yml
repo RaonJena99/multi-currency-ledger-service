@@ -98,6 +98,16 @@ jobs:
       - name: Smoke test
         run: deploy/smoke-test.sh ledger:release
 
+      # CI 와 같은 기준. 릴리스 PR 머지와 발행 사이에 새 취약점이 공개되어도 취약한 이미지는 올리지 않는다.
+      - name: Vulnerability scan
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/.trivyignore:/.trivyignore:ro" \
+            aquasec/trivy:0.74.0 image \
+            --timeout 20m --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /.trivyignore --exit-code 1 ledger:release
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
