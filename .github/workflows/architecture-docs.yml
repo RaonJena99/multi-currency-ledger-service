@@ -1,6 +1,8 @@
 name: Architecture Documentation Pipeline
 
 on:
+  # 실패했거나 수동으로 다시 동기화해야 할 때 Actions 탭에서 직접 실행한다.
+  workflow_dispatch:
   push:
     branches: ["main"]
     paths:
