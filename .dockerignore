@@ -1,0 +1,14 @@
+# 이미지 빌드에 필요한 것은 Gradle 래퍼, 빌드 스크립트, lombok.config, src 뿐이다.
+# 나머지를 빌드 컨텍스트에서 빼 전송량을 줄이고, 로컬 build/ 산출물이 섞여 들어가지 않게 한다.
+.git
+.github
+.gradle
+.idea
+.vscode
+build
+**/build
+docs
+deploy
+prometheus
+*.md
+docker-compose.yml

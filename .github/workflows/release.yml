@@ -1,0 +1,114 @@
+name: Release
+
+# main 푸시마다 release-please 가 릴리스 PR(버전·CHANGELOG)을 갱신한다.
+# 릴리스 PR 을 머지하면 태그와 GitHub Release 가 만들어지고, 같은 실행 안에서
+#   테스트 → 이미지 빌드 → 스모크 테스트 → GHCR 발행(1.2.3 / 1.2 / latest / sha-xxxxxxx)
+# 까지 이어진다.
+#
+# 발행을 release 이벤트로 받는 별도 워크플로로 나누면 안 된다. release-please 는 GITHUB_TOKEN 으로
+# 릴리스를 만들고, GitHub 는 GITHUB_TOKEN 이 일으킨 이벤트로 다른 워크플로를 실행하지 않는다.
+# 그래서 같은 워크플로의 후속 job 으로 둔다.
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+# 릴리스는 한 번에 하나씩, 중간에 끊지 않고 끝까지 진행한다.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: simple
+
+  test:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run tests
+        run: ./gradlew test
+
+  publish-image:
+    needs: [release-please, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.release-please.outputs.tag_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag_name }}
+            type=raw,value=latest
+            type=sha
+
+      # 발행할 태그를 붙여 로컬에만 빌드한다. 스모크 테스트를 통과한 바로 이 이미지를 그대로 푸시하므로,
+      # 뜨지 않는 이미지는 레지스트리에 올라가지 않고 "테스트한 것"과 "배포되는 것"이 어긋나지 않는다.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: |
+            ledger:release
+            ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: deploy/smoke-test.sh ledger:release
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          for tag in $TAGS; do
+            docker push "$tag"
+          done

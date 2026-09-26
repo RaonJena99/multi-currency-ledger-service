@@ -1,0 +1,94 @@
+# 운영 배포용 스택: 애플리케이션 + PostgreSQL + Redis + Kafka
+#
+#   cp .env.example .env   # 비밀값을 채운다
+#   docker compose up -d
+#
+# 로컬 개발용 인프라(호스트 포트 노출, Prometheus/Grafana)는 저장소 루트의 docker-compose.yml 을 쓴다.
+# 이 파일은 애플리케이션 포트만 호스트에 노출하고, 나머지는 내부 네트워크에만 둔다.
+name: ledger
+
+services:
+  app:
+    # 릴리스 워크플로가 GHCR 에 1.2.3 / 1.2 / latest 태그로 발행한다. 운영에서는 버전을 고정하는 편이 안전하다.
+    image: ${APP_IMAGE:-ghcr.io/raonjena99/multi-currency-ledger-service:${APP_VERSION:-latest}}
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ledger_admin
+      DB_PASSWORD: ${DB_PASSWORD:?.env 에 DB_PASSWORD 를 설정하세요}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # 기본값(localhost:9092)은 컨테이너 자기 자신을 가리키므로 반드시 서비스 이름으로 지정한다.
+      KAFKA_BROKERS: kafka:9092
+      # 비어 있으면 X-Auth-* 헤더를 무조건 신뢰해 누구나 관리자로 행세할 수 있다. 운영에서는 필수로 강제한다.
+      GATEWAY_SHARED_SECRET: ${GATEWAY_SHARED_SECRET:?.env 에 GATEWAY_SHARED_SECRET 을 설정하세요}
+      EXCHANGE_RATE_API_KEY: ${EXCHANGE_RATE_API_KEY:-}
+      CRYPTO_PRICE_API_KEY: ${CRYPTO_PRICE_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    # 진행 중인 요청·아웃박스 발행·Kafka 소비를 마칠 시간을 준다(Spring 종료 단계 기본 30초 + 여유).
+    stop_grace_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ledger_db
+      POSTGRES_USER: ledger_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?.env 에 DB_PASSWORD 를 설정하세요}
+      TZ: UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger_admin -d ledger_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: apache/kafka-native:3.8.0
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      # 애플리케이션 컨테이너가 접속할 주소. 로컬 개발용(localhost:9092)과 다르다.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # 원장 커맨드 토픽은 애플리케이션이 선언하지 않고 브로커 자동 생성에 맡긴다.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: ledger-prod-cluster-01
+    volumes:
+      # 재시작해도 발행된 원장 커맨드가 사라지지 않도록 로그를 볼륨에 둔다.
+      # 이 이미지는 root 가 아닌 appuser 로 실행되고, 로그를 /tmp 아래(/tmp/kafka-logs)에 쓴다.
+      # 이미지에 없는 경로(/var/lib/kafka/data 등)에 볼륨을 붙이면 root 소유로 만들어져 브로커가 쓰지 못하고
+      # 재시작을 반복한다. 모든 사용자가 쓸 수 있는 /tmp 에 붙이면 볼륨이 그 권한을 물려받는다.
+      - kafka_data:/tmp
+
+volumes:
+  postgres_data:
+  kafka_data:

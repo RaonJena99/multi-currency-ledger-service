@@ -12,6 +12,11 @@ permissions:
   contents: write
   pull-requests: write
 
+# main 에 연달아 머지되면 두 실행이 같은 문서 브랜치를 동시에 갱신하다 충돌한다. 최신 실행만 남긴다.
+concurrency:
+  group: architecture-docs
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -41,7 +46,7 @@ jobs:
         run: |
           mkdir -p docs/architecture/modulith
 
-          docker run --rm --user $(id -u):$(id -g) -v ${{ github.workspace }}:/app plantuml/plantuml -tsvg "/app/build/spring-modulith-docs/*.puml"
+          docker run --rm --user "$(id -u):$(id -g)" -v ${{ github.workspace }}:/app plantuml/plantuml -tsvg "/app/build/spring-modulith-docs/*.puml"
 
           shopt -s nullglob
           cp build/spring-modulith-docs/*.svg docs/architecture/modulith/ || true

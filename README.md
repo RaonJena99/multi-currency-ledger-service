@@ -55,6 +55,35 @@ DB 스키마는 기동 시 Flyway가 자동으로 적용합니다.
 
 ---
 
+## 배포
+
+```text
+PR / main 푸시   ─▶ CI: 전체 테스트 + 이미지 빌드 후 운영 스택으로 기동 확인(스모크 테스트)
+main 머지        ─▶ release-please 가 릴리스 PR(다음 버전, CHANGELOG)을 갱신
+릴리스 PR 머지   ─▶ 테스트 → 이미지 빌드 → 스모크 테스트 → GHCR 발행
+```
+
+- 버전은 커밋 메시지(Conventional Commits)로 정해집니다. `fix:`는 패치, `feat:`는 마이너 버전을 올립니다.
+- 이미지는 `ghcr.io/raonjena99/multi-currency-ledger-service`에 `1.2.3`, `1.2`, `latest`, `sha-xxxxxxx` 태그로 발행됩니다(linux/amd64).
+- 스모크 테스트를 통과한 이미지만 발행됩니다. 로컬에서도 같은 검사를 돌릴 수 있습니다.
+  ```bash
+  docker build -t ledger:local . && deploy/smoke-test.sh ledger:local
+  ```
+
+서버에서는 `deploy/`의 운영용 스택(앱, PostgreSQL, Redis, Kafka)으로 실행합니다.
+
+```bash
+cd deploy
+cp .env.example .env        # DB_PASSWORD, GATEWAY_SHARED_SECRET 은 필수
+docker compose pull && docker compose up -d
+```
+
+- 버전을 올릴 때는 `.env`의 `APP_VERSION`을 바꾸고 위 명령을 다시 실행합니다.
+- GHCR 패키지가 비공개라면 서버에서 먼저 `docker login ghcr.io`로 로그인해야 합니다.
+- 운영용 스택은 애플리케이션 포트만 호스트에 노출하고, 모든 서비스에 재시작 정책(`unless-stopped`)을 둡니다.
+
+---
+
 ## API
 
 | 메서드 | 경로 | 권한 |
@@ -138,6 +167,7 @@ src/main/java/.../
 ├── reconciliation/   # 정산 적재, 대사 배치(Spring Batch), 매칭 규칙
 └── common/           # Money, 시세 어댑터, 아웃박스, 보안, 설정
 src/main/resources/db/migration/   # Flyway 마이그레이션
+deploy/                            # 운영용 docker compose, 이미지 스모크 테스트
 ```
 
 코드를 처음 읽는다면 [코드 읽기 가이드](docs/CODE_READING_GUIDE.md)부터 보십시오.
