@@ -7,6 +7,10 @@ COPY gradlew .
 COPY gradle gradle
 COPY build.gradle .
 COPY settings.gradle .
+# lombok.config 가 없으면 @RequiredArgsConstructor 가 필드의 @Qualifier/@Value 를 생성자로 옮기지 않는다.
+# 로컬·CI 빌드에는 있고 이미지 빌드에만 빠지면, 같은 타입 빈이 여럿인 RestClient 주입이 모호해져
+# 이미지가 기동조차 하지 못한다(NoUniqueBeanDefinitionException). 테스트로는 잡히지 않는 차이다.
+COPY lombok.config .
 
 RUN chmod +x gradlew
 
@@ -15,7 +19,8 @@ RUN ./gradlew dependencies --no-daemon || true
 
 COPY src src
 
-# Tests run in CI (they need Docker for Testcontainers), so skip them here.
+# 테스트는 Testcontainers(Docker)가 필요하므로 이미지 빌드 안에서는 건너뛴다.
+# CI 와 릴리스 워크플로가 이미지를 빌드하기 전에 전체 테스트를 실행한다.
 RUN ./gradlew bootJar --no-daemon -x test
 
 # Runtime Stage
