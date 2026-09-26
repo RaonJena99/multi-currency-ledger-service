@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.3](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.2...v1.0.3) (2026-09-26)
+
+
+### Bug Fixes
+
+* Docker 이미지 기동 실패 수정 및 테스트·스모크 테스트를 거쳐 발행하는 배포 파이프라인 정비 ([#31](https://github.com/RaonJena99/multi-currency-ledger-service/issues/31)) ([8c150ba](https://github.com/RaonJena99/multi-currency-ledger-service/commit/8c150ba5881df98e5cde686ae329cb237a144199))
+* 서비스 장애 및 잔고 오류를 유발하는 치명 결함 6건 수정 ([bdf2b4a](https://github.com/RaonJena99/multi-currency-ledger-service/commit/bdf2b4a259d55f27bfeb554044619be9966f89e7))
+* 요청 코드로 무한 증가하는 캐시 제거 및 외부 API 응답 시간 지표 활성화 등 보강 4건 ([#32](https://github.com/RaonJena99/multi-currency-ledger-service/issues/32)) ([5b4e81b](https://github.com/RaonJena99/multi-currency-ledger-service/commit/5b4e81b6ab1db1df784d7ce589a919e411cc3720))
+* 잘못된 자산 유형 원장 생성 및 DB 장애 시 분개 누락 등 결함 7건 수정 ([#30](https://github.com/RaonJena99/multi-currency-ledger-service/issues/30)) ([4aed973](https://github.com/RaonJena99/multi-currency-ledger-service/commit/4aed973f33469689f2a20a795b4e1e26debd0a45))
+* 포트폴리오 조회 실패 및 멱등 재요청 거부 등 결함 6건 수정 ([#29](https://github.com/RaonJena99/multi-currency-ledger-service/issues/29)) ([edd3db9](https://github.com/RaonJena99/multi-currency-ledger-service/commit/edd3db92de95ba8e90530245376939daba439625))
+
 ## [1.0.2](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.1...v1.0.2) (2026-08-24)
 
 
