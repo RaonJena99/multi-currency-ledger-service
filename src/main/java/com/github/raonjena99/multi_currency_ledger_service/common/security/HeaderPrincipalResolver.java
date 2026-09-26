@@ -2,6 +2,7 @@ package com.github.raonjena99.multi_currency_ledger_service.common.security;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Enumeration;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,13 @@ public class HeaderPrincipalResolver implements PrincipalResolver {
 
     @Override
     public LedgerPrincipal resolve(HttpServletRequest request) {
+        // 같은 인증 헤더가 여러 번 오면 어느 값이 게이트웨이가 넣은 것인지 알 수 없다. getHeader 는 첫 번째
+        // 값만 돌려주므로, 게이트웨이가 헤더를 교체하지 않고 덧붙이는 설정이라면 클라이언트가 먼저 넣은
+        // X-Auth-Roles: ADMIN 이나 남의 X-Auth-Account-Id 가 채택된다. 모호한 요청은 인증하지 않는다.
+        if (hasDuplicateIdentityHeader(request)) {
+            log.warn("인증 헤더가 중복되어 요청을 인증하지 않습니다. 게이트웨이가 클라이언트의 X-Auth-* 헤더를 제거하는지 확인하십시오.");
+            return null;
+        }
         if (!verifyGatewaySecret(request)) {
             return null;
         }
@@ -70,6 +78,20 @@ public class HeaderPrincipalResolver implements PrincipalResolver {
         boolean admin = hasAdminRole(roles);
 
         return new LedgerPrincipal(subject, accountId, admin);
+    }
+
+    private boolean hasDuplicateIdentityHeader(HttpServletRequest request) {
+        for (String name : new String[] {SUBJECT_HEADER, ACCOUNT_HEADER, ROLES_HEADER, GATEWAY_SECRET_HEADER}) {
+            Enumeration<String> values = request.getHeaders(name);
+            if (values == null || !values.hasMoreElements()) {
+                continue;
+            }
+            values.nextElement();
+            if (values.hasMoreElements()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

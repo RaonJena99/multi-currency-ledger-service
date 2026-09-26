@@ -110,4 +110,28 @@ class AccountAccessControlTest extends IntegrationTestSupport {
                         .content(tradeBody()))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    @DisplayName("같은 인증 헤더가 중복되면(게이트웨이가 덧붙인 경우) 클라이언트 값으로 관리자가 될 수 없다")
+    void duplicated_roles_header_is_not_trusted() throws Exception {
+        // 클라이언트가 먼저 넣은 ADMIN 뒤에 게이트웨이가 실제 역할을 덧붙인 상황
+        mockMvc.perform(post("/api/v1/accounts/{accountId}/trades/buy", otherAccount)
+                        .header(HeaderPrincipalResolver.SUBJECT_HEADER, "user-1")
+                        .header(HeaderPrincipalResolver.ACCOUNT_HEADER, myAccount.toString())
+                        .header(HeaderPrincipalResolver.ROLES_HEADER, "ADMIN")
+                        .header(HeaderPrincipalResolver.ROLES_HEADER, "CUSTOMER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(tradeBody()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("계좌 헤더가 중복되면 앞쪽 값으로 남의 계좌를 조회할 수 없다")
+    void duplicated_account_header_is_not_trusted() throws Exception {
+        mockMvc.perform(get("/api/v1/portfolios/{accountId}", otherAccount)
+                        .header(HeaderPrincipalResolver.SUBJECT_HEADER, "user-1")
+                        .header(HeaderPrincipalResolver.ACCOUNT_HEADER, otherAccount.toString())
+                        .header(HeaderPrincipalResolver.ACCOUNT_HEADER, myAccount.toString()))
+                .andExpect(status().isUnauthorized());
+    }
 }
