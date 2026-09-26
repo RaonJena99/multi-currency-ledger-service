@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.6](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.5...v1.0.6) (2026-09-26)
+
+
+### Bug Fixes
+
+* **deps:** bump net.javacrumbs.shedlock:shedlock-provider-jdbc-template ([#42](https://github.com/RaonJena99/multi-currency-ledger-service/issues/42)) ([8ccb459](https://github.com/RaonJena99/multi-currency-ledger-service/commit/8ccb459db461e81b5fde66b583440580a51d0a68))
+* **deps:** bump net.javacrumbs.shedlock:shedlock-spring ([#44](https://github.com/RaonJena99/multi-currency-ledger-service/issues/44)) ([51cc9f3](https://github.com/RaonJena99/multi-currency-ledger-service/commit/51cc9f3af2d44e10e5b74085a6ebecc9c8d9835d))
+* **deps:** bump net.logstash.logback:logstash-logback-encoder ([#41](https://github.com/RaonJena99/multi-currency-ledger-service/issues/41)) ([0344dab](https://github.com/RaonJena99/multi-currency-ledger-service/commit/0344dabd600d67656498d1b35fc55c6b9f0b8edd))
+* **deps:** bump the gradle-minor-and-patch group with 3 updates ([#40](https://github.com/RaonJena99/multi-currency-ledger-service/issues/40)) ([b08c6de](https://github.com/RaonJena99/multi-currency-ledger-service/commit/b08c6de6442c3b7014f03dff1c0f46e65b2c0735))
+
 ## [1.0.5](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.4...v1.0.5) (2026-09-26)
 
 
