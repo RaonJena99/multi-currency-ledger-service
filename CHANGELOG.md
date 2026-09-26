@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.3...v1.0.4) (2026-09-26)
+
+
+### Bug Fixes
+
+* 강제 종료 후 포트폴리오 캐시가 거래 이전 상태로 남던 문제 및 MATIC 시세 ID 오류 등 3건 수정 ([#33](https://github.com/RaonJena99/multi-currency-ledger-service/issues/33)) ([e2e8311](https://github.com/RaonJena99/multi-currency-ledger-service/commit/e2e8311793f649409b7aabbbcbb6bbbbe4ffcd7e))
+
 ## [1.0.3](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.2...v1.0.3) (2026-09-26)
 
 
