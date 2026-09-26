@@ -100,10 +100,11 @@ dependencies {
 
     // 테스트 격리를 위한 인프라 컨테이너 (Testcontainers)
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testImplementation platform('org.testcontainers:testcontainers-bom:1.21.4')
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:postgresql'
-    testImplementation 'org.testcontainers:kafka'
+    // Testcontainers 버전은 Spring Boot 가 관리한다(Boot 4 는 2.x). 별도 BOM 으로 고정하면 Boot 와 어긋난 버전으로
+    // 끌어내려지고, Boot 를 올려도 함께 올라가지 않는다. 2.0 부터 모듈 이름에 testcontainers- 접두어가 붙었다.
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.testcontainers:testcontainers-kafka'
 
     // 이벤트 브로커 통합 테스트 (Kafka Test)
     testImplementation 'org.springframework.kafka:spring-kafka-test'

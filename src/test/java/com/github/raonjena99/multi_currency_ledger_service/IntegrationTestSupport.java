@@ -15,8 +15,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.kafka.KafkaContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import jakarta.persistence.EntityManagerFactory;
@@ -26,12 +26,12 @@ import jakarta.persistence.EntityManagerFactory;
 @SuppressWarnings("resource")
 public abstract class IntegrationTestSupport {
 
-    protected static final PostgreSQLContainer<?> POSTGRES_CONTAINER;
+    protected static final PostgreSQLContainer POSTGRES_CONTAINER;
     protected static final GenericContainer<?> REDIS_CONTAINER;
     protected static final KafkaContainer KAFKA_CONTAINER; 
 
     static {
-        POSTGRES_CONTAINER = new PostgreSQLContainer<>("postgres:15-alpine")
+        POSTGRES_CONTAINER = new PostgreSQLContainer("postgres:15-alpine")
                 .withDatabaseName("ledger_test_db")
                 .withUsername("test_admin")
                 .withPassword("test_password")

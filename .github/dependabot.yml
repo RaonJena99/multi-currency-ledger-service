@@ -14,7 +14,13 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "fix(deps)"
+    # 한 의존성이 여러 그룹에 해당하면 먼저 적힌 그룹에 들어간다. 함께 올려야 하는 묶음을 앞에 둔다.
     groups:
+      # shedlock-spring 과 shedlock-provider-jdbc-template 은 같은 버전으로 맞춰야 한다.
+      # 따로 PR 이 오면 하나만 머지된 사이에 5.x 와 7.x 가 섞인다. 메이저 업데이트도 한 PR 로 받는다.
+      shedlock:
+        patterns: ["net.javacrumbs.shedlock:*"]
+        update-types: ["major", "minor", "patch"]
       gradle-minor-and-patch:
         update-types: ["minor", "patch"]
 
