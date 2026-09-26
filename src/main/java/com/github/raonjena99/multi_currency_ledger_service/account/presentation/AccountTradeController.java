@@ -45,11 +45,16 @@ public class AccountTradeController {
             // 서버가 (계좌 ID + 연산 종류) 접두어를 붙여 저장하므로, 저장 컬럼(255자) 안에
             // 안전히 들어가도록 클라이언트 키는 128자로 제한한다.
             @NotBlank @Size(max = 128) String idempotencyKey,
-            @NotBlank @Size(max = 20) String targetAssetCode,
+            // 자산 코드는 원장의 balance_currency(VARCHAR(10))에도 저장되므로 10자를 넘길 수 없다.
+            @NotBlank @Size(max = 10) String targetAssetCode,
             @NotNull AssetType targetAssetType,
             @NotBlank @Size(max = 10) String paymentCurrency,
-            @NotNull @Positive @Digits(integer = 20, fraction = 18) BigDecimal quantity,
-            @NotNull @Positive @Digits(integer = 20, fraction = 18) BigDecimal unitPrice) {
+            // 정수부는 금액 컬럼 numeric(36,18) 의 한도(18자리)에 맞춘다. 소수부는 넉넉히 둔다.
+            // BigDecimal 의 소수 자릿수는 뒤따르는 0 까지 그대로 세므로, 클라이언트가 나눗셈으로 만든
+            // 19자리 이상의 소수도 흔하다. 초과분은 서버가 자산 단위로 반올림한다. 상한 자체는
+            // 1e-500000000 처럼 반올림에 수 초~수 분이 걸리는 극단적인 지수를 막는 용도다.
+            @NotNull @Positive @Digits(integer = 18, fraction = 36) BigDecimal quantity,
+            @NotNull @Positive @Digits(integer = 18, fraction = 36) BigDecimal unitPrice) {
         public TradeRequestDto {
             // 자산/통화 코드를 정규화한다. 원장의 asset_code 는 입력 문자열을 그대로 저장하므로,
             // 정규화 없이 "btc" 와 "BTC" 가 들어오면 같은 자산이 서로 다른 원장 행으로 파편화되어

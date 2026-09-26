@@ -64,4 +64,36 @@ class ReconciliationAdminControllerTest {
         // all present
         org.assertj.core.api.Assertions.assertThat(new ReconciliationAdminController.ManualResolutionRequest(txId, BigDecimal.TEN, AssetType.FIAT, "KRW").getFeeDifference()).isNotNull();
     }
+
+    private org.springframework.test.web.servlet.MockMvc mockMvc() {
+        return org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new com.github.raonjena99.multi_currency_ledger_service.common.exception.GlobalExceptionHandler())
+                .build();
+    }
+
+    @Test
+    void resolveDeadLetter_should_reject_extreme_fee_exponent_before_rounding() throws Exception {
+        // 1e999999999 를 자산 단위로 반올림하면 거대한 정수를 만들며 스레드가 멈춘다. 검증에서 먼저 막아야 한다.
+        String body = "{\"internalTransactionId\":\"" + UUID.randomUUID()
+                + "\",\"feeAmount\":1e999999999,\"feeAssetType\":\"FIAT\",\"feeCurrency\":\"KRW\"}";
+
+        mockMvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/admin/reconciliations/dead-letters/{id}/resolve", 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(manualReconciliationService);
+    }
+
+    @Test
+    void resolveDeadLetter_should_reject_missing_internal_transaction_id() throws Exception {
+        String body = "{\"feeAmount\":10,\"feeAssetType\":\"FIAT\",\"feeCurrency\":\"KRW\"}";
+
+        mockMvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/admin/reconciliations/dead-letters/{id}/resolve", 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(manualReconciliationService);
+    }
 }

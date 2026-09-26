@@ -98,6 +98,7 @@ public class AccountTradeService {
                 .resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, effectiveMonth);
         MonthlyAccountLedger fiatLedger = monthlyLedgerResolver
                 .resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, effectiveMonth);
+        monthlyLedgerResolver.requireStillLatestMonth(accountId, effectiveMonth);
 
         // 결제 단가를 계좌의 기준 통화로 환산해 평균 단가를 일관된 통화로 유지한다.
         BigDecimal appliedFiatToBaseRate = fiatToBaseRate != null ? fiatToBaseRate : BigDecimal.ONE;
@@ -182,6 +183,7 @@ public class AccountTradeService {
                 .resolveOrInitializeLedger(accountId, targetAssetCode, targetAssetType, effectiveMonth);
         MonthlyAccountLedger fiatLedger = monthlyLedgerResolver
                 .resolveOrInitializeLedger(accountId, paymentCurrency, AssetType.FIAT, effectiveMonth);
+        monthlyLedgerResolver.requireStillLatestMonth(accountId, effectiveMonth);
 
         // 매도로 획득한 법정 화폐 수익금 = 매도 수량 * 매도 단가.
         // 고객이 수취하는 금액이므로 DOWN 으로 정규화해 지급액이 부풀려지지 않게 한다.
