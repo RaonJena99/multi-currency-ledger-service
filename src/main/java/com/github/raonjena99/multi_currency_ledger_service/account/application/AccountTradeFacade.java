@@ -65,6 +65,11 @@ public class AccountTradeFacade {
     public UUID buyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType,
             String paymentCurrency, Money buyQuantity, BigDecimal unitPrice) {
 
+        var replayed = tradeService.findCompletedTradeId(accountId, "BUY", idempotencyKey);
+        if (replayed.isPresent()) {
+            return replayed.get();
+        }
+
         TradeContext context = prepare(accountId, targetAssetCode, targetAssetType, paymentCurrency, unitPrice,
                 TradeType.BUY);
 
@@ -87,6 +92,11 @@ public class AccountTradeFacade {
      */
     public UUID sellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType,
             String paymentCurrency, Money sellQuantity, BigDecimal sellUnitPrice) {
+
+        var replayed = tradeService.findCompletedTradeId(accountId, "SELL", idempotencyKey);
+        if (replayed.isPresent()) {
+            return replayed.get();
+        }
 
         TradeContext context = prepare(accountId, targetAssetCode, targetAssetType, paymentCurrency, sellUnitPrice,
                 TradeType.SELL);

@@ -3,6 +3,7 @@ package com.github.raonjena99.multi_currency_ledger_service.account.application;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -236,6 +237,27 @@ public class AccountTradeService {
     private record IdempotencyOutcome(IdempotencyRecord record, UUID replayedTradeId) {}
 
     /**
+     * 같은 멱등성 키로 이미 완료된 거래가 있으면 그 거래 ID 를 반환합니다.
+     *
+     * <p>Facade 가 시세 조회·단가 검증보다 먼저 호출합니다. 완료된 거래의 재전송이 이 검증들을
+     * 다시 거치면, 그사이 시세가 움직였거나 공급자가 장애일 때 이미 성공한 거래가 실패로 응답되고
+     * 클라이언트가 새 키로 다시 주문해 이중 체결됩니다.
+     *
+     * @param accountId      거래 계좌 ID
+     * @param operation      연산 종류 (BUY / SELL)
+     * @param idempotencyKey 클라이언트가 보낸 멱등성 키
+     * @return 완료된 거래 ID. 없거나 아직 처리 중이면 비어 있음
+     */
+    public Optional<UUID> findCompletedTradeId(UUID accountId, String operation, String idempotencyKey) {
+        return idempotencyRepository.findById(scopedIdempotencyKey(accountId, operation, idempotencyKey))
+                .map(IdempotencyRecord::getTradeId);
+    }
+
+    private static String scopedIdempotencyKey(UUID accountId, String operation, String idempotencyKey) {
+        return accountId + ":" + operation + ":" + idempotencyKey;
+    }
+
+    /**
      * 멱등성 키를 등록합니다. 키는 (계좌, 연산 종류) 로 스코프됩니다.
      *
      * <p>클라이언트가 보낸 키를 전역 네임스페이스로 쓰면 (1) 다른 사용자가 이미 쓴 키와 충돌해
@@ -247,7 +269,7 @@ public class AccountTradeService {
      */
     private IdempotencyOutcome registerIdempotencyKey(UUID accountId, String operation,
                                                       String idempotencyKey, String duplicateMessage) {
-        String scopedKey = accountId + ":" + operation + ":" + idempotencyKey;
+        String scopedKey = scopedIdempotencyKey(accountId, operation, idempotencyKey);
         
         // 1. 먼저 조회하여 재시도인지 확인 (정상 완료된 거래 재생)
         IdempotencyRecord existing = idempotencyRepository.findById(scopedKey).orElse(null);

@@ -138,6 +138,15 @@ public class MonthlyAccountLedger extends BaseEntity {
             throw new IllegalArgumentException("Unit price must be non-negative");
         }
 
+        // 수수료 보정(applyAdjustment)으로 잔고가 0 이하가 된 상태에서는 이동 평균이 성립하지 않는다.
+        // 음수 수량을 가중치로 쓰면 평균 단가가 왜곡되고, 입금액이 음수 잔고를 정확히 메우면
+        // 갱신된 수량이 0 이 되어 나눗셈이 ArithmeticException 으로 실패한다(같은 요청이 매번 500).
+        if (this.balance.isNegative() || this.balance.isZero()) {
+            this.balance = this.balance.add(quantityToAdd);
+            this.averageUnitPrice = unitPrice;
+            return;
+        }
+
         // 기존 총 가치 계산 = 현재 평균단가 * 현재 수량
         BigDecimal totalCurrentValue = this.averageUnitPrice.multiply(this.balance.getAmount());
         
