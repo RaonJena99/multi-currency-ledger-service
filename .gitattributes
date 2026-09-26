@@ -1,3 +1,7 @@
 /gradlew text eol=lf
-*.bat text eol=crlf
+# .bat 은 Windows 전용이고 Gradle 이 항상 CRLF 로 생성한다. 줄 끝 변환을 하지 않고 저장된 그대로 둔다.
+# 변환(text eol=crlf)을 걸어 두면 저장소에는 LF 로 넣어야 하는데, Dependabot 처럼 git 을 거치지 않고
+# GitHub API 로 커밋하는 도구는 CRLF 를 그대로 저장한다. 그러면 체크아웃할 때마다 gradlew.bat 이 변경됨으로
+# 보여, 브랜치를 전환하는 워크플로(아키텍처 문서 자동 PR)가 실패한다.
+*.bat -text
 *.jar binary
