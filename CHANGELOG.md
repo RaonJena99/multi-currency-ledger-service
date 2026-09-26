@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.4...v1.0.5) (2026-09-26)
+
+
+### Bug Fixes
+
+* Redis 장애 시 거래가 14초씩 지연되던 문제 수정 및 Spring Boot 4.0.8 보안 패치 등 3건 ([#36](https://github.com/RaonJena99/multi-currency-ledger-service/issues/36)) ([159f558](https://github.com/RaonJena99/multi-currency-ledger-service/commit/159f558918350e84cec5228e865435070871a733))
+
 ## [1.0.4](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.3...v1.0.4) (2026-09-26)
 
 
