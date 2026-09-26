@@ -89,10 +89,10 @@ dependencies {
     implementation 'org.springframework:spring-aspects'
 
     // 분산 환경에서의 스케줄링 동기화 (ShedLock)
-    implementation 'net.javacrumbs.shedlock:shedlock-spring:5.10.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.10.1'
 
     // ShedLock의 JDBC Template 기반 구현체
-    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.10.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1'
 
     // 핵심 테스트 프레임워크 (Boot Test)
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
