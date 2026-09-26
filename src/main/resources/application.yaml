@@ -160,6 +160,11 @@ management:
       roles: ROLE_ADMIN
     prometheus:
       enabled: true
+  observations:
+    annotations:
+      # @Timed 가 붙은 외부 API 호출(시세·PG)의 응답 시간을 기록하려면 켜야 한다. Boot 4 는 이 값이 꺼져 있으면
+      # TimedAspect 를 등록하지 않아, 애노테이션이 붙어 있어도 external.api.* 지표가 하나도 만들어지지 않는다.
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}

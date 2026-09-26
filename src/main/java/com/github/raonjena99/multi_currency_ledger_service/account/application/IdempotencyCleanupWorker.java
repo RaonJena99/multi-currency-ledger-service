@@ -21,7 +21,7 @@ public class IdempotencyCleanupWorker {
      * 매일 새벽 3시에 실행되어 7일이 지난 멱등성 키를 삭제합니다.
      * ShedLock을 통해 다중 노드 중 1대의 서버에서만 실행되도록 보장합니다.
      */
-    @Scheduled(cron = "0 0 3 * * *")
+    @Scheduled(cron = "0 0 3 * * *", zone = "UTC")
     @SchedulerLock(name = "idempotency_cleanup_task", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     public void cleanupOldRecords() {
         OffsetDateTime threshold = OffsetDateTime.now().minusDays(7);
