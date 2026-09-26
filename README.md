@@ -58,13 +58,15 @@ DB 스키마는 기동 시 Flyway가 자동으로 적용합니다.
 ## 배포
 
 ```text
-PR / main 푸시   ─▶ CI: 전체 테스트 + 이미지 빌드 후 운영 스택으로 기동 확인(스모크 테스트)
+PR / main 푸시   ─▶ CI: 전체 테스트 + 이미지 빌드 후 운영 스택으로 기동 확인(스모크 테스트) + 취약점 스캔
 main 머지        ─▶ release-please 가 릴리스 PR(다음 버전, CHANGELOG)을 갱신
-릴리스 PR 머지   ─▶ 테스트 → 이미지 빌드 → 스모크 테스트 → GHCR 발행
+릴리스 PR 머지   ─▶ 테스트 → 이미지 빌드 → 스모크 테스트 → 취약점 스캔 → GHCR 발행
+매주 월요일      ─▶ Dependabot 의존성 업데이트 PR, main 재검증(새로 공개된 취약점 감지)
 ```
 
 - 버전은 커밋 메시지(Conventional Commits)로 정해집니다. `fix:`는 패치, `feat:`는 마이너 버전을 올립니다.
 - 이미지는 `ghcr.io/raonjena99/multi-currency-ledger-service`에 `1.2.3`, `1.2`, `latest`, `sha-xxxxxxx` 태그로 발행됩니다(linux/amd64).
+- 취약점 스캔(Trivy)은 수정판이 나온 HIGH/CRITICAL 취약점이 있으면 실패합니다. 악용할 수 없는 항목은 근거와 함께 `.trivyignore`에 적습니다.
 - 스모크 테스트를 통과한 이미지만 발행됩니다. 로컬에서도 같은 검사를 돌릴 수 있습니다.
   ```bash
   docker build -t ledger:local . && deploy/smoke-test.sh ledger:local

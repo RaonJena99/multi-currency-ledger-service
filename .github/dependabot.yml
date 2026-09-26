@@ -1,0 +1,43 @@
+# 의존성 업데이트를 매주 PR 로 받는다. PR 마다 CI(테스트 + 이미지 스모크 + 취약점 스캔)가 검증한다.
+#
+# 커밋 접두어는 release-please 의 버전 결정과 맞춘다(squash 머지 시 PR 제목이 커밋 메시지가 된다).
+#   fix(deps)  : 배포되는 이미지가 바뀌므로 패치 릴리스를 만들고 이미지를 다시 발행한다.
+#   chore(ci)  : 워크플로만 바뀌므로 릴리스를 만들지 않는다.
+# 패치·마이너 업데이트는 하나의 PR 로 묶어 알림을 줄이고, 메이저 업데이트만 따로 받는다.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "fix(deps)"
+    groups:
+      gradle-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "fix(deps)"
+    ignore:
+      # eclipse-temurin:21-jdk-jammy 의 21 은 Java 버전이다. 메이저 업데이트(예: 25)는 build.gradle 의
+      # toolchain(Java 21)과 함께 올려야 하므로 자동 PR 에서 제외한다.
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns: ["*"]

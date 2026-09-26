@@ -8,6 +8,11 @@ plugins {
 group = 'com.github.raonjena99'
 version = '0.0.1-SNAPSHOT'
 
+// Boot 4.0.8 이 관리하는 Tomcat 11.0.24 에는 11.0.25 에서 고쳐진 CRITICAL 취약점 3건이 남아 있다
+// (CVE-2026-65182, -65905, -68525). 이 앱이 쓰지 않는 기능이지만 CI 의 이미지 취약점 스캔을 통과하도록
+// 패치 버전만 올린다. Boot 가 11.0.25 이상을 관리하는 버전으로 올라가면 이 줄을 지운다.
+ext['tomcat.version'] = '11.0.26'
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
