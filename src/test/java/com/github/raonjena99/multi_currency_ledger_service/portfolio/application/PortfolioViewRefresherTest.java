@@ -157,4 +157,45 @@ class PortfolioViewRefresherTest {
         verify(portfolioCachePort).savePortfolioCache(eq(accountId), any(PortfolioCacheDto.class));
         verify(portfolioCachePort).releaseLock(anyString());
     }
+
+    @Test
+    void evictOnTrade_should_evict_cache_synchronously() {
+        UUID accountId = UUID.randomUUID();
+        TradeExecutedEvent event = new TradeExecutedEvent(
+            UUID.randomUUID(), accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", TradeType.BUY,
+            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
+        );
+
+        refresher.evictOnTrade(event);
+
+        verify(portfolioCachePort).evictPortfolioCache(accountId);
+    }
+
+    @Test
+    void evictOnBalanceAdjusted_should_evict_cache_synchronously() {
+        UUID accountId = UUID.randomUUID();
+        var event = new com.github.raonjena99.multi_currency_ledger_service.account.domain.event.BalanceAdjustedEvent(
+            accountId,
+            com.github.raonjena99.multi_currency_ledger_service.common.domain.Money.of("-5", AssetType.FIAT, "KRW"),
+            OffsetDateTime.now());
+
+        refresher.evictOnBalanceAdjusted(event);
+
+        verify(portfolioCachePort).evictPortfolioCache(accountId);
+    }
+
+    @Test
+    void evictOnTrade_should_not_fail_the_committed_trade_when_redis_is_down() {
+        UUID accountId = UUID.randomUUID();
+        TradeExecutedEvent event = new TradeExecutedEvent(
+            UUID.randomUUID(), accountId, "BTC", AssetType.CRYPTO, "KRW", "KRW", TradeType.BUY,
+            BigDecimal.ONE, new BigDecimal("10000"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, false, OffsetDateTime.now()
+        );
+        org.mockito.Mockito.doThrow(new RuntimeException("redis down"))
+            .when(portfolioCachePort).evictPortfolioCache(accountId);
+
+        // 이미 커밋된 거래에 대해 캐시 삭제 실패가 예외로 번지면 클라이언트는 성공한 거래를 실패로 받는다.
+        org.assertj.core.api.Assertions.assertThatCode(() -> refresher.evictOnTrade(event))
+            .doesNotThrowAnyException();
+    }
 }

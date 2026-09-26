@@ -129,7 +129,9 @@ ledger:
         DOT: polkadot
         AVAX: avalanche-2
         LINK: chainlink
-        MATIC: matic-network
+        # matic-network 는 2026-02 이후 가격 갱신이 멈춘 채 마지막 값을 정상 응답처럼 계속 돌려준다(빈 응답이 아니라
+        # 지원 중단으로 걸러지지 않는다). MATIC 은 POL 로 1:1 전환되었으므로 현재 거래되는 POL 시세를 쓴다.
+        MATIC: polygon-ecosystem-token
         USDT: tether
         USDC: usd-coin
 

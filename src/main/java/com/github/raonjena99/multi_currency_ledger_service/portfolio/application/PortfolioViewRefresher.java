@@ -2,6 +2,8 @@ package com.github.raonjena99.multi_currency_ledger_service.portfolio.applicatio
 
 import java.util.UUID;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -32,6 +34,34 @@ public class PortfolioViewRefresher {
 
     private final PortfolioCachePort portfolioCachePort;
     private final AccountApi accountApi;
+
+    /**
+     * 거래가 커밋되면 응답이 나가기 전에, 커밋한 스레드에서 기존 캐시를 먼저 삭제합니다.
+     *
+     * <p>갱신은 비동기로 이뤄지므로 커밋과 갱신 사이에 프로세스가 죽으면(강제 종료, OOM) 갱신 작업이 사라집니다.
+     * 그러면 거래 이전 잔고가 담긴 캐시가 TTL 동안 그대로 서빙됩니다. 커밋 직후 같은 스레드에서 지워 두면
+     * 클라이언트가 성공 응답을 받은 시점에는 이미 캐시가 비어 있어, 다음 조회가 DB 에서 재구성합니다.
+     * 비동기 갱신보다 먼저 실행되도록 가장 높은 우선순위를 둡니다.
+     *
+     * @param event 거래 완료 이벤트
+     */
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void evictOnTrade(TradeExecutedEvent event) {
+        evictQuietly(event.accountId());
+    }
+
+    /**
+     * 거래 외 경로(대사 수수료 보정 등)로 잔고가 바뀐 경우에도 커밋 직후 캐시를 먼저 삭제합니다.
+     *
+     * @param event 잔고 조정 이벤트
+     * @see #evictOnTrade(TradeExecutedEvent)
+     */
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void evictOnBalanceAdjusted(BalanceAdjustedEvent event) {
+        evictQuietly(event.accountId());
+    }
 
     /**
      * Account 도메인에서 거래가 완료된 후 발행하는 이벤트를 구독하여 Redis 캐시를 비동기(Async)로 업데이트합니다.
