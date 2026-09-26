@@ -6,7 +6,8 @@ import java.util.Currency;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -47,8 +48,15 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class MarketDataRouter implements ExchangeRateProvider {
 
-    /** ISO 4217 판정 결과 캐시. {@code Currency.getInstance} 는 실패 시 예외를 던지므로 반복 호출이 비싸다. */
-    private static final Map<String, Boolean> FIAT_CACHE = new ConcurrentHashMap<>();
+    /**
+     * ISO 4217 통화 코드 집합. JDK 가 아는 통화로 한 번만 만든다.
+     *
+     * <p>판정 결과를 요청 코드별로 캐시하면 안 된다. 자산 코드는 클라이언트가 정하므로 서로 다른 코드를
+     * 반복해 보내는 것만으로 지워지지 않는 항목이 계속 쌓인다. 고정 집합이면 예외 없이 O(1) 로 판정된다.
+     */
+    private static final Set<String> ISO_CURRENCY_CODES = Currency.getAvailableCurrencies().stream()
+            .map(Currency::getCurrencyCode)
+            .collect(Collectors.toUnmodifiableSet());
 
     private final FxRatesApiAdapter fiatAdapter;
     private final CoinGeckoAdapter cryptoAdapter;
@@ -207,13 +215,6 @@ public class MarketDataRouter implements ExchangeRateProvider {
     }
 
     private boolean isFiat(String assetCode) {
-        return FIAT_CACHE.computeIfAbsent(assetCode, code -> {
-            try {
-                Currency.getInstance(code);
-                return true;
-            } catch (IllegalArgumentException | NullPointerException e) {
-                return false;
-            }
-        });
+        return assetCode != null && ISO_CURRENCY_CODES.contains(assetCode);
     }
 }

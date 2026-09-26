@@ -51,10 +51,11 @@ public class AccountTradeController {
             @NotBlank @Size(max = 10) String paymentCurrency,
             // 정수부는 금액 컬럼 numeric(36,18) 의 한도(18자리)에 맞춘다. 소수부는 넉넉히 둔다.
             // BigDecimal 의 소수 자릿수는 뒤따르는 0 까지 그대로 세므로, 클라이언트가 나눗셈으로 만든
-            // 19자리 이상의 소수도 흔하다. 초과분은 서버가 자산 단위로 반올림한다. 상한 자체는
-            // 1e-500000000 처럼 반올림에 수 초~수 분이 걸리는 극단적인 지수를 막는 용도다.
-            @NotNull @Positive @Digits(integer = 18, fraction = 36) BigDecimal quantity,
-            @NotNull @Positive @Digits(integer = 18, fraction = 36) BigDecimal unitPrice) {
+            // 긴 소수도 흔하다(JS 는 19자리 안팎, Java DECIMAL128 은 37자리 안팎). 초과분은 서버가 자산
+            // 단위로 반올림한다. 상한 자체는 1e-500000000 처럼 반올림에 수 초~수 분이 걸리는 극단적인
+            // 지수를 막는 용도이며, 100자리 반올림 비용은 수 마이크로초다.
+            @NotNull @Positive @Digits(integer = 18, fraction = 100) BigDecimal quantity,
+            @NotNull @Positive @Digits(integer = 18, fraction = 100) BigDecimal unitPrice) {
         public TradeRequestDto {
             // 자산/통화 코드를 정규화한다. 원장의 asset_code 는 입력 문자열을 그대로 저장하므로,
             // 정규화 없이 "btc" 와 "BTC" 가 들어오면 같은 자산이 서로 다른 원장 행으로 파편화되어

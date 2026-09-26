@@ -34,9 +34,12 @@ public class ReconciliationJobScheduler {
     private final Job monthlyReconciliationJob;
 
     /**
-     * 매월 1일 04시에 전월 정산 대사를 실행합니다.
+     * 매월 1일 04시(UTC)에 전월 정산 대사를 실행합니다.
+     *
+     * <p>대사 대상 월을 UTC 로 계산하므로 실행 시각도 UTC 로 고정합니다. 서버 시간대를 따르게 두면
+     * KST 서버에서는 9월 1일 04:00(KST) = 8월 31일 19:00(UTC) 에 실행되어 매달 한 달 전 데이터를 대사합니다.
      */
-    @Scheduled(cron = "${ledger.reconciliation.cron:0 0 4 1 * *}")
+    @Scheduled(cron = "${ledger.reconciliation.cron:0 0 4 1 * *}", zone = "UTC")
     @SchedulerLock(name = "monthly_reconciliation_job", lockAtLeastFor = "PT1M", lockAtMostFor = "PT6H")
     public void runMonthlyReconciliation() {
         OffsetDateTime startOfPreviousMonth = OffsetDateTime.now(ZoneOffset.UTC)

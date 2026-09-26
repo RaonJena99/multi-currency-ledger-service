@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Currency;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 
@@ -18,7 +18,14 @@ public class CurrencyScaleResolver {
         // Utility class
     }
 
-    private static final Map<String, Integer> SCALE_CACHE = new ConcurrentHashMap<>();
+    /**
+     * ISO 4217 통화 코드별 기본 소수 자릿수. JDK 가 아는 통화(약 230개)로 한 번만 만들어 두는 고정 표입니다.
+     *
+     * <p>요청마다 들어오는 자산 코드로 캐시를 채우면 안 됩니다. 거래 요청의 자산 코드는 클라이언트가
+     * 정하므로, 서로 다른 코드를 반복해 보내는 것만으로 지워지지 않는 항목이 계속 쌓여 힙이 고갈됩니다.
+     */
+    private static final Map<String, Integer> ISO_FRACTION_DIGITS = Currency.getAvailableCurrencies().stream()
+            .collect(Collectors.toUnmodifiableMap(Currency::getCurrencyCode, Currency::getDefaultFractionDigits));
 
     /**
      * 특정 AssetType(자산 타입)과 통화 코드에 맞는 완벽한 소수점 반올림을 수행합니다.
@@ -67,7 +74,6 @@ public class CurrencyScaleResolver {
 
     /**
      * 특정 AssetType(자산 타입)과 통화 코드에 대한 소수점 자릿수(Scale)를 반환합니다.
-     * 성능 최적화를 위해 메모리 내 캐싱을 활용하여 O(1) 시간 복잡도로 Scale을 조회합니다.
      *
      * @param type         자산의 종류
      * @param currencyCode 자산의 식별 코드
@@ -78,9 +84,7 @@ public class CurrencyScaleResolver {
             return 0;
         }
         
-        String cacheKey = type.name() + ":" + currencyCode;
-        // 동시성 환경에서도 안전하게 캐시에서 Scale 값을 조회하거나, 없으면 새로 계산하여 저장
-        return SCALE_CACHE.computeIfAbsent(cacheKey, key -> calculateScale(type, currencyCode));
+        return calculateScale(type, currencyCode);
     }
 
     /**
@@ -94,15 +98,12 @@ public class CurrencyScaleResolver {
      */
     private static int calculateScale(AssetType type, String currencyCode) {
         if (type == AssetType.FIAT) {
-            try {
-                // ISO 4217 표준을 기반으로 해당 통화의 기본 소수점 자릿수를 가져옴
-                int defaultFractionDigits = Currency.getInstance(currencyCode).getDefaultFractionDigits();
-                // 일부 통화(예: 금속이나 기타 비표준 통화)는 -1을 반환하므로, 이에 대한 방어 로직 적용
-                return defaultFractionDigits >= 0 ? defaultFractionDigits : type.getDefaultScale();
-            } catch (IllegalArgumentException e) {
-                // Java에 등록되지 않은 커스텀 FIAT 통화 코드가 들어올 경우 Fallback으로 기본 Scale 반환
-                return type.getDefaultScale();
-            }
+            // ISO 4217 표준을 기반으로 해당 통화의 기본 소수점 자릿수를 가져온다.
+            // 등록되지 않은 코드(null)나 금속 등 소수 자릿수가 정의되지 않은 통화(-1)는 기본 Scale 로 대체한다.
+            Integer defaultFractionDigits = ISO_FRACTION_DIGITS.get(currencyCode);
+            return defaultFractionDigits != null && defaultFractionDigits >= 0
+                    ? defaultFractionDigits
+                    : type.getDefaultScale();
         }
         
         // 주식이나 암호화폐 등 다른 자산 타입은 정의된 기본 Scale 값을 반환

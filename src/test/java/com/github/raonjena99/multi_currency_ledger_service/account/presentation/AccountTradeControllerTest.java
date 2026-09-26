@@ -147,4 +147,23 @@ class AccountTradeControllerTest {
         verify(accountTradeFacade, never())
                 .buyAsset(anyString(), any(), anyString(), any(), anyString(), any(), any());
     }
+
+    @Test
+    @DisplayName("Java DECIMAL128 로 계산한 37자리 소수 수량도 받아들인다")
+    void buyAsset_should_accept_decimal128_quantity() throws Exception {
+        UUID accountId = UUID.randomUUID();
+        when(accountTradeFacade.buyAsset(anyString(), any(), anyString(), any(), anyString(), any(), any()))
+                .thenReturn(UUID.randomUUID());
+
+        // new BigDecimal("100000").divide(new BigDecimal("106000000"), MathContext.DECIMAL128)
+        String body = """
+                {"idempotencyKey":"k-3","targetAssetCode":"BTC","targetAssetType":"CRYPTO","paymentCurrency":"KRW",
+                 "quantity":0.0009433962264150943396226415094339623,"unitPrice":106000000}
+                """;
+
+        mockMvc.perform(post("/api/v1/accounts/{accountId}/trades/buy", accountId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+    }
 }
