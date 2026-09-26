@@ -19,8 +19,11 @@ compose() { docker compose -p "$PROJECT" -f docker-compose.yml "$@"; }
 cleanup() {
   local status=$?
   if [ "$status" -ne 0 ]; then
-    echo "::group::app logs"
-    compose logs --no-color --tail 200 app || true
+    echo "::group::services"
+    compose ps -a || true
+    echo "::endgroup::"
+    echo "::group::logs"
+    compose logs --no-color --tail 200 || true
     echo "::endgroup::"
   fi
   compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -29,8 +32,11 @@ cleanup() {
 trap cleanup EXIT
 
 echo "▶ 스택 기동: $IMAGE"
+# 이미지 가져오기는 기본 정책(없는 것만 받기)을 따른다. 검사할 앱 이미지는 이미 로컬에 빌드되어 있으므로
+# 받지 않고, 인프라 이미지(postgres/redis/kafka)만 받는다. --pull never 는 모든 서비스에 적용되어
+# 깨끗한 CI 러너에서는 인프라 이미지를 받지 못해 즉시 실패한다.
 # --wait: 헬스체크가 있는 서비스(app, postgres, redis)가 healthy 가 될 때까지 기다린다.
-compose up -d --no-build --pull never --wait --wait-timeout 240
+compose up -d --no-build --wait --wait-timeout 240
 
 echo "▶ 헬스 확인"
 curl -fsS "http://localhost:$PORT/actuator/health" | grep -q '"status":"UP"'
