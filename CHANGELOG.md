@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.6...v1.0.7) (2026-09-27)
+
+
+### Bug Fixes
+
+* 없는 아웃박스 이벤트 재발행 시 404 응답, 모호 매칭 실패 사유 분리 및 코드와 어긋난 주석 정리 ([#51](https://github.com/RaonJena99/multi-currency-ledger-service/issues/51)) ([be4629b](https://github.com/RaonJena99/multi-currency-ledger-service/commit/be4629bd85b69b0c8f5ba5bd0aec297e2d51d591))
+
 ## [1.0.6](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.5...v1.0.6) (2026-09-26)
 
 
