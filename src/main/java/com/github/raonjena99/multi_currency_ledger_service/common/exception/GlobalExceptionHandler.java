@@ -113,6 +113,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 아웃박스 이벤트를 찾을 수 없음 (HTTP 404)
+     */
+    @ExceptionHandler(OutboxEventNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOutboxEventNotFound(OutboxEventNotFoundException e) {
+        log.warn("Outbox event not found: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("OUTBOX_EVENT_NOT_FOUND", "The requested outbox event does not exist."));
+    }
+
+    /**
      * 동시성 제어 실패 시 발생 (HTTP 409)
      */
     @ExceptionHandler(OptimisticLockingFailureException.class)

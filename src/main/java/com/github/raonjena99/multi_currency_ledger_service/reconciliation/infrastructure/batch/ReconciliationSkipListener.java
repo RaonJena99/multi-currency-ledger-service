@@ -103,6 +103,8 @@ public class ReconciliationSkipListener implements SkipListener<ExternalSettleme
         // AmountToleranceRule 이 통화/자산 유형 불일치 시 내는 사유. SYSTEM_ERROR 로 뭉개면
         // 백오피스 DLQ 분류가 오염되어 실제 시스템 오류와 구분할 수 없게 된다.
         if (message.contains("CURRENCY_MISMATCH")) return FailureReason.CURRENCY_MISMATCH;
+        // HeuristicMatchingProcessor 가 후보가 둘 이상일 때 내는 사유. 데이터 문제이지 시스템 오류가 아니다.
+        if (message.contains("AMBIGUOUS_MATCH")) return FailureReason.AMBIGUOUS_MATCH;
         return FailureReason.SYSTEM_ERROR;
     }
 }

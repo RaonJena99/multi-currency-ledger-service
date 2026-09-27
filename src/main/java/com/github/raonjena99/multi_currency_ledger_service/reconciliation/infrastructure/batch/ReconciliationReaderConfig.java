@@ -14,7 +14,11 @@ import jakarta.persistence.EntityManagerFactory;
 
 /**
  * 대사 배치의 ItemReader를 정의하는 설정 클래스입니다.
- * 데이터베이스로부터 대기 중(PENDING)인 ExternalSettlement(외부 정산) 엔티티를 페이징하여 읽어옵니다.
+ * 대상 월의 정산일 범위에 속한 ExternalSettlement(외부 정산) 엔티티를 상태와 관계없이 모두 페이징하여 읽어옵니다.
+ *
+ * <p>상태(PENDING)로 거르지 않는 것은 의도된 설계입니다. 처리하면서 상태가 바뀌는 행을 조건으로 걸면
+ * LIMIT/OFFSET 페이징의 기준 집합이 페이지마다 줄어들어 행을 건너뜁니다. PENDING 이 아닌 건은
+ * {@code HeuristicMatchingProcessor} 가 null 을 반환해 걸러냅니다.
  */
 @Configuration
 public class ReconciliationReaderConfig {

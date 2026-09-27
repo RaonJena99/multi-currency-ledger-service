@@ -34,9 +34,6 @@ public class ReconciliationJobConfig {
     /** 매칭 실패(비즈니스) 허용 건수. 이 이상이면 룰 엔진이나 데이터에 문제가 있다고 본다. */
     private static final int BUSINESS_SKIP_LIMIT = 50_000;
 
-    /** 통신 장애 허용 건수. 넘으면 배치를 실패로 끝내 장애가 드러나게 한다. */
-    private static final int INFRASTRUCTURE_SKIP_LIMIT = 100;
-
     private final JobRepository jobRepository;
     
     private final PlatformTransactionManager transactionManager;
