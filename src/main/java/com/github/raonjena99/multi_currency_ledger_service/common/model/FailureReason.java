@@ -14,6 +14,8 @@ public enum FailureReason {
     CURRENCY_MISMATCH,
     /** 후보 내부 거래가 이미 다른 정산과 매칭되어 있는 오류 */
     DUPLICATE_MATCH,
+    /** 모든 규칙을 통과한 후보가 둘 이상이라 어느 거래와 매칭할지 정할 수 없는 경우 */
+    AMBIGUOUS_MATCH,
     /** 시스템 내부 오류 */
     SYSTEM_ERROR
 }

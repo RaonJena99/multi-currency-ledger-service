@@ -98,6 +98,16 @@ class ReconciliationSkipListenerTest {
     }
 
     @Test
+    @DisplayName("[SkipListener] 후보가 둘 이상인 정산은 SYSTEM_ERROR 가 아니라 AMBIGUOUS_MATCH 로 기록한다")
+    void determineFailureReason_ambiguousMatch() throws Exception {
+        java.lang.reflect.Method method = ReconciliationSkipListener.class.getDeclaredMethod("determineFailureReason", String.class);
+        method.setAccessible(true);
+        // HeuristicMatchingProcessor 가 던지는 메시지 그대로
+        Object res = method.invoke(skipListener, "AMBIGUOUS_MATCH");
+        org.assertj.core.api.Assertions.assertThat(res).isEqualTo(com.github.raonjena99.multi_currency_ledger_service.common.model.FailureReason.AMBIGUOUS_MATCH);
+    }
+
+    @Test
     @DisplayName("[SkipListener] determineFailureReason null branch 테스트")
     void determineFailureReason_null() throws Exception {
         java.lang.reflect.Method method = ReconciliationSkipListener.class.getDeclaredMethod("determineFailureReason", String.class);

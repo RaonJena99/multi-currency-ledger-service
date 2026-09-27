@@ -27,7 +27,10 @@ import com.github.raonjena99.multi_currency_ledger_service.reconciliation.infras
 @Component
 public class AmountToleranceRule implements MatchingRule {
 
-    /** 정산 금액 대비 허용 비율. 기본 0.5%. */
+    /**
+     * 정산 금액 대비 허용 비율. 기본 3.5%({@code ledger.reconciliation.amount-tolerance-ratio}).
+     * 정산은 PG 수수료를 뺀 실수령액으로 적재되므로 국내 PG 수수료율(1.5~3%대)을 흡수할 수 있어야 한다.
+     */
     private final BigDecimal toleranceRatio;
 
     /** 통화 최소 단위의 몇 배까지 절대 오차로 허용할지. 기본 100배(KRW 기준 100원). */

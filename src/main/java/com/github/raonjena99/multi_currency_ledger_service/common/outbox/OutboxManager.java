@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.OutboxEventNotFoundException;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -52,13 +54,13 @@ public class OutboxManager {
      * 데드레터로 격리된 이벤트 하나를 재발행 대상으로 되돌립니다.
      *
      * @param eventId 재적재할 이벤트 ID
-     * @throws java.util.NoSuchElementException 해당 ID 의 이벤트가 없는 경우
+     * @throws OutboxEventNotFoundException 해당 ID 의 이벤트가 없는 경우
      * @throws IllegalStateException 데드레터 상태가 아닌 경우
      */
     @Transactional
     public void requeueDeadLetter(Long eventId) {
         OutboxEvent event = outboxRepository.findById(eventId)
-                .orElseThrow(() -> new java.util.NoSuchElementException("Outbox event not found: " + eventId));
+                .orElseThrow(() -> new OutboxEventNotFoundException(eventId));
         event.requeue();
     }
 
