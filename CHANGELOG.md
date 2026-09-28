@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.8](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.7...v1.0.8) (2026-09-28)
+
+
+### Bug Fixes
+
+* **deps:** bump gradle-wrapper in the gradle-minor-and-patch group ([#54](https://github.com/RaonJena99/multi-currency-ledger-service/issues/54)) ([8dc5168](https://github.com/RaonJena99/multi-currency-ledger-service/commit/8dc5168921cdd98785b73c83fbc1fe48437e017f))
+
 ## [1.0.7](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.6...v1.0.7) (2026-09-27)
 
 
