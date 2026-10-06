@@ -58,6 +58,27 @@ jobs:
           path: build/reports/jacoco/test/
           retention-days: 7
 
+  # 알림 규칙과 대시보드는 운영에서 알림이 울리는 조건이다. 규칙을 고치다 표현식이 깨지거나 조건이 바뀌면
+  # 알림이 조용히 사라지므로, 설정 검사와 함께 규칙 단위 테스트(alerts.test.yml)를 돌린다.
+  monitoring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check Prometheus config and alert rules
+        run: |
+          promtool() {
+            docker run --rm -v "$PWD/deploy/monitoring:/etc/prometheus:ro"               --entrypoint promtool prom/prometheus:v2.55.1 "$@"
+          }
+          promtool check config /etc/prometheus/prometheus.yml
+          promtool test rules /etc/prometheus/alerts.test.yml
+
+      - name: Validate Grafana dashboards
+        run: |
+          for f in deploy/monitoring/grafana/dashboards/*.json; do
+            python3 -m json.tool "$f" > /dev/null || { echo "invalid JSON: $f"; exit 1; }
+          done
+
   image-smoke:
     runs-on: ubuntu-latest
     steps:

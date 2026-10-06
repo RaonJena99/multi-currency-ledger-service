@@ -2,12 +2,17 @@
 global:
   scrape_interval: 15s # 15초마다 메트릭 수집
 
+# 알림 규칙은 운영 스택과 공용이다(deploy/monitoring/alerts.yml 을 마운트).
+rule_files:
+  - /etc/prometheus/alerts.yml
+
 scrape_configs:
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "multi-currency-ledger-service"
+  # 알림 규칙이 job="ledger" 로 대상을 고르므로 운영 스택과 같은 이름을 쓴다.
+  - job_name: "ledger"
     metrics_path: "/actuator/prometheus"
     # 관리용 엔드포인트는 앱 포트(8080)가 아니라 관리 포트(MANAGEMENT_PORT, 기본 9091)에서만 응답한다.
     # 관리 포트는 내부 네트워크 전용이라는 전제로 /actuator/prometheus 를 인증 없이 수집한다.

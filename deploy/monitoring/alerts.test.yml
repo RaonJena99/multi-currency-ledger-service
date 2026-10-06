@@ -1,0 +1,127 @@
+# alerts.yml 단위 테스트. CI 가 promtool 로 실행한다.
+#
+#   docker run --rm -v "$PWD/deploy/monitoring:/m" --entrypoint promtool prom/prometheus:v2.55.1 \
+#     test rules /m/alerts.test.yml
+#
+# 각 알림마다 "조건이 되기 전에는 울리지 않고, 조건이 유지되면 울린다"를 확인한다.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  # 원장 정합성 불일치는 하루 한 번 갱신되는 값이라 대기 없이 바로 알린다.
+  - interval: 1m
+    input_series:
+      - series: 'ledger_integrity_mismatches{job="ledger",instance="app:9091"}'
+        values: '0 0 2 2'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: LedgerIntegrityMismatch
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: LedgerIntegrityMismatch
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "원장 잔고와 분개 누계가 어긋났습니다"
+              description: "직전 정합성 점검에서 불일치가 발견되었습니다. GET /api/v1/admin/ledger/integrity-checks/latest 로 계좌·자산을 확인하고, 원장 데드레터 재처리나 아웃박스 재발행으로 복구하십시오."
+
+  - interval: 1m
+    input_series:
+      - series: 'ledger_dead_letter_unresolved{job="ledger",instance="app:9091"}'
+        values: '0 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LedgerDeadLetterUnresolved
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: LedgerDeadLetterUnresolved
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "분개 기록에 실패한 원장 데드레터가 있습니다"
+              description: "잔고는 바뀌었는데 분개가 없는 거래가 남아 있습니다. GET /api/v1/admin/ledger/dead-letters 로 확인하고 재처리하십시오."
+
+  - interval: 1m
+    input_series:
+      - series: 'outbox_dead_letters{job="ledger",instance="app:9091"}'
+        values: '0 3 3 3 3'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: OutboxDeadLetters
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: OutboxDeadLetters
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "발행되지 못한 아웃박스 이벤트가 있습니다"
+              description: "원장 기록 이벤트가 데드레터로 격리되었습니다. GET /api/v1/admin/outbox/dead-letters 로 원인을 확인하고 재발행하십시오."
+
+  - interval: 1m
+    input_series:
+      - series: 'up{job="ledger",instance="app:9091"}'
+        values: '1 0 0 0'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LedgerServiceDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: LedgerServiceDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: ledger
+              instance: app:9091
+            exp_annotations:
+              summary: "원장 서비스 지표를 수집할 수 없습니다"
+              description: "app:9091 이 2분 넘게 응답하지 않습니다. 컨테이너 상태와 관리 포트(9091)를 확인하십시오."
+
+  # 5xx 비율: 분당 100건 중 10건(10%)이 5분 넘게 이어지면 알린다. 2건(2%)은 알리지 않는다.
+  - interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_count{job="ledger",status="200"}'
+        values: '0+90x12'
+      - series: 'http_server_requests_seconds_count{job="ledger",status="500"}'
+        values: '0+10x12'
+      - series: 'http_server_requests_seconds_count{job="ledger-quiet",status="200"}'
+        values: '0+98x12'
+      - series: 'http_server_requests_seconds_count{job="ledger-quiet",status="500"}'
+        values: '0+2x12'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: HighServerErrorRate
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: HighServerErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: ledger
+            exp_annotations:
+              summary: "5xx 응답 비율이 5% 를 넘었습니다"
+              description: "최근 5분간 요청의 5% 넘게 서버 오류로 끝났습니다. 애플리케이션 로그를 확인하십시오."
+
+  - interval: 1m
+    input_series:
+      - series: 'resilience4j_circuitbreaker_state{job="ledger",name="exchangeRateApi",state="open"}'
+        values: '0 1 1 1 1 1 1 1'
+      - series: 'resilience4j_circuitbreaker_state{job="ledger",name="cryptoPriceApi",state="open"}'
+        values: '0 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: CircuitBreakerOpen
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: CircuitBreakerOpen
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: exchangeRateApi
+            exp_annotations:
+              summary: "외부 API 서킷 브레이커가 열려 있습니다"
+              description: "exchangeRateApi 호출이 5분 넘게 차단되었습니다. 시세가 5분 넘게 갱신되지 않으면 거래가 503 으로 거부됩니다."

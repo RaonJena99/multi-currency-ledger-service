@@ -1,0 +1,66 @@
+# 원장 서비스 알림 규칙. 운영 스택(deploy/docker-compose.yml)과 로컬 스택(docker-compose.yml)이 함께 쓴다.
+# 규칙을 바꾸면 alerts.test.yml 도 함께 고친다(CI 가 promtool 로 검사한다).
+#
+# critical: 돈이 걸린 정합성 문제. 사람이 복구해야 한다.
+# warning : 서비스 품질 문제. 상황을 지켜보고 필요하면 조치한다.
+groups:
+  - name: ledger-integrity
+    rules:
+      # 하루 한 번 갱신되는 값이라 대기 시간 없이 바로 알린다.
+      - alert: LedgerIntegrityMismatch
+        expr: max(ledger_integrity_mismatches) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "원장 잔고와 분개 누계가 어긋났습니다"
+          description: "직전 정합성 점검에서 불일치가 발견되었습니다. GET /api/v1/admin/ledger/integrity-checks/latest 로 계좌·자산을 확인하고, 원장 데드레터 재처리나 아웃박스 재발행으로 복구하십시오."
+
+      - alert: LedgerDeadLetterUnresolved
+        expr: max(ledger_dead_letter_unresolved) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "분개 기록에 실패한 원장 데드레터가 있습니다"
+          description: "잔고는 바뀌었는데 분개가 없는 거래가 남아 있습니다. GET /api/v1/admin/ledger/dead-letters 로 확인하고 재처리하십시오."
+
+      - alert: OutboxDeadLetters
+        expr: max(outbox_dead_letters) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "발행되지 못한 아웃박스 이벤트가 있습니다"
+          description: "원장 기록 이벤트가 데드레터로 격리되었습니다. GET /api/v1/admin/outbox/dead-letters 로 원인을 확인하고 재발행하십시오."
+
+  - name: ledger-service
+    rules:
+      - alert: LedgerServiceDown
+        expr: up{job="ledger"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "원장 서비스 지표를 수집할 수 없습니다"
+          description: "{{ $labels.instance }} 이 2분 넘게 응답하지 않습니다. 컨테이너 상태와 관리 포트(9091)를 확인하십시오."
+
+      - alert: HighServerErrorRate
+        expr: |
+          sum by (job) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            / sum by (job) (rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx 응답 비율이 5% 를 넘었습니다"
+          description: "최근 5분간 요청의 5% 넘게 서버 오류로 끝났습니다. 애플리케이션 로그를 확인하십시오."
+
+      # 시세 공급자가 막혀도 캐시로 버티지만, 5분이 지난 시세로는 거래하지 않는다(503).
+      - alert: CircuitBreakerOpen
+        expr: max by (name) (resilience4j_circuitbreaker_state{state="open"}) == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "외부 API 서킷 브레이커가 열려 있습니다"
+          description: "{{ $labels.name }} 호출이 5분 넘게 차단되었습니다. 시세가 5분 넘게 갱신되지 않으면 거래가 503 으로 거부됩니다."

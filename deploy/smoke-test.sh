@@ -13,7 +13,9 @@ PORT="${SMOKE_PORT:-18080}"
 SECRET="smoke-test-secret"
 cd "$(dirname "$0")"
 
-export APP_IMAGE="$IMAGE" APP_PORT="$PORT" DB_PASSWORD="smoke-test" GATEWAY_SHARED_SECRET="$SECRET"
+GRAFANA_PASSWORD="smoke-test-grafana"
+# 모니터링 포트는 127.0.0.1 에만 열린다. 로컬에서 돌고 있는 개발용 스택(9090/3000)과 겹치지 않게 옮긴다.
+export APP_IMAGE="$IMAGE" APP_PORT="$PORT" DB_PASSWORD="smoke-test" GATEWAY_SHARED_SECRET="$SECRET"   GRAFANA_ADMIN_PASSWORD="$GRAFANA_PASSWORD" PROMETHEUS_PORT="${SMOKE_PROMETHEUS_PORT:-19090}"   GRAFANA_PORT="${SMOKE_GRAFANA_PORT:-13000}"
 compose() { docker compose -p "$PROJECT" -f docker-compose.yml "$@"; }
 
 cleanup() {
@@ -108,5 +110,40 @@ fi
 
 echo "▶ 원장 정합성 점검 실행 확인"
 expect "정합성 점검" "$(admin_post /api/v1/admin/ledger/integrity-checks '')" 200
+
+echo "▶ 모니터링 확인: Prometheus 가 앱 지표를 수집하고 알림 규칙을 읽었는지, Grafana 에 대시보드가 있는지"
+# 모니터링 서비스에는 curl 이 없으므로 같은 네트워크의 앱 컨테이너에서 호출한다.
+in_app() { compose exec -T app curl -fsS "$@"; }
+
+# 수집 주기(15초)를 고려해 최대 90초 기다린다.
+scraped=""
+for _ in $(seq 1 30); do
+  up=$(in_app 'http://prometheus:9090/api/v1/query?query=up%7Bjob%3D%22ledger%22%7D' || true)
+  if grep -q '"1"\]' <<< "$up"; then scraped=yes; break; fi
+  sleep 3
+done
+if [ -z "$scraped" ]; then
+  echo "Prometheus 가 앱(app:9091)을 수집하지 못했습니다: $up" >&2
+  exit 1
+fi
+
+rules=$(in_app http://prometheus:9090/api/v1/rules)
+for alert in LedgerIntegrityMismatch LedgerDeadLetterUnresolved OutboxDeadLetters LedgerServiceDown; do
+  grep -q "\"$alert\"" <<< "$rules" || { echo "알림 규칙 $alert 가 로드되지 않았습니다." >&2; exit 1; }
+done
+
+# Grafana 는 기동하면서 프로비저닝 파일을 읽는다.
+provisioned=""
+for _ in $(seq 1 30); do
+  if in_app -u "admin:$GRAFANA_PASSWORD" http://grafana:3000/api/dashboards/uid/ledger-overview >/dev/null 2>&1; then
+    provisioned=yes; break
+  fi
+  sleep 3
+done
+if [ -z "$provisioned" ]; then
+  echo "Grafana 에 ledger-overview 대시보드가 프로비저닝되지 않았습니다." >&2
+  exit 1
+fi
+in_app -u "admin:$GRAFANA_PASSWORD" http://grafana:3000/api/datasources/uid/prometheus >/dev/null
 
 echo "✔ 스모크 테스트 통과"
