@@ -254,7 +254,7 @@ GET /accounts/{id}/transactions, /admin/ledger/trial-balance
 
 메시지 한 건의 상태 머신입니다.
 
-- 필드: `processed`, `retryCount`, `deadLetter`, `lockedAt`, `nextAttemptAt`.
+- 필드: `processed`, `processedAt`(발행 시각, 3-7), `retryCount`, `deadLetter`, `lockedAt`, `nextAttemptAt`.
 - `recordFailure()` — **지수 백오프**: 30초 → 60초 → … → 최대 10분, 10회 후 데드레터. 주석의 이유가 중요합니다(백오프가 없으면 브로커 몇 분 다운에 전체 이벤트가 데드레터로 빠짐).
 - `requeue()` — 데드레터를 되살리는 유일한 경로.
 
@@ -276,15 +276,23 @@ GET /accounts/{id}/transactions, /admin/ledger/trial-balance
 
 실제 Kafka 전송. **토픽 이름 = `eventType`, 메시지 키 = `aggregateId`(계좌 ID)** 입니다. 계좌 ID를 키로 쓰므로 같은 계좌의 메시지는 같은 파티션 = 순서 보장.
 
-**3-7. [common/config/KafkaConfig.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/config/KafkaConfig.java)**
+**3-7. [common/outbox/OutboxRetentionWorker.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxRetentionWorker.java)**
+
+발행이 끝난 행을 보존 기간(기본 7일)이 지나면 매일 지웁니다. 거래마다 페이로드 1행이 생기므로 지우지 않으면 계속 쌓입니다.
+
+- **지우지 않는 행**: 미처리 행(세션 10의 정합성 점검이 "발행 대기"를 판단하는 근거)과 데드레터 행(재발행 대상).
+- 기준은 만든 시각이 아니라 **발행 시각**(`processed_at`)입니다. 재시도·재발행 끝에 늦게 발행된 행도 보존 기간 동안 남아 장애를 조사할 수 있습니다.
+- 한 번에 지우는 양을 제한하고 묶음마다 커밋합니다. 쌓인 양이 많아도 긴 트랜잭션을 만들지 않습니다.
+
+**3-8. [common/config/KafkaConfig.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/config/KafkaConfig.java)**
 
 컨슈머 에러 핸들러와 DLT(Dead Letter Topic) 정책이 여기 있습니다.
 
-**3-8. [application.yaml](../src/main/resources/application.yaml)의 `spring.kafka` 블록**
+**3-9. [application.yaml](../src/main/resources/application.yaml)의 `spring.kafka` 블록**
 
 주석이 상세합니다. `enable.idempotence: true`, `auto-offset-reset: earliest`(주석의 이유 확인), `ack-mode: record`.
 
-**3-9. 확인용 테스트**: [OutboxPipelineIntegrationTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxPipelineIntegrationTest.java), [regression/OutboxRelayResilienceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/OutboxRelayResilienceTest.java)
+**3-10. 확인용 테스트**: [OutboxPipelineIntegrationTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxPipelineIntegrationTest.java), [regression/OutboxRelayResilienceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/OutboxRelayResilienceTest.java), [OutboxRetentionTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxRetentionTest.java)
 
 ### 스스로에게 던질 질문
 
@@ -689,7 +697,7 @@ Spring Modulith의 모듈 선언이 여기 있습니다. `package-info.java`가 
 6. `V202608240002__create_ledger_dead_letter_and_settlement_match.sql` — 4-7, 7-8과 연결. `uk_settlement_match_settlement` 유니크 제약을 꼭 확인하십시오.
 7. `V202608240003__seed_system_accounts.sql` — `LedgerService`의 `SYSTEM_FEE_ACCOUNT_ID`, `SYSTEM_ACCOUNT_ID`가 여기서 만들어집니다.
 8. `V202608240004__outbox_backoff_missing_indexes_currency_backfill.sql`, `V202608250001__migrate_idempotency_keys.sql`
-9. `V202610060001` ~ `V202610060005` — 원장 데드레터 낙관적 락(`version`), 외부 입출금 청산 계정 시딩, 정합성 점검 결과 테이블, **기초 잔고 분개**(세션 10), 계좌 상태 이력.
+9. `V202610060001` ~ `V202610060006` — 원장 데드레터 낙관적 락(`version`), 외부 입출금 청산 계정 시딩, 정합성 점검 결과 테이블, **기초 잔고 분개**(세션 10), 계좌 상태 이력, 아웃박스 발행 시각(`processed_at`, 3-7).
 
 **9-2. [test/.../IntegrationTestSupport.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/IntegrationTestSupport.java)**
 
@@ -758,6 +766,7 @@ Testcontainers로 PostgreSQL + Redis + Kafka를 실제로 띄웁니다. 통합 �
 - 처리 중인 거래가 있으면 잔고와 분개가 잠시 다릅니다. 잔고는 최근 거래까지 반영된 값이라 거래 단위로 빼낼 수 없으므로, **정리되지 않은 쌍은 이번 회차에서 건너뛰고 다음 회차에 다시 봅니다**(최근 10분 안에 바뀐 잔고, 발행 대기 아웃박스).
 - 아웃박스가 **데드레터**면 건너뛰지 않습니다. 분개가 오지 않으므로 복구가 필요합니다.
 - 시스템 계정은 **이름이 아니라 ID로** 제외합니다. 관리자 API로 `SYSTEM_`으로 시작하는 이름의 고객 계좌를 만들 수 있기 때문입니다.
+- 점검 결과는 회차별로 남기고, 90일이 지나면 매일 점검 직후 지웁니다.
 - 지표 Gauge는 재시작해도 **직전 회차 값으로** 시작합니다. 0으로 시작하면 다음 점검(최대 하루 뒤)까지 남은 불일치가 알림에서 사라집니다.
 
 스케줄러는 [LedgerIntegrityCheckScheduler.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/infrastructure/scheduler/LedgerIntegrityCheckScheduler.java), 수동 실행·조회는 [LedgerIntegrityCheckController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/presentation/LedgerIntegrityCheckController.java)입니다.
@@ -820,6 +829,7 @@ Testcontainers로 PostgreSQL + Redis + Kafka를 실제로 띄웁니다. 통합 �
 | 분개가 어디서 만들어지나 | `transaction/application/LedgerService.java` |
 | 대차평균 검증은 어디에 | `transaction/domain/Transaction.java#verifyDoubleEntry` |
 | 메시지가 어떻게 전달되나 | `common/outbox/OutboxRelayWorker.java` |
+| 아웃박스 보존 기간 정리 | `common/outbox/OutboxRetentionWorker.java` |
 | 포트폴리오 조회 로직 | `portfolio/application/PortfolioQueryService.java` |
 | 시세를 어디서 가져오나 | `common/infrastructure/adapter/MarketDataRouter.java` |
 | 대사 매칭 규칙 | `reconciliation/application/rule/` |
