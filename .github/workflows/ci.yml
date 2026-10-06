@@ -65,12 +65,16 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
+      # 주간 스케줄 실행은 캐시 없이 빌드한다. 베이스 이미지가 그대로면 Dockerfile 의 apt-get upgrade 레이어가
+      # 캐시에서 재사용되어, 그사이 나온 OS 보안 패치가 빠진 이미지를 스캔하게 된다(고칠 수 있는데 실패).
+      # 새로 빌드한 레이어는 cache-to 로 다시 저장되므로 이후 PR 빌드도 갱신된 레이어를 쓴다.
       - name: Build image
         uses: docker/build-push-action@v7
         with:
           context: .
           load: true
           tags: ledger:ci
+          no-cache: ${{ github.event_name == 'schedule' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
