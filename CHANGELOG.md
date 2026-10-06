@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.1.0...v1.2.0) (2026-10-06)
+
+
+### Features
+
+* 계좌 개설 및 법정화폐 입출금 관리자 API 추가 ([#67](https://github.com/RaonJena99/multi-currency-ledger-service/issues/67)) ([cd22a0a](https://github.com/RaonJena99/multi-currency-ledger-service/commit/cd22a0af50c5ab060c0cd9a95a8106984e557452)), closes [#61](https://github.com/RaonJena99/multi-currency-ledger-service/issues/61)
+
+
+### Bug Fixes
+
+* 거래 직후 포트폴리오 캐시에 거래 이전 잔고가 다시 저장되는 경쟁 조건 수정 ([#69](https://github.com/RaonJena99/multi-currency-ledger-service/issues/69)) ([697aa3a](https://github.com/RaonJena99/multi-currency-ledger-service/commit/697aa3ac1b5ff38c0eb789ce80b24b11633af9e5)), closes [#68](https://github.com/RaonJena99/multi-currency-ledger-service/issues/68)
+
 ## [1.1.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.9...v1.1.0) (2026-10-06)
 
 
