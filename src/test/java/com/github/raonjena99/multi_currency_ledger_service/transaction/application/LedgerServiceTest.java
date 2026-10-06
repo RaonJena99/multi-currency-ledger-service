@@ -305,4 +305,68 @@ class LedgerServiceTest {
                 .as("플러그 금액이 반올림 허용 한도를 넘으면 계산 오류를 숨기는 것이다")
                 .isLessThanOrEqualTo(allowance);
     }
+
+    private static final UUID CASH_CLEARING_ACCOUNT_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+    /** 입출금 커맨드. 페이로드의 자산 코드와 결제 통화는 모두 입출금 통화다. */
+    private LedgerRecordingCommand cashCmd(UUID tradeId, String tradeType, String currency, String baseCurrency,
+                                           String amount, BigDecimal fiatToBaseRate) {
+        return new LedgerRecordingCommand(
+                tradeId, UUID.randomUUID(), currency, AssetType.FIAT, currency, baseCurrency, tradeType,
+                Money.of(amount, AssetType.FIAT, currency), BigDecimal.ONE, BigDecimal.ONE, fiatToBaseRate,
+                BigDecimal.ZERO, false, TRADED_AT);
+    }
+
+    private BigDecimal amountOf(Transaction tx, UUID accountId, EntryType entryType) {
+        return tx.getEntries().stream()
+                .filter(e -> e.getAccountId().equals(accountId) && e.getEntryType() == entryType)
+                .map(e -> e.getAmount().getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Test
+    @DisplayName("입금은 고객 현금 차변과 입출금 청산 계정 대변으로 기록된다")
+    void deposit_debits_customer_and_credits_clearing() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        LedgerRecordingCommand command = cashCmd(tradeId, "DEPOSIT", "KRW", "KRW", "10000", BigDecimal.ONE);
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        assertThat(amountOf(tx, command.accountId(), EntryType.DEBIT)).isEqualByComparingTo("10000");
+        assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.CREDIT)).isEqualByComparingTo("10000");
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+    }
+
+    @Test
+    @DisplayName("출금은 입출금 청산 계정 차변과 고객 현금 대변으로 기록된다")
+    void withdrawal_debits_clearing_and_credits_customer() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        LedgerRecordingCommand command = cashCmd(tradeId, "WITHDRAWAL", "KRW", "KRW", "3000", BigDecimal.ONE);
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.DEBIT)).isEqualByComparingTo("3000");
+        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("3000");
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+    }
+
+    @Test
+    @DisplayName("기준 통화가 아닌 통화로 입금하면 거래 시점 환율로 환산해 기록한다")
+    void foreign_currency_deposit_is_converted_with_command_rate() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        LedgerRecordingCommand command = cashCmd(tradeId, "DEPOSIT", "USD", "KRW", "100", new BigDecimal("1300"));
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        // 100 USD × 1300 = 130000 KRW
+        assertThat(amountOf(tx, command.accountId(), EntryType.DEBIT)).isEqualByComparingTo("130000");
+        assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.CREDIT)).isEqualByComparingTo("130000");
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+    }
 }

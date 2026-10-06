@@ -74,7 +74,8 @@ class ReconciliationJobIntegrationTest extends IntegrationTestSupport {
         
         jdbcTemplate.update("INSERT INTO accounts (id, owner_name, status) VALUES (?, 'TEST_USER', 'ACTIVE')", accountId);
         
-        jdbcTemplate.update("INSERT INTO transactions (id, transaction_type, transacted_at, description) VALUES (?, 'DEPOSIT', '2026-06-15 10:00:00+00', 'TOSS_PAYMENTS')", tId);
+        // 입출금(DEPOSIT, WITHDRAWAL)은 PG 대사 후보에서 제외되므로, 대사 대상인 거래 유형으로 만든다.
+        jdbcTemplate.update("INSERT INTO transactions (id, transaction_type, transacted_at, description) VALUES (?, 'SELL', '2026-06-15 10:00:00+00', 'TOSS_PAYMENTS')", tId);
         
         jdbcTemplate.update("INSERT INTO transaction_entries (" +
                 "transaction_id, account_id, entry_type, asset_code, " +

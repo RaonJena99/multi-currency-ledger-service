@@ -30,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 public class LedgerService {
 
     private static final UUID SYSTEM_FEE_ACCOUNT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    /** 외부 입출금의 상대 계정. 고객 현금이 플랫폼 밖에서 들어오고 나가는 통로를 나타낸다. */
+    private static final UUID SYSTEM_CASH_CLEARING_ACCOUNT_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID SYSTEM_ACCOUNT_ID = new UUID(0, 0);
 
     private final TransactionRepository transactionRepository;
@@ -197,6 +199,19 @@ public class LedgerService {
             // 잔고는 변하지 않아 SUM(분개)와 SUM(잔고)가 영구히 벌어진다. 같은 트랜잭션이므로
             // 위쪽의 거래 ID 멱등성 검사가 중복 반영도 함께 막는다.
             accountApi.applyFiatBalanceAdjustment(cmd.accountId(), cmd.quantity(), cmd.transactedAt());
+        } else if ("DEPOSIT".equals(cmd.tradeType())) {
+            // 입금: 차변(고객 현금 증가), 대변(외부 입출금 청산 계정)
+            transaction.addBuyEntry(cmd.accountId(), cmd.fiatCode(), cmd.quantity(),
+                                    BigDecimal.ONE, fiatToBaseRate, baseCurrency);
+            transaction.addSellEntry(SYSTEM_CASH_CLEARING_ACCOUNT_ID, cmd.fiatCode(), cmd.quantity(),
+                                    BigDecimal.ONE, fiatToBaseRate, fiatToBaseRate, baseCurrency);
+        } else if ("WITHDRAWAL".equals(cmd.tradeType())) {
+            // 출금: 차변(외부 입출금 청산 계정), 대변(고객 현금 감소)
+            // 매수의 결제 통화 대변과 같이 평균 단가 자리에 거래 시점 환율을 넣어 환차손익을 인식하지 않는다.
+            transaction.addBuyEntry(SYSTEM_CASH_CLEARING_ACCOUNT_ID, cmd.fiatCode(), cmd.quantity(),
+                                    BigDecimal.ONE, fiatToBaseRate, baseCurrency);
+            transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), cmd.quantity(),
+                                    BigDecimal.ONE, fiatToBaseRate, fiatToBaseRate, baseCurrency);
         } else {
             throw new IllegalArgumentException("Unsupported trade type for ledger recording: " + cmd.tradeType());
         }

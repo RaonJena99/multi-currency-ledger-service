@@ -95,8 +95,8 @@ public abstract class IntegrationTestSupport {
             return;
         }
         systemAccountJdbcTemplate.update(
-                "DELETE FROM accounts WHERE id NOT IN (?::uuid, ?::uuid)",
-                SYSTEM_FX_ACCOUNT_ID, SYSTEM_FEE_ACCOUNT_ID);
+                "DELETE FROM accounts WHERE id NOT IN (?::uuid, ?::uuid, ?::uuid)",
+                SYSTEM_FX_ACCOUNT_ID, SYSTEM_FEE_ACCOUNT_ID, SYSTEM_CASH_CLEARING_ACCOUNT_ID);
     }
 
     /** 반올림 잔차 플러그가 귀속되는 시스템 계정. 마이그레이션이 시딩합니다. */
@@ -104,6 +104,9 @@ public abstract class IntegrationTestSupport {
 
     /** 수수료 분개가 귀속되는 시스템 계정. 마이그레이션이 시딩합니다. */
     protected static final String SYSTEM_FEE_ACCOUNT_ID = "00000000-0000-0000-0000-000000000001";
+
+    /** 입출금 분개의 상대 계정. 마이그레이션이 시딩합니다. */
+    protected static final String SYSTEM_CASH_CLEARING_ACCOUNT_ID = "00000000-0000-0000-0000-000000000002";
 
     @TestConfiguration
     public static class TestJpaAuditingConfig {

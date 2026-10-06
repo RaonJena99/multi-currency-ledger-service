@@ -174,15 +174,20 @@ class TransactionalProxyGuardTest extends IntegrationTestSupport {
         UUID probe = UUID.randomUUID();
         assertThat(probe).isNotNull();
 
-        var retryable = java.util.Arrays.stream(AccountTradeService.class.getDeclaredMethods())
+        // 프록시를 거치는 공개 실행 메서드(매수·매도·입금·출금)는 모두 재시도를 선언해야 한다.
+        // 비공개 공통 메서드는 프록시를 거치지 않으므로 애노테이션을 달아도 무효다.
+        var executeMethods = java.util.Arrays.stream(AccountTradeService.class.getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("execute"))
-                .map(m -> m.getAnnotation(org.springframework.retry.annotation.Retryable.class))
-                .filter(java.util.Objects::nonNull)
+                .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers()))
                 .toList();
 
-        assertThat(retryable).as("매수/매도 실행 메서드에 재시도가 선언되어 있어야 한다").hasSize(2);
-        assertThat(retryable).allSatisfy(r ->
-                assertThat(r.retryFor())
-                        .contains(org.springframework.dao.OptimisticLockingFailureException.class));
+        assertThat(executeMethods).extracting(java.lang.reflect.Method::getName)
+                .contains("executeBuyAsset", "executeSellAsset", "executeDeposit", "executeWithdrawal");
+        assertThat(executeMethods).allSatisfy(m -> {
+            var retryable = m.getAnnotation(org.springframework.retry.annotation.Retryable.class);
+            assertThat(retryable).as("%s 에 재시도가 선언되어 있어야 한다", m.getName()).isNotNull();
+            assertThat(retryable.retryFor())
+                    .contains(org.springframework.dao.OptimisticLockingFailureException.class);
+        });
     }
 }

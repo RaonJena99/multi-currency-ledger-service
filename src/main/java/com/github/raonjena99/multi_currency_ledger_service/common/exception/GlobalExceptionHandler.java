@@ -124,6 +124,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 같은 ID 의 계좌가 이미 있음 (HTTP 409)
+     */
+    @ExceptionHandler(AccountAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleAccountAlreadyExists(AccountAlreadyExistsException e) {
+        log.warn("Account already exists: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("ACCOUNT_ALREADY_EXISTS", "An account with the requested ID already exists."));
+    }
+
+    /**
      * 원장 데드레터를 찾을 수 없음 (HTTP 404)
      */
     @ExceptionHandler(LedgerDeadLetterNotFoundException.class)
