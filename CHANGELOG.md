@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.7.0...v1.8.0) (2026-10-06)
+
+
+### Features
+
+* OpenAPI(Swagger) API 문서를 관리 포트에 추가 ([#101](https://github.com/RaonJena99/multi-currency-ledger-service/issues/101)) ([a4275d7](https://github.com/RaonJena99/multi-currency-ledger-service/commit/a4275d72af7d8854c6ad3b244de22808649957d0)), closes [#83](https://github.com/RaonJena99/multi-currency-ledger-service/issues/83)
+
 ## [1.7.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.6.0...v1.7.0) (2026-10-06)
 
 
