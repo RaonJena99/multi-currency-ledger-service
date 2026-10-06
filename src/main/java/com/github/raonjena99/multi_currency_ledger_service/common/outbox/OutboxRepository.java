@@ -37,11 +37,18 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
             @Param("timeout") OffsetDateTime timeout,
             @Param("now") OffsetDateTime now);
 
+    /**
+     * 발행에 성공한 이벤트를 발행 완료로 표시하고 발행 시각을 남깁니다.
+     */
+    default void markAsProcessedInBatch(List<Long> successIds) {
+        markAsProcessedInBatch(successIds, OffsetDateTime.now());
+    }
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE OutboxEvent e " +
-            "SET e.processed = true, e.lockedAt = null " +
+            "SET e.processed = true, e.processedAt = :processedAt, e.lockedAt = null " +
             "WHERE e.id IN :ids")
-    void markAsProcessedInBatch(@Param("ids") List<Long> successIds);
+    void markAsProcessedInBatch(@Param("ids") List<Long> successIds, @Param("processedAt") OffsetDateTime processedAt);
 
     /**
      * 데드레터로 격리된 이벤트를 오래된 순으로 조회합니다. 백오피스 복구 화면용입니다.

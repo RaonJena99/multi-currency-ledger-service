@@ -231,6 +231,27 @@ class LedgerIntegrityCheckServiceTest extends IntegrationTestSupport {
         assertThat(meterRegistry.get("ledger.integrity.mismatches").gauge().value()).isEqualTo(0.0);
     }
 
+    @Test
+    @DisplayName("보존 기간(90일)이 지난 점검 결과는 불일치 기록과 함께 지운다")
+    void purgesRunsOlderThanRetention() {
+        UUID accountId = openAccount();
+        ledger(accountId, MONTH, "1000");
+        settleLedgers();
+        IntegrityCheckResult old = checkService.runCheck();
+        jdbcTemplate.update("UPDATE ledger_integrity_runs SET checked_at = now() - interval '91 days' WHERE id = ?",
+                old.runId());
+        IntegrityCheckResult recent = checkService.runCheck();
+
+        int purged = checkService.purgeOldRuns();
+
+        assertThat(purged).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForList("SELECT id FROM ledger_integrity_runs", UUID.class))
+                .containsExactly(recent.runId());
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM ledger_integrity_mismatches WHERE run_id = ?", Integer.class, old.runId()))
+                .isZero();
+    }
+
     @Autowired private com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.query.LedgerIntegrityDao integrityDao;
     @Autowired private com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.query.LedgerQueryDao queryDao;
 
@@ -244,7 +265,7 @@ class LedgerIntegrityCheckServiceTest extends IntegrationTestSupport {
 
         // 배포로 새로 뜬 인스턴스. 다음 점검(최대 하루 뒤)까지 0 으로 보이면 남은 불일치가 알림에서 사라진다.
         var restartedRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
-        new LedgerIntegrityCheckService(integrityDao, queryDao, restartedRegistry, 10);
+        new LedgerIntegrityCheckService(integrityDao, queryDao, restartedRegistry, 10, 90);
 
         assertThat(restartedRegistry.get("ledger.integrity.mismatches").gauge().value()).isEqualTo(1.0);
     }
