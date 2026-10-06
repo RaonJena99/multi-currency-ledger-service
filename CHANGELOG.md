@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.6.0...v1.7.0) (2026-10-06)
+
+
+### Features
+
+* 발행이 끝난 아웃박스 이벤트와 정합성 점검 결과의 보존 기간 정리 추가 ([#97](https://github.com/RaonJena99/multi-currency-ledger-service/issues/97)) ([f9277e1](https://github.com/RaonJena99/multi-currency-ledger-service/commit/f9277e17b2c4ab5e07bd38c92b64574fdc526735)), closes [#81](https://github.com/RaonJena99/multi-currency-ledger-service/issues/81)
+
 ## [1.6.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.5.0...v1.6.0) (2026-10-06)
 
 
