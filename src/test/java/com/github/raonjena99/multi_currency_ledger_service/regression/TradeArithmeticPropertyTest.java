@@ -188,7 +188,8 @@ class TradeArithmeticPropertyTest {
                 default -> throw new UnsupportedOperationException(name);
             });
             AccountRepository accountRepository = fake(AccountRepository.class, (name, args) -> switch (name) {
-                case "findById" -> Optional.of(account);
+                // 거래는 계좌 상태를 공유 잠금으로 확정한다(해지·정지와의 경쟁 방지).
+                case "findById", "findByIdForShare" -> Optional.of(account);
                 default -> throw new UnsupportedOperationException(name);
             });
             IdempotencyRecordRepository idempotencyRepository = fake(IdempotencyRecordRepository.class, (name, args) -> switch (name) {

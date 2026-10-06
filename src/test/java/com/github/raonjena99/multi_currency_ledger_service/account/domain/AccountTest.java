@@ -81,6 +81,34 @@ class AccountTest {
                 .isInstanceOf(InvalidAccountStateException.class);
     }
 
+    // 같은 상태로 다시 바꾸는 요청은 거부한다. 받아 주면 의미 없는 상태 변경 이력이 쌓이고,
+    // 운영자는 정지가 실제로 적용되었는지(이미 정지였는지) 구분할 수 없다.
+    @Test
+    void suspend_should_throw_if_already_suspended() {
+        Account account = Account.open(UUID.randomUUID(), "User", "USD");
+        account.suspend();
+
+        assertThatThrownBy(account::suspend)
+                .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException.class);
+    }
+
+    @Test
+    void activate_should_throw_if_already_active() {
+        Account account = Account.open(UUID.randomUUID(), "User", "USD");
+
+        assertThatThrownBy(account::activate)
+                .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException.class);
+    }
+
+    @Test
+    void close_should_throw_if_already_closed() {
+        Account account = Account.open(UUID.randomUUID(), "User", "USD");
+        account.close();
+
+        assertThatThrownBy(account::close)
+                .isInstanceOf(com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException.class);
+    }
+
     @Test
     void isNew_should_return_true_if_created_at_is_null() {
         Account account = Account.open(UUID.randomUUID(), "User", "USD");

@@ -88,6 +88,10 @@ public class Account extends BaseEntity implements Persistable<UUID> {
         if (this.status == AccountStatus.CLOSED) {
             throw new InvalidAccountStateException("Cannot suspend an already closed account");
         }
+        // 같은 상태로 바꾸는 요청을 받아 주면 의미 없는 이력이 쌓이고, 정지가 실제로 적용됐는지 구분할 수 없다.
+        if (this.status == AccountStatus.SUSPENDED) {
+            throw new InvalidAccountStateException("Account is already suspended");
+        }
         this.status = AccountStatus.SUSPENDED;
     }
 
@@ -100,6 +104,9 @@ public class Account extends BaseEntity implements Persistable<UUID> {
         if (this.status == AccountStatus.CLOSED) {
             throw new InvalidAccountStateException("Cannot reactivate a closed account");
         }
+        if (this.status == AccountStatus.ACTIVE) {
+            throw new InvalidAccountStateException("Account is already active");
+        }
         this.status = AccountStatus.ACTIVE;
     }
 
@@ -107,6 +114,9 @@ public class Account extends BaseEntity implements Persistable<UUID> {
      * Account(계좌)를 영구 폐쇄(CLOSED) 상태로 변경합니다.
      */
     public void close() {
+        if (this.status == AccountStatus.CLOSED) {
+            throw new InvalidAccountStateException("Account is already closed");
+        }
         this.status = AccountStatus.CLOSED;
     }
 
