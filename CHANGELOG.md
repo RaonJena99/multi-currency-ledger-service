@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.5.0...v1.6.0) (2026-10-06)
+
+
+### Features
+
+* 계좌 정지·해제·해지 관리자 API 와 상태 변경 이력 추가 ([#94](https://github.com/RaonJena99/multi-currency-ledger-service/issues/94)) ([120f8af](https://github.com/RaonJena99/multi-currency-ledger-service/commit/120f8af29ef6e508a1b24a901d963b175e568843)), closes [#80](https://github.com/RaonJena99/multi-currency-ledger-service/issues/80)
+
 ## [1.5.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.4.1...v1.5.0) (2026-10-06)
 
 
