@@ -47,6 +47,7 @@ public class InternalTransactionQueryDao {
         //
         // 시스템 계정 엔트리(SYSTEM_*, FEE_*)는 외부 정산 대상이 아니므로 제외합니다.
         // 입출금(DEPOSIT, WITHDRAWAL)도 PG 결제가 아니라 외부 송금이므로 PG 정산과 맞춰 보지 않습니다.
+        // 기초 잔고(OPENING_BALANCE)는 실제 거래가 아니라 이월 잔고 기록이므로 역시 제외합니다.
         // 포함하면 금액·시각이 비슷한 정산 건이 입출금에 잘못 매칭되어 실제 결제 거래가 미매칭으로 남습니다.
         // 무한 적재를 막기 위해 상한을 둡니다.
         //
@@ -69,7 +70,7 @@ public class InternalTransactionQueryDao {
             WHERE te.entry_type = 'CREDIT'
               AND t.transacted_at >= :start AND t.transacted_at < :end
               AND es.id IS NULL
-              AND t.transaction_type NOT IN ('FEE_DEDUCTION', 'FEE_ADJUSTMENT', 'DEPOSIT', 'WITHDRAWAL')
+              AND t.transaction_type NOT IN ('FEE_DEDUCTION', 'FEE_ADJUSTMENT', 'DEPOSIT', 'WITHDRAWAL', 'OPENING_BALANCE')
               AND te.asset_code NOT LIKE 'SYSTEM\\_%'
             GROUP BY t.id, t.transacted_at, t.description
             HAVING COUNT(DISTINCT te.amount_currency) = 1

@@ -91,4 +91,7 @@ if ! echo "$portfolio" | grep -Eq '"assetCode":"KRW","quantity":7000(\.0+)?[,}]'
   exit 1
 fi
 
+echo "▶ 원장 정합성 점검 실행 확인"
+expect "정합성 점검" "$(admin_post /api/v1/admin/ledger/integrity-checks '')" 200
+
 echo "✔ 스모크 테스트 통과"

@@ -25,6 +25,7 @@
 | **복식부기 분개** | 거래 이벤트를 Kafka로 받아 차변·대변 분개 기록. 매도 시 실현 손익 포함, 대차 불일치 시 저장 거부 |
 | **포트폴리오 조회** | 보유 자산을 실시간 시세로 평가해 미실현 손익 계산. Redis 캐시, 시세 장애 시 지연 데이터로 표시 |
 | **원장 조회** | 계좌별 거래 내역과 거래별 분개(시스템 계정 분개 제외), 기준 통화별 월 시산표(차변 = 대변 + 실현 손익) |
+| **원장 정합성 점검** | 매일 고객 잔고(최신 월 원장)와 분개 누계를 계좌·자산별로 비교하고 전체 시산표를 확인. 불일치 건수를 지표로 노출 |
 | **정산 대사** | 월 1회 배치로 PG 정산과 내부 거래를 시간·금액·텍스트 규칙으로 매칭. 불일치 건은 DLQ로 격리 |
 
 ## 핵심 설계
@@ -36,6 +37,9 @@
   - 발행 실패 시 30초~10분 지수 백오프로 최대 10회 재시도한 뒤 데드레터로 격리합니다.
 - **외부 연동 복원력**: 시세·PG API에 Resilience4j 서킷 브레이커와 재시도를 적용합니다. 시세 공급자가 장애이면 캐시로 대응하되, **5분이 지난 시세로는 거래하지 않습니다**(503).
 - **모듈 분리**: Spring Modulith로 `account`, `transaction`, `portfolio`, `reconciliation` 모듈의 경계를 테스트로 검증합니다.
+- **원장 정합성 점검**: 잔고는 즉시, 분개는 비동기로 바뀌므로 분개가 DLT나 아웃박스 데드레터로 빠지면 둘이 어긋납니다. 매일 둘을 비교해 `ledger.integrity.mismatches`로 노출합니다.
+  - 처리 중인 거래(최근 10분 안에 바뀐 잔고, 발행 대기 중인 아웃박스)는 건너뛰고 다음 회차에 다시 봅니다.
+  - 입출금 API 이전에 DB에 직접 넣은 잔고에는 마이그레이션이 기초 잔고(`OPENING_BALANCE`) 분개를 만들었습니다.
 - **관측성**: Correlation ID를 HTTP 요청부터 Kafka 컨슈머 로그까지 전달하고, 로그는 JSON(Logstash 인코더)으로 남깁니다. 지표는 Prometheus로 노출합니다(외부 API 응답 시간, 폴백·데드레터 건수, 통화별 보유 총액 등).
 
 ---
@@ -99,6 +103,7 @@ docker compose pull && docker compose up -d
 | `GET` | `/api/v1/portfolios/{accountId}` | 인증 + 계좌 소유자 |
 | `GET` | `/api/v1/accounts/{accountId}/transactions`, `/{transactionId}` | 인증 + 계좌 소유자 |
 | `GET` | `/api/v1/admin/ledger/trial-balance?month=yyyy-MM` | `ROLE_ADMIN` |
+| `POST` | `/api/v1/admin/ledger/integrity-checks` (즉시 실행), `GET` `.../latest` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/admin/outbox/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/outbox/dead-letters/{eventId}/requeue`, `/requeue-all` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/reconciliations/dead-letters/{deadLetterId}/resolve` | `ROLE_ADMIN` |
