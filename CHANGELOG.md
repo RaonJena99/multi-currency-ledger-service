@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.9](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.8...v1.0.9) (2026-10-06)
+
+
+### Bug Fixes
+
+* **deps:** 이미지 취약점 스캔에 걸린 Jackson·libssl3 HIGH 취약점 패치 ([#56](https://github.com/RaonJena99/multi-currency-ledger-service/issues/56)) ([e52de5a](https://github.com/RaonJena99/multi-currency-ledger-service/commit/e52de5af41c091e67c3d036144b7b96440dd74a6))
+
 ## [1.0.8](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.7...v1.0.8) (2026-09-28)
 
 
