@@ -60,4 +60,35 @@ case "$code" in
   *) echo "시크릿 없는 요청이 $code 로 통과했습니다." >&2; exit 1 ;;
 esac
 
+echo "▶ 거래 흐름 확인: 계좌 개설 → 입금 → 출금 → 잔고 초과 출금 거부 → 포트폴리오 조회"
+# 원화 계좌의 원화 입출금은 외부 시세 API 를 부르지 않으므로(같은 통화 환율은 1) 외부망 없이도 결정적이다.
+# 매수·매도는 실제 시세 공급자를 호출해야 해서 여기서는 다루지 않는다(통합 테스트 CashFlowE2ETest 가 검증).
+ACCOUNT="00000000-0000-0000-0000-0000000005e1"
+admin_post() {
+  curl -s -o /dev/null -w '%{http_code}' -X POST \
+    -H "X-Gateway-Secret: $SECRET" -H "X-Auth-Subject: smoke-admin" -H "X-Auth-Roles: ADMIN" \
+    -H "Content-Type: application/json" -d "$2" "http://localhost:$PORT$1"
+}
+expect() {
+  if [ "$2" != "$3" ]; then
+    echo "$1: 기대한 $3 가 아니라 $2 가 반환되었습니다." >&2
+    exit 1
+  fi
+}
+expect "계좌 개설" "$(admin_post /api/v1/admin/accounts \
+  "{\"accountId\":\"$ACCOUNT\",\"ownerName\":\"SMOKE\",\"baseCurrency\":\"KRW\"}")" 201
+expect "입금" "$(admin_post /api/v1/admin/accounts/$ACCOUNT/deposits \
+  '{"idempotencyKey":"smoke-dep-1","currency":"KRW","amount":10000}')" 200
+expect "출금" "$(admin_post /api/v1/admin/accounts/$ACCOUNT/withdrawals \
+  '{"idempotencyKey":"smoke-wd-1","currency":"KRW","amount":3000}')" 200
+expect "잔고 초과 출금" "$(admin_post /api/v1/admin/accounts/$ACCOUNT/withdrawals \
+  '{"idempotencyKey":"smoke-wd-2","currency":"KRW","amount":100000}')" 409
+
+portfolio=$(curl -fsS -H "X-Gateway-Secret: $SECRET" -H "X-Auth-Subject: smoke-user" \
+  -H "X-Auth-Account-Id: $ACCOUNT" "http://localhost:$PORT/api/v1/portfolios/$ACCOUNT")
+if ! echo "$portfolio" | grep -Eq '"assetCode":"KRW","quantity":7000(\.0+)?[,}]'; then
+  echo "포트폴리오의 KRW 잔고가 7000 이 아닙니다: $portfolio" >&2
+  exit 1
+fi
+
 echo "✔ 스모크 테스트 통과"

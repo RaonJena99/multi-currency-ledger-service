@@ -7,5 +7,9 @@ public enum TradeType {
     /** 매수 (자산을 구매함) */
     BUY, 
     /** 매도 (자산을 판매함) */
-    SELL
+    SELL,
+    /** 입금 (외부에서 법정화폐가 들어옴) */
+    DEPOSIT,
+    /** 출금 (법정화폐가 외부로 나감) */
+    WITHDRAWAL
 }

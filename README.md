@@ -21,6 +21,7 @@
 | 기능 | 내용 |
 | :--- | :--- |
 | **매수·매도** | 월차 원장의 잔고와 평균 단가 갱신. 멱등성 키로 중복 요청 차단, 시장가 대비 단가 편차 검증 |
+| **계좌 개설·입출금** | 관리자·내부 시스템이 계좌를 열고 법정화폐를 입출금. 입출금도 매수·매도와 같이 멱등성 키를 쓰고 원장에 분개 |
 | **복식부기 분개** | 거래 이벤트를 Kafka로 받아 차변·대변 분개 기록. 매도 시 실현 손익 포함, 대차 불일치 시 저장 거부 |
 | **포트폴리오 조회** | 보유 자산을 실시간 시세로 평가해 미실현 손익 계산. Redis 캐시, 시세 장애 시 지연 데이터로 표시 |
 | **정산 대사** | 월 1회 배치로 PG 정산과 내부 거래를 시간·금액·텍스트 규칙으로 매칭. 불일치 건은 DLQ로 격리 |
@@ -92,6 +93,8 @@ docker compose pull && docker compose up -d
 | :--- | :--- | :--- |
 | `POST` | `/api/v1/accounts/{accountId}/trades/buy` | 인증 + 계좌 소유자 |
 | `POST` | `/api/v1/accounts/{accountId}/trades/sell` | 인증 + 계좌 소유자 |
+| `POST` | `/api/v1/admin/accounts` | `ROLE_ADMIN` |
+| `POST` | `/api/v1/admin/accounts/{accountId}/deposits`, `/withdrawals` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/portfolios/{accountId}` | 인증 + 계좌 소유자 |
 | `GET` | `/api/v1/admin/outbox/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/outbox/dead-letters/{eventId}/requeue`, `/requeue-all` | `ROLE_ADMIN` |
@@ -101,6 +104,8 @@ docker compose pull && docker compose up -d
 | `GET` | `/actuator/health`, `/info`, `/prometheus` | 공개 (나머지 `/actuator/**`는 `ROLE_ADMIN`) |
 
 관리자는 계좌 소유권 검사를 건너뜁니다.
+
+계좌 개설과 입출금은 고객이 직접 호출하지 않습니다. 소유권은 게이트웨이가 `X-Auth-Account-Id`로 정하므로 계좌 ID와 고객의 연결을 관리하는 쪽이 개설해야 하고, 입금은 실제 결제가 확인된 뒤에만 반영해야 하기 때문입니다.
 
 ### 인증 방식
 

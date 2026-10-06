@@ -222,6 +222,100 @@ public class AccountTradeService {
         return tradeId;
     }
 
+    /**
+     * 계좌에 법정화폐를 입금합니다. 잔고를 늘리고 원장 기록 이벤트를 발행합니다.
+     *
+     * @param idempotencyKey 중복 방지를 위한 키
+     * @param accountId 계좌 ID
+     * @param amount 입금액
+     * @param transactedAt 거래 기준 시각
+     * @param ledgerMonth 기장 대상 실효 원장 월 (yyyy-MM)
+     * @param fiatToBaseRate 입금 통화 → 기준 통화 환율. 두 통화가 같으면 null
+     * @return 생성된 거래의 고유 식별자
+     */
+    @Retryable(
+        retryFor = OptimisticLockingFailureException.class,
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
+    @Transactional
+    public UUID executeDeposit(String idempotencyKey, UUID accountId, Money amount, OffsetDateTime transactedAt,
+                               String ledgerMonth, BigDecimal fiatToBaseRate) {
+        return executeCashTransfer(TradeType.DEPOSIT, idempotencyKey, accountId, amount, transactedAt,
+                ledgerMonth, fiatToBaseRate);
+    }
+
+    /**
+     * 계좌에서 법정화폐를 출금합니다. 잔고를 줄이고 원장 기록 이벤트를 발행합니다.
+     *
+     * @param idempotencyKey 중복 방지를 위한 키
+     * @param accountId 계좌 ID
+     * @param amount 출금액
+     * @param transactedAt 거래 기준 시각
+     * @param ledgerMonth 기장 대상 실효 원장 월 (yyyy-MM)
+     * @param fiatToBaseRate 출금 통화 → 기준 통화 환율. 두 통화가 같으면 null
+     * @return 생성된 거래의 고유 식별자
+     * @throws com.github.raonjena99.multi_currency_ledger_service.common.exception.InsufficientBalanceException 잔고가 부족한 경우
+     */
+    @Retryable(
+        retryFor = OptimisticLockingFailureException.class,
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 100, multiplier = 2.0)
+    )
+    @Transactional
+    public UUID executeWithdrawal(String idempotencyKey, UUID accountId, Money amount, OffsetDateTime transactedAt,
+                                  String ledgerMonth, BigDecimal fiatToBaseRate) {
+        return executeCashTransfer(TradeType.WITHDRAWAL, idempotencyKey, accountId, amount, transactedAt,
+                ledgerMonth, fiatToBaseRate);
+    }
+
+    /**
+     * 입출금 공통 처리. 매수·매도와 같은 순서(멱등성 → 계좌 상태 → 실효 월 → 잔고 → 이벤트)를 따릅니다.
+     */
+    private UUID executeCashTransfer(TradeType type, String idempotencyKey, UUID accountId, Money amount,
+                                     OffsetDateTime transactedAt, String ledgerMonth, BigDecimal fiatToBaseRate) {
+
+        IdempotencyOutcome idempotency = registerIdempotencyKey(
+                accountId, type.name(), idempotencyKey, "이미 처리 중인 입출금 요청입니다.");
+        if (idempotency.replayedTradeId() != null) {
+            return idempotency.replayedTradeId();
+        }
+
+        requireActiveAccount(accountId);
+
+        String currency = amount.getCurrencyCode();
+        String effectiveMonth = resolveEffectiveMonth(accountId, ledgerMonth);
+        MonthlyAccountLedger fiatLedger = monthlyLedgerResolver
+                .resolveOrInitializeLedger(accountId, currency, AssetType.FIAT, effectiveMonth);
+        monthlyLedgerResolver.requireStillLatestMonth(accountId, effectiveMonth);
+
+        // 법정화폐 원장의 평균 단가는 기준 통화 환산 단가다. 매도 대금을 받을 때와 같이 거래 시점 환율을 쓴다.
+        BigDecimal appliedFiatToBaseRate = fiatToBaseRate != null ? fiatToBaseRate : BigDecimal.ONE;
+        if (type == TradeType.DEPOSIT) {
+            fiatLedger.addBalance(amount, appliedFiatToBaseRate);
+        } else {
+            fiatLedger.subtractBalance(amount);
+        }
+        monthlyAccountLedgerRepository.save(fiatLedger);
+
+        UUID transactionId = UUID.randomUUID();
+
+        // 매수·매도와 같은 이벤트로 발행해 아웃박스 적재와 포트폴리오 캐시 갱신 경로를 그대로 탄다.
+        // 입출금은 단가·환율 개념이 없으므로 1 을, 원가 개념이 없으므로 평균 단가에 0 을 넣는다.
+        eventPublisher.publishEvent(new TradeExecutedEvent(
+            transactionId, accountId, currency, AssetType.FIAT, currency,
+            fiatLedger.getBaseCurrency(),
+            type,
+            amount.getAmount(), BigDecimal.ONE, BigDecimal.ONE, appliedFiatToBaseRate, BigDecimal.ZERO,
+            false, transactedAt
+        ));
+
+        idempotency.record().complete(transactionId);
+
+        log.info("Monthly Ledger updated for {}. TransactionID: {}", type, transactionId);
+        return transactionId;
+    }
+
     private void requireActiveAccount(UUID accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));

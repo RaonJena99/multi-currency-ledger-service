@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
+import com.github.raonjena99.multi_currency_ledger_service.common.domain.CurrencyScaleResolver;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException;
@@ -109,6 +110,85 @@ public class AccountTradeFacade {
     }
 
     /**
+     * 계좌에 법정화폐를 입금합니다. 실제 입금 확인을 마친 내부 시스템이나 관리자만 호출해야 합니다.
+     *
+     * @param idempotencyKey 중복 요청 방지 키
+     * @param accountId      입금 계좌 ID
+     * @param currency       입금 통화 코드 (ISO 4217)
+     * @param amount         입금액. 통화의 최소 단위보다 정밀하면 거부합니다
+     * @return 생성된 거래 ID
+     */
+    public UUID deposit(String idempotencyKey, UUID accountId, String currency, BigDecimal amount) {
+        var replayed = tradeService.findCompletedTradeId(accountId, TradeType.DEPOSIT.name(), idempotencyKey);
+        if (replayed.isPresent()) {
+            return replayed.get();
+        }
+
+        CashTransferContext context = prepareCashTransfer(accountId, currency, amount);
+        return tradeService.executeDeposit(idempotencyKey, accountId, context.amount(), context.transactedAt(),
+                context.ledgerMonth(), context.fiatToBaseRate());
+    }
+
+    /**
+     * 계좌에서 법정화폐를 출금합니다. 실제 송금은 호출한 쪽이 처리하며, 여기서는 잔고 차감까지만 합니다.
+     *
+     * @param idempotencyKey 중복 요청 방지 키
+     * @param accountId      출금 계좌 ID
+     * @param currency       출금 통화 코드 (ISO 4217)
+     * @param amount         출금액. 통화의 최소 단위보다 정밀하면 거부합니다
+     * @return 생성된 거래 ID
+     */
+    public UUID withdraw(String idempotencyKey, UUID accountId, String currency, BigDecimal amount) {
+        var replayed = tradeService.findCompletedTradeId(accountId, TradeType.WITHDRAWAL.name(), idempotencyKey);
+        if (replayed.isPresent()) {
+            return replayed.get();
+        }
+
+        CashTransferContext context = prepareCashTransfer(accountId, currency, amount);
+        return tradeService.executeWithdrawal(idempotencyKey, accountId, context.amount(), context.transactedAt(),
+                context.ledgerMonth(), context.fiatToBaseRate());
+    }
+
+    /**
+     * 입출금에서 트랜잭션 밖에서 끝내야 하는 준비 작업을 수행합니다.
+     * 매수·매도의 {@link #prepare} 와 같이 검증을 모두 통과한 뒤에 원장 행을 만듭니다.
+     */
+    private CashTransferContext prepareCashTransfer(UUID accountId, String currency, BigDecimal amount) {
+        if (!isIsoCurrency(currency)) {
+            throw new com.github.raonjena99.multi_currency_ledger_service.common.exception.UnsupportedAssetCodeException(
+                    "입출금 통화가 유효한 ISO 4217 코드가 아닙니다: " + currency);
+        }
+        // 매수·매도 대금은 서버가 정한 방향으로 반올림하지만, 입출금액은 실제로 오간 돈이다.
+        // 반올림해 받으면 고객이 보낸 금액과 잔고가 달라지므로 최소 단위보다 정밀한 금액은 거부한다.
+        int currencyScale = CurrencyScaleResolver.resolveScale(AssetType.FIAT, currency);
+        if (amount.stripTrailingZeros().scale() > currencyScale) {
+            throw new IllegalArgumentException(String.format(
+                    "금액 %s 이 %s 최소 단위(%s)보다 정밀합니다.", amount.toPlainString(), currency,
+                    CurrencyScaleResolver.minimumUnit(AssetType.FIAT, currency).toPlainString()));
+        }
+
+        OffsetDateTime transactedAt = OffsetDateTime.now();
+        String ledgerMonth = periodResolver.resolveLedgerMonth(accountId, transactedAt);
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
+        if (!account.isActive()) {
+            throw new InvalidAccountStateException("Account is not active for cash transfer: " + accountId);
+        }
+
+        // 기준 통화가 아닌 통화의 평균 단가와 분개 금액은 거래 시점 환율로 환산한다.
+        BigDecimal fiatToBaseRate = null;
+        if (!currency.equals(account.getBaseCurrency())) {
+            fiatToBaseRate = exchangeRateProvider.getExchangeRate(currency, account.getBaseCurrency()).rate();
+        }
+
+        ledgerResolver.resolveOrInitializeLedger(accountId, currency, AssetType.FIAT, ledgerMonth);
+
+        return new CashTransferContext(Money.of(amount, AssetType.FIAT, currency), transactedAt, ledgerMonth,
+                fiatToBaseRate);
+    }
+
+    /**
      * 트랜잭션 밖에서 끝내야 하는 준비 작업을 한 번만 수행합니다.
      * 원장 존재 보장, 계좌 조회, 환율 조회, 단가 검증이 여기에 속합니다.
      */
@@ -202,7 +282,7 @@ public class AccountTradeFacade {
         }
     }
 
-    private boolean isIsoCurrency(String code) {
+    static boolean isIsoCurrency(String code) {
         try {
             java.util.Currency.getInstance(code);
             return true;
@@ -251,5 +331,17 @@ public class AccountTradeFacade {
      */
     private record TradeContext(OffsetDateTime transactedAt, String ledgerMonth, BigDecimal targetRate,
             boolean isStaleRate, BigDecimal fiatToBaseRate) {
+    }
+
+    /**
+     * 트랜잭션 밖에서 확정된, 입출금 실행에 필요한 입력값 묶음입니다.
+     *
+     * @param amount         입출금액
+     * @param transactedAt   거래 기준 시각
+     * @param ledgerMonth    기장 대상 실효 원장 월
+     * @param fiatToBaseRate 입출금 통화 → 기준 통화 환율. 두 통화가 같으면 null
+     */
+    private record CashTransferContext(Money amount, OffsetDateTime transactedAt, String ledgerMonth,
+            BigDecimal fiatToBaseRate) {
     }
 }

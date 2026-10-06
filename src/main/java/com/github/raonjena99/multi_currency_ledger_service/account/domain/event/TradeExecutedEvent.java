@@ -10,14 +10,18 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeTyp
 
 /**
  * TradeExecutedEvent 레코드.
- * 주문/계좌 컨텍스트에서 거래(매수/매도)가 성공적으로 완료되어 잔고에 반영되었음을 알리는 도메인 이벤트입니다.
+ * 주문/계좌 컨텍스트에서 거래(매수/매도/입금/출금)가 성공적으로 완료되어 잔고에 반영되었음을 알리는 도메인 이벤트입니다.
+ *
+ * <p>입출금도 이 이벤트로 발행합니다. 잔고가 바뀌고 복식부기 분개가 필요하다는 점이 매수·매도와 같아서,
+ * 아웃박스 적재와 포트폴리오 캐시 갱신 경로를 그대로 탈 수 있습니다. 입출금은 자산 코드와 결제 통화가
+ * 모두 입출금 통화이고, 단가와 환율은 1 입니다.
  *
  * @param tradeId 거래 고유 ID
  * @param accountId 거래가 발생한 Account(계좌) ID
  * @param assetCode 거래 대상 자산 코드
  * @param assetType 거래 대상 자산 유형
  * @param fiatCode 기준 법정 화폐 코드
- * @param tradeType 거래 유형 (매수/매도)
+ * @param tradeType 거래 유형 (매수/매도/입금/출금)
  * @param baseCurrency 계좌의 기준 통화 코드
  * @param quantity 거래 수량
  * @param unitPrice 거래 단가
