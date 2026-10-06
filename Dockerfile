@@ -33,7 +33,9 @@ WORKDIR /app
 ENV TZ=UTC
 
 # HEALTHCHECK 에서 사용한다. jre 이미지에는 curl 이 포함되어 있지 않다.
+# 베이스 이미지는 Ubuntu 보안 업데이트보다 늦게 재빌드되므로(예: libssl3 CVE-2026-84782), 이미 나온 패치를 여기서 적용한다.
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
