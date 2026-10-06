@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.4.1...v1.5.0) (2026-10-06)
+
+
+### Features
+
+* 운영 스택에 Prometheus·알림 규칙·Grafana 프로비저닝 추가 ([#91](https://github.com/RaonJena99/multi-currency-ledger-service/issues/91)) ([2b936f0](https://github.com/RaonJena99/multi-currency-ledger-service/commit/2b936f0167e99d654cbb7303f7e1de920fec49cd)), closes [#79](https://github.com/RaonJena99/multi-currency-ledger-service/issues/79)
+
 ## [1.4.1](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.4.0...v1.4.1) (2026-10-06)
 
 
