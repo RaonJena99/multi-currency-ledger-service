@@ -96,6 +96,8 @@ docker compose pull && docker compose up -d
 | `GET` | `/api/v1/admin/outbox/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/outbox/dead-letters/{eventId}/requeue`, `/requeue-all` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/reconciliations/dead-letters/{deadLetterId}/resolve` | `ROLE_ADMIN` |
+| `GET` | `/api/v1/admin/ledger/dead-letters` | `ROLE_ADMIN` |
+| `POST` | `/api/v1/admin/ledger/dead-letters/{deadLetterId}/replay`, `/resolve` | `ROLE_ADMIN` |
 | `GET` | `/actuator/health`, `/info`, `/prometheus` | 공개 (나머지 `/actuator/**`는 `ROLE_ADMIN`) |
 
 관리자는 계좌 소유권 검사를 건너뜁니다.

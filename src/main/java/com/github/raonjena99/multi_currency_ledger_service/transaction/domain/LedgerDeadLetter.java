@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,8 +18,10 @@ import lombok.NoArgsConstructor;
 /**
  * 복식부기 원장 기록이 완전히 실패해 DLT 로 넘어간 메시지를 격리 보관하는 엔티티입니다.
  *
- * <p>이 기록이 존재한다는 것은 <b>잔고는 이미 변경되었는데 대응하는 분개가 없다</b>는 뜻입니다.
- * 반드시 운영자의 보상 처리가 필요한 상태이므로, 로그로 흘려보내지 않고 조회 가능한 형태로 남깁니다.
+ * <p>매수·매도 건이라면 이 기록이 존재한다는 것은 <b>잔고는 이미 변경되었는데 대응하는 분개가 없다</b>는
+ * 뜻입니다. 정산 수수료 보정({@code FEE_ADJUSTMENT})은 잔고 보정과 분개가 같은 트랜잭션이므로 둘 다
+ * 반영되지 않은 상태입니다. 어느 쪽이든 운영자의 보상 처리가 필요하므로, 로그로 흘려보내지 않고
+ * 조회 가능한 형태로 남깁니다. 복구는 {@code LedgerDeadLetterAdminController} 로 합니다.
  */
 @Entity
 @Table(name = "ledger_dead_letters")
@@ -47,6 +50,10 @@ public class LedgerDeadLetter extends BaseEntity {
 
     @Column(name = "resolved_at", columnDefinition = "TIMESTAMPTZ")
     private OffsetDateTime resolvedAt;
+
+    // 두 운영자가 같은 건을 동시에 재처리·해결하면 나중에 커밋한 쪽이 충돌로 실패해야 한다.
+    @Version
+    private Long version = 0L;
 
     /**
      * 원장 기록 실패 건을 격리합니다.
