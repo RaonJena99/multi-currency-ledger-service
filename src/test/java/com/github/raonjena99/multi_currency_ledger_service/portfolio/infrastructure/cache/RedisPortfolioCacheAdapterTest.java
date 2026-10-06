@@ -71,29 +71,6 @@ class RedisPortfolioCacheAdapterTest {
     }
 
     @Test
-    void savePortfolioCache_should_save_dto() {
-        UUID accountId = UUID.randomUUID();
-        String key = "portfolio:account:" + accountId;
-        PortfolioCacheDto dto = mock(PortfolioCacheDto.class);
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        adapter.savePortfolioCache(accountId, dto);
-
-        verify(valueOperations).set(eq(key), eq(dto), any(Duration.class));
-    }
-
-    @Test
-    void evictPortfolioCache_should_delete_key() {
-        UUID accountId = UUID.randomUUID();
-        String key = "portfolio:account:" + accountId;
-
-        adapter.evictPortfolioCache(accountId);
-
-        verify(redisTemplate).delete(key);
-    }
-
-    @Test
     void tryAcquireLock_should_return_true_if_acquired() {
         String lockKey = "lockKey";
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);

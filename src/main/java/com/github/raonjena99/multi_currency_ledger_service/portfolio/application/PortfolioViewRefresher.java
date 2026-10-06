@@ -114,6 +114,10 @@ public class PortfolioViewRefresher {
                 return;
             }
 
+            // 세대는 반드시 DB 를 읽기 "전에" 받아 둔다. 읽은 뒤 쓰기 전에 다른 거래가 커밋되어 캐시를 지우면
+            // 세대가 올라가 쓰기가 거부된다. 그러지 않으면 지워진 자리에 거래 이전 잔고를 다시 써 넣는다.
+            long generation = portfolioCachePort.currentGeneration(accountId);
+
             var currentBalances = accountApi.getBalances(accountId);
             String baseCurrency = accountApi.getBaseCurrency(accountId);
 
@@ -123,7 +127,11 @@ public class PortfolioViewRefresher {
 
             var cacheDto = new PortfolioCacheDto(accountId, baseCurrency, assetBalances);
 
-            portfolioCachePort.savePortfolioCache(accountId, cacheDto);
+            if (!portfolioCachePort.savePortfolioCacheIfGeneration(accountId, cacheDto, generation)) {
+                // 더 최근 커밋이 캐시를 지웠다. 그 커밋의 갱신이나 다음 조회가 최신 잔고로 다시 채운다.
+                log.debug("Newer commit evicted the portfolio cache during refresh ({}). Skipping stale write.", contextId);
+                return;
+            }
 
             log.info("Successfully refreshed Redis portfolio cache for account: {}", accountId);
         } catch (Exception e) {

@@ -3,6 +3,7 @@ package com.github.raonjena99.multi_currency_ledger_service.portfolio.applicatio
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -91,7 +92,7 @@ class PortfolioQueryServiceTest {
         assertThat(response.totalAssetValue()).isEqualByComparingTo("15000");
         assertThat(response.isStaleData()).isTrue();
         
-        verify(portfolioCachePort).savePortfolioCache(eq(accountId), any(PortfolioCacheDto.class));
+        verify(portfolioCachePort).savePortfolioCacheIfGeneration(eq(accountId), any(PortfolioCacheDto.class), anyLong());
         verify(portfolioCachePort).releaseLock(anyString());
     }
 

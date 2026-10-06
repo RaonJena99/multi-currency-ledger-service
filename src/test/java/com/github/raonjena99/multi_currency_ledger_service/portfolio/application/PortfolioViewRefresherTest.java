@@ -52,7 +52,7 @@ class PortfolioViewRefresherTest {
 
         refresher.updateRedisCache(event);
 
-        verify(portfolioCachePort).savePortfolioCache(eq(accountId), any(PortfolioCacheDto.class));
+        verify(portfolioCachePort).savePortfolioCacheIfGeneration(eq(accountId), any(PortfolioCacheDto.class), anyLong());
         verify(portfolioCachePort).releaseLock(anyString());
     }
 
@@ -90,7 +90,7 @@ class PortfolioViewRefresherTest {
         refresher.updateRedisCache(event);
 
         verify(accountApi, never()).getBalances(any());
-        verify(portfolioCachePort, never()).savePortfolioCache(any(), any());
+        verify(portfolioCachePort, never()).savePortfolioCacheIfGeneration(any(), any(), anyLong());
         verify(portfolioCachePort).evictPortfolioCache(accountId);
         verify(portfolioCachePort, never()).releaseLock(anyString());
     }
@@ -111,7 +111,7 @@ class PortfolioViewRefresherTest {
         refresher.updateRedisCache(event);
 
         verify(accountApi, never()).getBalances(any());
-        verify(portfolioCachePort, never()).savePortfolioCache(any(), any());
+        verify(portfolioCachePort, never()).savePortfolioCacheIfGeneration(any(), any(), anyLong());
         verify(portfolioCachePort).evictPortfolioCache(accountId);
 
         Thread.interrupted(); // Clear interrupt flag
@@ -131,7 +131,7 @@ class PortfolioViewRefresherTest {
 
         refresher.updateRedisCache(event);
 
-        verify(portfolioCachePort, never()).savePortfolioCache(any(), any());
+        verify(portfolioCachePort, never()).savePortfolioCacheIfGeneration(any(), any(), anyLong());
         verify(portfolioCachePort).evictPortfolioCache(accountId);
     }
 
@@ -154,7 +154,7 @@ class PortfolioViewRefresherTest {
 
         refresher.onBalanceAdjusted(event);
 
-        verify(portfolioCachePort).savePortfolioCache(eq(accountId), any(PortfolioCacheDto.class));
+        verify(portfolioCachePort).savePortfolioCacheIfGeneration(eq(accountId), any(PortfolioCacheDto.class), anyLong());
         verify(portfolioCachePort).releaseLock(anyString());
     }
 
