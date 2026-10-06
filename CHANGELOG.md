@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.4.0...v1.4.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* 관리용 엔드포인트를 별도 관리 포트로 분리해 사업 지표 공개 노출 차단 ([#88](https://github.com/RaonJena99/multi-currency-ledger-service/issues/88)) ([11159ea](https://github.com/RaonJena99/multi-currency-ledger-service/commit/11159eaba121b62196fdf64f6439df4e85db6fc7))
+
 ## [1.4.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.3.0...v1.4.0) (2026-10-06)
 
 
