@@ -1,0 +1,120 @@
+- main [ref=f7e2]:
+  - navigation [ref=f7e4]:
+    - list [ref=f7e5]:
+      - link "Global Fishing Watch API" [ref=f7e6] [cursor=pointer]:
+        - /url: /our-apis/documentation/
+      - list
+      - generic [ref=f7e8]:
+        - button "Search Ctrl K" [ref=f7e9]:
+          - text: Search
+          - generic [ref=f7e13]:
+            - generic [ref=f7e14]: Ctrl
+            - generic [ref=f7e15]: K
+        - button "Toggle Theme" [ref=f7e16]
+  - main [ref=f7e25]:
+    - generic [ref=f7e26]:
+      - heading "Global Fishing Watch API" [level=1] [ref=f7e27]
+      - paragraph [ref=f7e28]: Modern, secure REST APIs to revolutionize the way we research and monitor human impacts across the world's ocean.
+      - generic [ref=f7e29]:
+        - link "Make your first call" [ref=f7e30] [cursor=pointer]:
+          - /url: /our-apis/documentation/docs/quick-start
+        - link "Browse the API reference" [ref=f7e33] [cursor=pointer]:
+          - /url: /our-apis/documentation/docs/v3
+        - link "Get an API token" [ref=f7e36] [cursor=pointer]:
+          - /url: https://globalfishingwatch.org/our-apis/tokens
+    - generic [ref=f7e40]:
+      - heading "What do you want to build?" [level=2] [ref=f7e41]
+      - generic [ref=f7e42]:
+        - paragraph [ref=f7e43]: Our APIs enable automatic connection of our data and products to other systems so users can easily download and integrate our datasets, code, and models to power their own platforms.
+        - paragraph [ref=f7e44]: By providing streamlined access to information on current fishing vessel activity, identity and history, we are helping create solutions for a resilient, sustainable ocean.
+      - generic [ref=f7e45]:
+        - paragraph [ref=f7e46]: Pick a use case and we'll route you to the right datasets, endpoints, and runnable examples.
+        - generic [ref=f7e47]:
+          - link "Map apparent fishing effort Visualize where potential fishing activity is happening as map tiles or download a report for an area. Explore" [ref=f7e48] [cursor=pointer]:
+            - /url: /our-apis/documentation/docs/v3/4wings
+            - generic [ref=f7e50]:
+              - heading "Map apparent fishing effort" [level=3] [ref=f7e51]
+              - paragraph [ref=f7e52]: Visualize where potential fishing activity is happening as map tiles or download a report for an area.
+              - generic [ref=f7e53]: Explore
+          - link "Detect dark vessels Identify radar-detected vessels exhibiting non-broadcasting or potential dark AIS behavior. Explore" [ref=f7e56] [cursor=pointer]:
+            - /url: /our-apis/documentation/docs/v3/4wings
+            - generic [ref=f7e58]:
+              - heading "Detect dark vessels" [level=3] [ref=f7e59]
+              - paragraph [ref=f7e60]: Identify radar-detected vessels exhibiting non-broadcasting or potential dark AIS behavior.
+              - generic [ref=f7e61]: Explore
+          - link "Look up a vessel's identity Resolve an MMSI, IMO or name across +40 public vessel registries and AIS self reported data. Explore" [ref=f7e64] [cursor=pointer]:
+            - /url: /our-apis/documentation/docs/v3/vessels
+            - generic [ref=f7e66]:
+              - heading "Look up a vessel's identity" [level=3] [ref=f7e67]
+              - paragraph [ref=f7e68]: Resolve an MMSI, IMO or name across +40 public vessel registries and AIS self reported data.
+              - generic [ref=f7e69]: Explore
+          - link "Find encounters & potential transshipment Analyze when two vessels meet at sea, fishing-to-carrier and more Explore" [ref=f7e72] [cursor=pointer]:
+            - /url: /our-apis/documentation/docs/v3/events
+            - generic [ref=f7e74]:
+              - heading "Find encounters & potential transshipment" [level=3] [ref=f7e75]
+              - paragraph [ref=f7e76]: Analyze when two vessels meet at sea, fishing-to-carrier and more
+              - generic [ref=f7e77]: Explore
+          - 'link "Assess vessel risk Pull fused indicators: AIS off events, authorizations and more. Explore" [ref=f7e80] [cursor=pointer]':
+            - /url: /our-apis/documentation/docs/v3/insights
+            - generic [ref=f7e82]:
+              - heading "Assess vessel risk" [level=3] [ref=f7e83]
+              - paragraph [ref=f7e84]: "Pull fused indicators: AIS off events, authorizations and more."
+              - generic [ref=f7e85]: Explore
+          - 'link "Bulk-export for analysis Scale your analysis offline: Export worldwide activity data in bulk via CSV or JSON. Explore" [ref=f7e88] [cursor=pointer]':
+            - /url: /our-apis/documentation/docs/v3/bulk-download
+            - generic [ref=f7e90]:
+              - heading "Bulk-export for analysis" [level=3] [ref=f7e91]
+              - paragraph [ref=f7e92]: "Scale your analysis offline: Export worldwide activity data in bulk via CSV or JSON."
+              - generic [ref=f7e93]: Explore
+    - generic [ref=f7e96]:
+      - generic [ref=f7e97]:
+        - heading "Harvesting big data from satellites and other sources" [level=2] [ref=f7e98]
+        - paragraph [ref=f7e100]: We combine tracking data from the publicly available automatic identification system (AIS) and integrate that with information acquired through vessel monitoring systems that are operated by governments and made available to us through partnerships that we secure. Both AIS and VMS combine global positioning with a transmitter to regularly broadcast vessel location.
+      - iframe [ref=f7e102]:
+        - generic [ref=f8e1]:
+          - generic "YouTube 동영상 플레이어" [ref=f8e3]
+          - generic [ref=f8e5]:
+            - generic:
+              - generic:
+                - generic [ref=f8e6] [cursor=pointer]
+                - button "동영상 재생" [ref=f8e10] [cursor=pointer]
+                - button "재생 컨트롤 숨기기" [ref=f8e12] [cursor=pointer]
+                - generic [ref=f8e14]:
+                  - generic [ref=f8e19]:
+                    - generic [ref=f8e20]:
+                      - link "Introducing Global Fishing Watch's revolutionary technology" [ref=f8e21] [cursor=pointer]:
+                        - /url: https://www.youtube.com/watch?v=tKxCuW-WWng
+                      - link "Global Fishing Watch" [ref=f8e22] [cursor=pointer]:
+                        - /url: /channel/UCFMjCB4uesIrCmO2G5II5zw
+                    - generic [ref=f8e24]:
+                      - button [ref=f8e25] [cursor=pointer]
+                      - generic [ref=f8e27]:
+                        - generic: Global Fishing Watch
+                        - generic: 구독자 10.9만명
+                  - generic [ref=f8e28]:
+                    - button "공유" [ref=f8e31] [cursor=pointer]
+                    - link "YouTube에서 보기" [ref=f8e42] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=tKxCuW-WWng
+                      - generic [ref=f8e43]: "다음에서 보기:"
+    - generic [ref=f7e104]:
+      - paragraph [ref=f7e105]: Global Fishing Watch APIs are only available for non-commercial purposes.
+      - paragraph [ref=f7e106]: They are used by researchers, governments and technology companies.
+  - generic [ref=f7e107]:
+    - navigation [ref=f7e108]:
+      - link "Authentication" [ref=f7e109] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/authentication
+      - link "Key concepts" [ref=f7e110] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/v3/general-api-doc/key-concepts
+      - link "API workflows" [ref=f7e111] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/api-workflows
+      - link "License & rate limits" [ref=f7e112] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/license-rate-limits
+      - link "Release notes" [ref=f7e113] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/release-notes
+      - link "SDKs" [ref=f7e114] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/sdks
+      - link "gfwr (R package)" [ref=f7e115] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/sdks/gfwr
+      - link "Python package" [ref=f7e116] [cursor=pointer]:
+        - /url: /our-apis/documentation/docs/sdks/python-client
+    - paragraph [ref=f7e117]: © 2016 – 2026 Global Fishing Watch. Founded by Oceana, SkyTruth and Google

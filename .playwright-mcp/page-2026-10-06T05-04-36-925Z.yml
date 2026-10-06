@@ -1,0 +1,897 @@
+- generic [active] [ref=f29e1]:
+  - generic:
+    - link "콘텐츠 바로가기" [ref=f29e2] [cursor=pointer]:
+      - /url: "#contents"
+    - link "푸터 바로가기" [ref=f29e3] [cursor=pointer]:
+      - /url: "#krds-footer"
+  - generic [ref=f29e4]:
+    - generic [ref=f29e5]: 이 누리집은 대한민국 공식 전자정부 누리집입니다.
+    - banner [ref=f29e10]:
+      - generic [ref=f29e11]:
+        - generic [ref=f29e14]:
+          - heading [level=2] [ref=f29e15]:
+            - link "DATA.GO.KR 공공데이터포털" [ref=f29e16] [cursor=pointer]:
+              - /url: /index.do
+          - generic [ref=f29e18]:
+            - list [ref=f29e20]:
+              - listitem [ref=f29e21]:
+                - link "English" [ref=f29e22] [cursor=pointer]:
+                  - /url: /en/index.do
+            - generic [ref=f29e24]:
+              - link "로그인" [ref=f29e25] [cursor=pointer]:
+                - /url: javascript:procLogin()
+              - link "회원가입" [ref=f29e26] [cursor=pointer]:
+                - /url: javascript:window.location.href='/uim/login/signupView.do'
+            - button "전체메뉴 열기" [ref=f29e27] [cursor=pointer]
+        - navigation [ref=f29e29]:
+          - list "메인 메뉴" [ref=f29e31]:
+            - listitem [ref=f29e32]:
+              - button "공공데이터" [ref=f29e33] [cursor=pointer]
+            - listitem [ref=f29e34]:
+              - button "데이터활용" [ref=f29e35] [cursor=pointer]
+            - listitem [ref=f29e36]:
+              - link "기업공공데이터 문제해결지원센터" [ref=f29e37] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=f29e38]:
+              - button "정보공유" [ref=f29e39] [cursor=pointer]
+            - listitem [ref=f29e40]:
+              - button "이용안내" [ref=f29e41] [cursor=pointer]
+    - generic [ref=f29e43]:
+      - generic [ref=f29e44]:
+        - navigation "현재 경로" [ref=f29e45]:
+          - list [ref=f29e46]:
+            - listitem [ref=f29e47]:
+              - link "홈" [ref=f29e48] [cursor=pointer]:
+                - /url: /index.do
+            - listitem [ref=f29e49]: 공공데이터
+            - listitem [ref=f29e50]: 데이터 목록
+        - heading "데이터 목록" [level=1] [ref=f29e52]
+        - tablist [ref=f29e55]:
+          - listitem [ref=f29e56]:
+            - link "키워드 검색 선택됨" [ref=f29e57] [cursor=pointer]:
+              - /url: javascript:void(0);
+              - text: 키워드 검색
+              - generic [ref=f29e58]: 선택됨
+          - listitem [ref=f29e59]:
+            - link "하이브리드 검색" [ref=f29e60] [cursor=pointer]:
+              - /url: javascript:fn_goHybridSearch();
+        - generic [ref=f29e61]:
+          - generic [ref=f29e62]:
+            - generic [ref=f29e63]:
+              - paragraph [ref=f29e64]: 현재 47건의 데이터가 있습니다.
+              - generic [ref=f29e65]:
+                - generic [ref=f29e67]:
+                  - generic [ref=f29e68] [cursor=pointer]: 검색어 입력창
+                  - textbox "검색어 입력창" [ref=f29e69]:
+                    - /placeholder: 데이터명을 입력해 주세요
+                    - text: EEZ
+                  - button "검색" [ref=f29e70] [cursor=pointer]
+                - button "검색조건 열기" [ref=f29e73] [cursor=pointer]
+            - generic [ref=f29e76]:
+              - paragraph [ref=f29e77]: 적용된 검색 조건
+              - button "검색조건 초기화하기" [ref=f29e78] [cursor=pointer]
+          - generic [ref=f29e80]:
+            - tablist [ref=f29e83]:
+              - listitem [ref=f29e84]:
+                - link "전체 47건" [ref=f29e85] [cursor=pointer]:
+                  - /url: "#"
+                  - text: 전체
+                  - generic [ref=f29e86]: 47건
+              - listitem [ref=f29e87]:
+                - link "파일데이터 22건" [ref=f29e88] [cursor=pointer]:
+                  - /url: "#"
+                  - text: 파일데이터
+                  - generic [ref=f29e89]: 22건
+              - listitem [ref=f29e90]:
+                - link "오픈 API 3건" [ref=f29e91] [cursor=pointer]:
+                  - /url: "#"
+                  - text: 오픈 API
+                  - generic [ref=f29e92]: 3건
+              - listitem [ref=f29e93]:
+                - link "표준데이터셋 0개 (0건)" [ref=f29e94] [cursor=pointer]:
+                  - /url: "#"
+                  - text: 표준데이터셋
+                  - generic [ref=f29e95]: 0개 (0건)
+              - listitem [ref=f29e96]:
+                - link "연계데이터 22건" [ref=f29e97] [cursor=pointer]:
+                  - /url: "#"
+                  - text: 연계데이터
+                  - generic [ref=f29e98]: 22건
+            - generic [ref=f29e99]:
+              - paragraph [ref=f29e100]:
+                - text: 데이터 관련 의견이 있으신가요?
+                - link "민원게시판" [ref=f29e101] [cursor=pointer]:
+                  - /url: javascript:void(0)
+              - generic [ref=f29e104]:
+                - strong [ref=f29e105]: 정렬기준
+                - list [ref=f29e107]:
+                  - listitem [ref=f29e108]:
+                    - generic [ref=f29e109] [cursor=pointer]: 조회순
+                  - listitem [ref=f29e110]:
+                    - generic [ref=f29e111] [cursor=pointer]: 활용순
+                  - listitem [ref=f29e112]:
+                    - generic [ref=f29e113] [cursor=pointer]: 수정일자순
+            - generic [ref=f29e115]:
+              - paragraph [ref=f29e117]: 파일데이터 (22건)
+              - generic [ref=f29e118]:
+                - generic [ref=f29e119]:
+                  - generic [ref=f29e120]:
+                    - generic [ref=f29e121]:
+                      - generic [ref=f29e122]: 농축수산
+                      - generic [ref=f29e123]: 국가행정기관
+                    - generic [ref=f29e124]:
+                      - generic [ref=f29e125]: CSV
+                      - generic [ref=f29e126]: JSON + XML
+                      - link [ref=f29e127] [cursor=pointer]:
+                        - /url: /data/15115869/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e128]: EEZ
+                        - text: _한국어선중국EEZ허가기본
+                    - generic [ref=f29e129]:
+                      - text: 이 데이터는 해양수산부가 관리하는 한국 어선의 중국
+                      - emphasis [ref=f29e130]: EEZ
+                      - text: 진입 허가 현황을 파악하고 제공하기 위해 수집된 데이터입니다.
+                    - strong [ref=f29e131]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e132]: 수정일
+                    - text: 2025-08-14
+                    - strong [ref=f29e133]: 조회수
+                    - text: 1,057건
+                    - strong [ref=f29e134]: 다운로드
+                    - text: 276건
+                    - strong [ref=f29e135]: 키워드
+                    - text: 베타,경제,허가,배타적경제수역,중국수역,현황정보
+                  - generic [ref=f29e136]:
+                    - button "미리보기" [ref=f29e137] [cursor=pointer]
+                    - button "다운로드" [ref=f29e139] [cursor=pointer]
+                - generic [ref=f29e141]:
+                  - generic [ref=f29e142]:
+                    - generic [ref=f29e143]:
+                      - generic [ref=f29e144]: 농축수산
+                      - generic [ref=f29e145]: 국가행정기관
+                    - generic [ref=f29e146]:
+                      - generic [ref=f29e147]: CSV
+                      - generic [ref=f29e148]: JSON + XML
+                      - link [ref=f29e149] [cursor=pointer]:
+                        - /url: /data/15115867/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e150]: EEZ
+                        - text: _중국어선한국EEZ협정사항상세
+                    - generic [ref=f29e151]:
+                      - text: 이 데이터는 해양수산부에서 중국 어선의 한국
+                      - emphasis [ref=f29e152]: EEZ
+                      - text: (배타적 경제수역) 내 어업 활동과 관련된 협정사항 상세정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e153]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e154]: 수정일
+                    - text: 2025-08-14
+                    - strong [ref=f29e155]: 조회수
+                    - text: 1,145건
+                    - strong [ref=f29e156]: 다운로드
+                    - text: 163건
+                    - strong [ref=f29e157]: 키워드
+                    - text: 경제,베타,수역,배타적경제수역,한국수역,협정상세
+                  - generic [ref=f29e158]:
+                    - button "미리보기" [ref=f29e159] [cursor=pointer]
+                    - button "다운로드" [ref=f29e161] [cursor=pointer]
+                - generic [ref=f29e163]:
+                  - generic [ref=f29e164]:
+                    - generic [ref=f29e165]:
+                      - generic [ref=f29e166]: 농축수산
+                      - generic [ref=f29e167]: 국가행정기관
+                    - generic [ref=f29e168]:
+                      - generic [ref=f29e169]: CSV
+                      - generic [ref=f29e170]: JSON + XML
+                      - link [ref=f29e171] [cursor=pointer]:
+                        - /url: /data/15115860/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e172]: EEZ
+                        - text: _한국어선일본EEZ협정사항상세
+                    - generic [ref=f29e173]:
+                      - text: 이 데이터는 해양수산부에서 한국 어선의 일본
+                      - emphasis [ref=f29e174]: EEZ
+                      - text: (배타적 경제수역) 내 어업 활동과 관련된 협정사항 상세정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e175]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e176]: 수정일
+                    - text: 2025-08-14
+                    - strong [ref=f29e177]: 조회수
+                    - text: 1,035건
+                    - strong [ref=f29e178]: 다운로드
+                    - text: 187건
+                    - strong [ref=f29e179]: 키워드
+                    - text: 데이터,협약,디테일,배타적경제수역,일본수역,협정상세
+                  - generic [ref=f29e180]:
+                    - button "미리보기" [ref=f29e181] [cursor=pointer]
+                    - button "다운로드" [ref=f29e183] [cursor=pointer]
+                - generic [ref=f29e185]:
+                  - generic [ref=f29e186]:
+                    - generic [ref=f29e187]:
+                      - generic [ref=f29e188]: 농축수산
+                      - generic [ref=f29e189]: 국가행정기관
+                    - generic [ref=f29e190]:
+                      - generic [ref=f29e191]: CSV
+                      - generic [ref=f29e192]: JSON + XML
+                      - link [ref=f29e193] [cursor=pointer]:
+                        - /url: /data/15115866/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e194]: EEZ
+                        - text: _중국어선한국EEZ협정기본정보
+                    - generic [ref=f29e195]:
+                      - text: 이 데이터는 해양수산부에서 중국 어선의 한국
+                      - emphasis [ref=f29e196]: EEZ
+                      - text: (배타적 경제수역) 내 협정 어업 활동과 관련된 협정 기본 정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e197]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e198]: 수정일
+                    - text: 2025-08-14
+                    - strong [ref=f29e199]: 조회수
+                    - text: 1,010건
+                    - strong [ref=f29e200]: 다운로드
+                    - text: 168건
+                    - strong [ref=f29e201]: 키워드
+                    - text: 경제,수역,협정,배타적경제수역,한국수역,어업종류
+                  - generic [ref=f29e202]:
+                    - button "미리보기" [ref=f29e203] [cursor=pointer]
+                    - button "다운로드" [ref=f29e205] [cursor=pointer]
+                - generic [ref=f29e207]:
+                  - generic [ref=f29e208]:
+                    - generic [ref=f29e209]:
+                      - generic [ref=f29e210]: 농축수산
+                      - generic [ref=f29e211]: 국가행정기관
+                    - generic [ref=f29e212]:
+                      - generic [ref=f29e213]: CSV
+                      - generic [ref=f29e214]: JSON + XML
+                      - link [ref=f29e215] [cursor=pointer]:
+                        - /url: /data/15115863/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e216]: EEZ
+                        - text: _일본어선한국EEZ신청기본
+                    - generic [ref=f29e217]:
+                      - text: 본 데이터는 해양수산부에서 일본 어선의 한국
+                      - emphasis [ref=f29e218]: EEZ
+                      - text: (배타적 경제수역) 내 어업 활동과 관련된 신청 기본정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e219]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e220]: 수정일
+                    - text: 2025-12-08
+                    - strong [ref=f29e221]: 조회수
+                    - text: 781건
+                    - strong [ref=f29e222]: 다운로드
+                    - text: 246건
+                    - strong [ref=f29e223]: 키워드
+                    - text: 관리,배,국제,배타적경제수역,일본어선
+                  - generic [ref=f29e224]:
+                    - button "미리보기" [ref=f29e225] [cursor=pointer]
+                    - button "다운로드" [ref=f29e227] [cursor=pointer]
+                - generic [ref=f29e229]:
+                  - generic [ref=f29e230]:
+                    - generic [ref=f29e231]:
+                      - generic [ref=f29e232]: 농축수산
+                      - generic [ref=f29e233]: 국가행정기관
+                    - generic [ref=f29e234]:
+                      - generic [ref=f29e235]: CSV
+                      - generic [ref=f29e236]: JSON + XML
+                      - link [ref=f29e237] [cursor=pointer]:
+                        - /url: /data/15115864/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e238]: EEZ
+                        - text: _일본어선한국EEZ허가기본
+                    - generic [ref=f29e239]:
+                      - text: 본 데이터는 해양수산부에서 일본 어선의 한국
+                      - emphasis [ref=f29e240]: EEZ
+                      - text: (배타적 경제수역) 내 어업 활동과 관련된 허가 기본정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e241]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e242]: 수정일
+                    - text: 2025-12-08
+                    - strong [ref=f29e243]: 조회수
+                    - text: 810건
+                    - strong [ref=f29e244]: 다운로드
+                    - text: 159건
+                    - strong [ref=f29e245]: 키워드
+                    - text: 베타적,경제수역,어선,배타적경제수역,허가정보
+                  - generic [ref=f29e246]:
+                    - button "미리보기" [ref=f29e247] [cursor=pointer]
+                    - button "다운로드" [ref=f29e249] [cursor=pointer]
+                - generic [ref=f29e251]:
+                  - generic [ref=f29e252]:
+                    - generic [ref=f29e253]:
+                      - generic [ref=f29e254]: 농축수산
+                      - generic [ref=f29e255]: 국가행정기관
+                    - generic [ref=f29e256]:
+                      - generic [ref=f29e257]: CSV
+                      - generic [ref=f29e258]: JSON + XML
+                      - link [ref=f29e259] [cursor=pointer]:
+                        - /url: /data/15115868/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e260]: EEZ
+                        - text: _한국어선일본EEZ협정기본
+                    - generic [ref=f29e261]:
+                      - text: 이 데이터는 해양수산부에서 한국 어선의 일본
+                      - emphasis [ref=f29e262]: EEZ
+                      - text: (배타적 경제수역) 내 협정 어업 활동과 관련된 협정 기본 정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e263]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e264]: 수정일
+                    - text: 2025-08-14
+                    - strong [ref=f29e265]: 조회수
+                    - text: 806건
+                    - strong [ref=f29e266]: 다운로드
+                    - text: 152건
+                    - strong [ref=f29e267]: 키워드
+                    - text: 협정,베타,수역,배타적경제수역,일본수역,어업종류
+                  - generic [ref=f29e268]:
+                    - button "미리보기" [ref=f29e269] [cursor=pointer]
+                    - button "다운로드" [ref=f29e271] [cursor=pointer]
+                - generic [ref=f29e273]:
+                  - generic [ref=f29e274]:
+                    - generic [ref=f29e275]:
+                      - generic [ref=f29e276]: 농축수산
+                      - generic [ref=f29e277]: 국가행정기관
+                    - generic [ref=f29e278]:
+                      - generic [ref=f29e279]: CSV
+                      - generic [ref=f29e280]: JSON + XML
+                      - link [ref=f29e281] [cursor=pointer]:
+                        - /url: /data/15115871/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e282]: EEZ
+                        - text: _한국어선중국EEZ협정업종기본
+                    - generic [ref=f29e283]:
+                      - text: 이 데이터는 해양수산부에서 한국 어선의 중국
+                      - emphasis [ref=f29e284]: EEZ
+                      - text: (배타적 경제수역) 내 협정 어업 활동과 관련된 협정 업종 기본 정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e285]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e286]: 수정일
+                    - text: 2025-07-31
+                    - strong [ref=f29e287]: 조회수
+                    - text: 734건
+                    - strong [ref=f29e288]: 다운로드
+                    - text: 139건
+                    - strong [ref=f29e289]: 키워드
+                    - text: 월드,경제,수역,배타적경제수역,중국수역,협정어종
+                  - generic [ref=f29e290]:
+                    - button "미리보기" [ref=f29e291] [cursor=pointer]
+                    - button "다운로드" [ref=f29e293] [cursor=pointer]
+                - generic [ref=f29e295]:
+                  - generic [ref=f29e296]:
+                    - generic [ref=f29e297]:
+                      - generic [ref=f29e298]: 농축수산
+                      - generic [ref=f29e299]: 국가행정기관
+                    - generic [ref=f29e300]:
+                      - generic [ref=f29e301]: CSV
+                      - link [ref=f29e302] [cursor=pointer]:
+                        - /url: /data/15052571/fileData.do
+                        - text: 해양수산부_우리어선 외국
+                        - emphasis [ref=f29e303]: EEZ
+                        - text: 허가현황
+                    - generic [ref=f29e304]:
+                      - text: 우리어선 외국
+                      - emphasis [ref=f29e305]: EEZ
+                      - text: 허가현황을 보여주는 데이터로서 어업기간에 업종별 협정어선척수, 협정할당량, 허가어선척수, 허가량, 협정대비비율척수, 협정대비할당량을 수치와 차트로 보여주는 데이터입니다
+                    - strong [ref=f29e306]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e307]: 수정일
+                    - text: 2025-12-08
+                    - strong [ref=f29e308]: 조회수
+                    - text: 2,490건
+                    - strong [ref=f29e309]: 다운로드
+                    - text: 58건
+                    - strong [ref=f29e310]: 키워드
+                    - text: 해양,EEZ조업,어업통계,허가어선척수,허가량
+                  - generic [ref=f29e311]:
+                    - button "미리보기" [ref=f29e312] [cursor=pointer]
+                    - button "새창 열림 제공처 바로가기" [ref=f29e314] [cursor=pointer]:
+                      - generic [ref=f29e315]: 새창 열림
+                      - text: 제공처 바로가기
+                - generic [ref=f29e317]:
+                  - generic [ref=f29e318]:
+                    - generic [ref=f29e319]:
+                      - generic [ref=f29e320]: 농축수산
+                      - generic [ref=f29e321]: 국가행정기관
+                    - generic [ref=f29e322]:
+                      - generic [ref=f29e323]: CSV
+                      - generic [ref=f29e324]: JSON + XML
+                      - link [ref=f29e325] [cursor=pointer]:
+                        - /url: /data/15115870/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e326]: EEZ
+                        - text: _한국어선중국EEZ협정기본
+                    - generic [ref=f29e327]:
+                      - text: 이 데이터는 해양수산부에서 한국 어선의 중국
+                      - emphasis [ref=f29e328]: EEZ
+                      - text: (배타적 경제수역) 내 협정 어업 활동과 관련된 협정 기본 정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e329]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e330]: 수정일
+                    - text: 2025-08-14
+                    - strong [ref=f29e331]: 조회수
+                    - text: 645건
+                    - strong [ref=f29e332]: 다운로드
+                    - text: 124건
+                    - strong [ref=f29e333]: 키워드
+                    - text: 세계,경제,베타,배타적경제수역,중국수역,어업종류
+                  - generic [ref=f29e334]:
+                    - button "미리보기" [ref=f29e335] [cursor=pointer]
+                    - button "다운로드" [ref=f29e337] [cursor=pointer]
+                - generic [ref=f29e339]:
+                  - generic [ref=f29e340]:
+                    - generic [ref=f29e341]:
+                      - generic [ref=f29e342]: 농축수산
+                      - generic [ref=f29e343]: 국가행정기관
+                    - generic [ref=f29e344]:
+                      - generic [ref=f29e345]: CSV
+                      - link [ref=f29e346] [cursor=pointer]:
+                        - /url: /data/15052572/fileData.do
+                        - text: 해양수산부_외국어선 우리
+                        - emphasis [ref=f29e347]: EEZ
+                        - text: 허가현황
+                    - generic [ref=f29e348]:
+                      - text: 본 데이터는 외국어선 우리
+                      - emphasis [ref=f29e349]: EEZ
+                      - text: 허가현황을 보여주는 자료로서 어업기간내 업종, 협정척수, 협정할당량, 신청척수, 신청할당량, 허가척수, 허가할당량을 수치와 차트로 보여줍니다.
+                    - strong [ref=f29e350]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e351]: 수정일
+                    - text: 2025-12-08
+                    - strong [ref=f29e352]: 조회수
+                    - text: 2,481건
+                    - strong [ref=f29e353]: 다운로드
+                    - text: 57건
+                    - strong [ref=f29e354]: 키워드
+                    - text: 해양,EEZ 허가,통계,외국어선,감척사업
+                  - generic [ref=f29e355]:
+                    - button "미리보기" [ref=f29e356] [cursor=pointer]
+                    - button "새창 열림 제공처 바로가기" [ref=f29e358] [cursor=pointer]:
+                      - generic [ref=f29e359]: 새창 열림
+                      - text: 제공처 바로가기
+                - generic [ref=f29e361]:
+                  - generic [ref=f29e362]:
+                    - generic [ref=f29e363]:
+                      - generic [ref=f29e364]: 농축수산
+                      - generic [ref=f29e365]: 국가행정기관
+                    - generic [ref=f29e366]:
+                      - generic [ref=f29e367]: CSV
+                      - generic [ref=f29e368]: JSON + XML
+                      - link [ref=f29e369] [cursor=pointer]:
+                        - /url: /data/15115865/fileData.do
+                        - text: 해양수산부_
+                        - emphasis [ref=f29e370]: EEZ
+                        - text: _일본어선한국EEZ협정사항상세정보
+                    - generic [ref=f29e371]:
+                      - text: 이 데이터는 해양수산부에서 일본 어선의 한국
+                      - emphasis [ref=f29e372]: EEZ
+                      - text: (배타적 경제수역) 내 어업 활동과 관련된 협정사항 상세정보 제공을 목적으로 수집된 데이터입니다.
+                    - strong [ref=f29e373]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e374]: 수정일
+                    - text: 2025-08-14
+                    - strong [ref=f29e375]: 조회수
+                    - text: 600건
+                    - strong [ref=f29e376]: 다운로드
+                    - text: 128건
+                    - strong [ref=f29e377]: 키워드
+                    - text: 베타적,경제,쉽,한국수역,협정상세,배타적경제수역
+                  - generic [ref=f29e378]:
+                    - button "미리보기" [ref=f29e379] [cursor=pointer]
+                    - button "다운로드" [ref=f29e381] [cursor=pointer]
+                - generic [ref=f29e383]:
+                  - generic [ref=f29e384]:
+                    - generic [ref=f29e385]:
+                      - generic [ref=f29e386]: 농축수산
+                      - generic [ref=f29e387]: 국가행정기관
+                    - generic [ref=f29e388]:
+                      - generic [ref=f29e389]: SHP
+                      - link "해양수산부 국립해양조사원_특정금지구역" [ref=f29e390] [cursor=pointer]:
+                        - /url: /data/15116525/fileData.do
+                    - generic [ref=f29e391]: 배타적 경제수역에서의 외국인 어업 등에 대한 주권적 권리의 행사에 관한 법률 제4조(특정금지구역에서의 어업활동 금지)에 따라 외국인은 배타적 경제수역 중 어업자원의 보호 또는 어업조정을 위하여 대통령령으로 정하는 구역에서 어업활동을 금지_좌표 정보 제공
+                    - strong [ref=f29e392]: 제공기관
+                    - text: 해양수산부 국립해양조사원
+                    - strong [ref=f29e393]: 수정일
+                    - text: 2025-07-14
+                    - strong [ref=f29e394]: 조회수
+                    - text: 2,581건
+                    - strong [ref=f29e395]: 다운로드
+                    - text: 3,200건
+                    - strong [ref=f29e396]: 키워드
+                    - emphasis [ref=f29e397]: EEZ
+                    - text: ",구역,특정,12해리"
+                  - generic [ref=f29e398]:
+                    - button "미리보기" [ref=f29e399] [cursor=pointer]
+                    - button "다운로드" [ref=f29e401] [cursor=pointer]
+                - generic [ref=f29e403]:
+                  - generic [ref=f29e404]:
+                    - generic [ref=f29e405]:
+                      - generic [ref=f29e406]: 농축수산
+                      - generic [ref=f29e407]: 국가행정기관
+                    - generic [ref=f29e408]:
+                      - generic [ref=f29e409]: SHP
+                      - link "해양수산부 국립해양조사원_한일중간수역" [ref=f29e410] [cursor=pointer]:
+                        - /url: /data/15114340/fileData.do
+                    - generic [ref=f29e411]:
+                      - text: 한.일 어업협정에 의한 한일중간수역 정보, 1999년 발효된 신 한일어업협정에 따라 배타적 경제수역(
+                      - emphasis [ref=f29e412]: EEZ
+                      - text: )의 경계획적을 잠정적으로 유보한 수역으로 즉, 한국과 일본의 배타적 경제수역
+                    - strong [ref=f29e413]: 제공기관
+                    - text: 해양수산부 국립해양조사원
+                    - strong [ref=f29e414]: 수정일
+                    - text: 2025-07-14
+                    - strong [ref=f29e415]: 조회수
+                    - text: 4,033건
+                    - strong [ref=f29e416]: 다운로드
+                    - text: 3,397건
+                    - strong [ref=f29e417]: 키워드
+                    - text: 한일중간,배타적경제수역,영해
+                  - generic [ref=f29e418]:
+                    - button "미리보기" [ref=f29e419] [cursor=pointer]
+                    - button "다운로드" [ref=f29e421] [cursor=pointer]
+                - generic [ref=f29e423]:
+                  - generic [ref=f29e424]:
+                    - generic [ref=f29e425]:
+                      - generic [ref=f29e426]: 농축수산
+                      - generic [ref=f29e427]: 국가행정기관
+                    - generic [ref=f29e428]:
+                      - generic [ref=f29e429]: SHP
+                      - link "해양수산부 국립해양조사원_한중과도수역" [ref=f29e430] [cursor=pointer]:
+                        - /url: /data/15114341/fileData.do
+                    - generic [ref=f29e431]:
+                      - text: 한.중 어업협정 제8조에 의거한 한중과도수역 정보, 황해상 중간지점에 설정된 잠정조치수역과 해당국 연안의 배타적 경제수역(
+                      - emphasis [ref=f29e432]: EEZ
+                      - text: ) 사이에 설치된 수역으로 협정 발효일인 2001년 6월
+                    - strong [ref=f29e433]: 제공기관
+                    - text: 해양수산부 국립해양조사원
+                    - strong [ref=f29e434]: 수정일
+                    - text: 2025-07-14
+                    - strong [ref=f29e435]: 조회수
+                    - text: 1,941건
+                    - strong [ref=f29e436]: 다운로드
+                    - text: 3,035건
+                    - strong [ref=f29e437]: 키워드
+                    - text: 한중과도,어업협정,배타적경제수역
+                  - generic [ref=f29e438]:
+                    - button "미리보기" [ref=f29e439] [cursor=pointer]
+                    - button "다운로드" [ref=f29e441] [cursor=pointer]
+                - generic [ref=f29e443]:
+                  - generic [ref=f29e444]:
+                    - generic [ref=f29e445]:
+                      - generic [ref=f29e446]: 산업고용
+                      - generic [ref=f29e447]: 국가행정기관
+                    - generic [ref=f29e448]:
+                      - generic [ref=f29e449]: LINK
+                      - link "국토교통부_바다골재 자원조사결과" [ref=f29e450] [cursor=pointer]:
+                        - /url: /data/15122645/fileData.do
+                    - generic [ref=f29e451]: 골재원 중 바다골재(바다모래) 자원조사결과를 정보서비스함. 데이터의 주요 내용으로는 화학조성, 염화물, 물성, 시료특성, 시추, 시추주상도(이미지), 바다골재부존량, 물리탐사(이미지), 바다유망단지, 바다유망단지단위층 등 바다골재 자원조사결과를 총망라함. 골재는 건설 산업의 기반을 이루는 필수 자원으로서, 안정적인 공급이 보장 되지 않으면 국가 인프라 발전과 건설 프로젝트의 차질을 초래할 수 있다는 점에서 특히 중요함. 골재자원은 골재원에 따라 분류하며, 채취환경 특성상 바다골재는 따로 분류하여 조사를 수행함, 대부분의 바다골재는 EZZ에서 채취하여 활용하고 있으며, 대부분의 골재는 잔골재로 모래에 해당함, 바다골재 특성상 채취된 잔골재의 염분제거 능력에 따라 골재품질에 많은 영향을 줌
+                    - strong [ref=f29e452]: 제공기관
+                    - text: 국토교통부
+                    - strong [ref=f29e453]: 수정일
+                    - text: 2025-08-04
+                    - strong [ref=f29e454]: 조회수
+                    - text: 1,927건
+                    - strong [ref=f29e455]: 다운로드
+                    - text: 118건
+                    - strong [ref=f29e456]: 키워드
+                    - text: 골재,바다골재,천연골재,
+                    - emphasis [ref=f29e457]: EEZ
+                    - text: ",염분"
+                  - generic [ref=f29e458]:
+                    - button "미리보기" [ref=f29e459] [cursor=pointer]
+                    - button "새창 열림 제공처 바로가기" [ref=f29e461] [cursor=pointer]:
+                      - generic [ref=f29e462]: 새창 열림
+                      - text: 제공처 바로가기
+                - generic [ref=f29e464]:
+                  - generic [ref=f29e465]:
+                    - generic [ref=f29e466]:
+                      - generic [ref=f29e467]: 농축수산
+                      - generic [ref=f29e468]: 국가행정기관
+                    - generic [ref=f29e469]:
+                      - generic [ref=f29e470]: CSV
+                      - generic [ref=f29e471]: JSON + XML
+                      - link [ref=f29e472] [cursor=pointer]:
+                        - /url: /data/15160071/fileData.do
+                        - text: 해양수산부_공동활용체계_서해
+                        - emphasis [ref=f29e473]: EEZ
+                        - text: 특성평가격자
+                    - generic [ref=f29e474]:
+                      - text: 이 데이터는 해양수산부에서 서해
+                      - emphasis [ref=f29e475]: EEZ
+                      - text: 특성평가격자에 대한 정보를 제공하기 위해 수집한 데이터입니다.
+                    - strong [ref=f29e476]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e477]: 수정일
+                    - text: 2026-07-24
+                    - strong [ref=f29e478]: 조회수
+                    - text: 79건
+                    - strong [ref=f29e479]: 다운로드
+                    - text: 2건
+                    - strong [ref=f29e480]: 키워드
+                    - text: 해양,수산,어촌,서해,
+                    - emphasis [ref=f29e481]: EEZ
+                    - text: ",격자"
+                  - generic [ref=f29e482]:
+                    - button "미리보기" [ref=f29e483] [cursor=pointer]
+                    - button "다운로드" [ref=f29e485] [cursor=pointer]
+                - generic [ref=f29e487]:
+                  - generic [ref=f29e488]:
+                    - generic [ref=f29e489]:
+                      - generic [ref=f29e490]: 재난안전
+                      - generic [ref=f29e491]: 국가행정기관
+                    - generic [ref=f29e492]:
+                      - generic [ref=f29e493]: CSV
+                      - generic [ref=f29e494]: JSON + XML
+                      - link "해양경찰청_불법조업 외국어선 월별 나포 현황" [ref=f29e495] [cursor=pointer]:
+                        - /url: /data/15063382/fileData.do
+                    - generic [ref=f29e496]:
+                      - text: 나포 대상 행위 무허가 조업:우리
+                      - emphasis [ref=f29e497]: EEZ
+                      - text: (배타적경제수역)나 영해 내에서 허가를 받지 않고 조업하는 행위.
+                    - strong [ref=f29e498]: 제공기관
+                    - text: 해양경찰청
+                    - strong [ref=f29e499]: 수정일
+                    - text: 2025-09-10
+                    - strong [ref=f29e500]: 조회수
+                    - text: 4,746건
+                    - strong [ref=f29e501]: 다운로드
+                    - text: 1,296건
+                    - strong [ref=f29e502]: 키워드
+                    - text: 불법 조업,중국 어선,해경,나포,배타적경제수역,잠정조치수역,어선
+                  - generic [ref=f29e503]:
+                    - button "미리보기" [ref=f29e504] [cursor=pointer]
+                    - button "다운로드" [ref=f29e506] [cursor=pointer]
+                - generic [ref=f29e508]:
+                  - generic [ref=f29e509]:
+                    - generic [ref=f29e510]:
+                      - generic [ref=f29e511]: 재난안전
+                      - generic [ref=f29e512]: 국가행정기관
+                    - generic [ref=f29e513]:
+                      - generic [ref=f29e514]: CSV
+                      - generic [ref=f29e515]: JSON + XML
+                      - link "해양경찰청_허가수역 내 월별 중국어선 일평균 조업 현황" [ref=f29e516] [cursor=pointer]:
+                        - /url: /data/15045156/fileData.do
+                    - generic [ref=f29e517]:
+                      - text: (단위:척수) 허가수역 중국어선이란 한국 정부로부터 조업 허가를 받아 한국의 배타적경제수역(
+                      - emphasis [ref=f29e518]: EEZ
+                      - text: )에서 합법적으로 조업하는 중국어선을 의미하지만, 허가받은 조업 수역과 조건을 위반하여
+                    - strong [ref=f29e519]: 제공기관
+                    - text: 해양경찰청
+                    - strong [ref=f29e520]: 수정일
+                    - text: 2026-09-21
+                    - strong [ref=f29e521]: 조회수
+                    - text: 4,054건
+                    - strong [ref=f29e522]: 다운로드
+                    - text: 1,241건
+                    - strong [ref=f29e523]: 키워드
+                    - text: 중국어선,외국어선,입어허가,배타적경제수역,불법어업,서해
+                  - generic [ref=f29e524]:
+                    - button "미리보기" [ref=f29e525] [cursor=pointer]
+                    - button "다운로드" [ref=f29e527] [cursor=pointer]
+                - generic [ref=f29e529]:
+                  - generic [ref=f29e530]:
+                    - generic [ref=f29e531]:
+                      - generic [ref=f29e532]: 농축수산
+                      - generic [ref=f29e533]: 국가행정기관
+                    - generic [ref=f29e534]:
+                      - generic [ref=f29e535]: CSV
+                      - generic [ref=f29e536]: JSON + XML
+                      - link [ref=f29e537] [cursor=pointer]:
+                        - /url: /data/15160069/fileData.do
+                        - text: 해양수산부_공동활용체계_동해
+                        - emphasis [ref=f29e538]: EEZ
+                        - text: 특성평가격자
+                    - generic [ref=f29e539]:
+                      - text: 이 데이터는 해양수산부에서 동해
+                      - emphasis [ref=f29e540]: EEZ
+                      - text: 특성평가격자에 대한 정보를 제공하기 위해 수집한 데이터입니다.
+                    - strong [ref=f29e541]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e542]: 수정일
+                    - text: 2026-07-24
+                    - strong [ref=f29e543]: 조회수
+                    - text: 69건
+                    - strong [ref=f29e544]: 다운로드
+                    - text: 2건
+                    - strong [ref=f29e545]: 키워드
+                    - text: 해양,수산,어촌,동해,
+                    - emphasis [ref=f29e546]: EEZ
+                    - text: ",격자"
+                  - generic [ref=f29e547]:
+                    - button "미리보기" [ref=f29e548] [cursor=pointer]
+                    - button "다운로드" [ref=f29e550] [cursor=pointer]
+                - generic [ref=f29e552]:
+                  - generic [ref=f29e553]:
+                    - generic [ref=f29e554]:
+                      - generic [ref=f29e555]: 농축수산
+                      - generic [ref=f29e556]: 국가행정기관
+                    - generic [ref=f29e557]:
+                      - generic [ref=f29e558]: CSV
+                      - generic [ref=f29e559]: JSON + XML
+                      - link [ref=f29e560] [cursor=pointer]:
+                        - /url: /data/15160070/fileData.do
+                        - text: 해양수산부_공동활용체계_남해
+                        - emphasis [ref=f29e561]: EEZ
+                        - text: 특성평가격자
+                    - generic [ref=f29e562]:
+                      - text: 이 데이터는 해양수산부에서 남해
+                      - emphasis [ref=f29e563]: EEZ
+                      - text: 특성평가격자에 대한 정보를 제공하기 위해 수집한 데이터입니다.
+                    - strong [ref=f29e564]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e565]: 수정일
+                    - text: 2026-07-24
+                    - strong [ref=f29e566]: 조회수
+                    - text: 62건
+                    - strong [ref=f29e567]: 다운로드
+                    - text: 2건
+                    - strong [ref=f29e568]: 키워드
+                    - text: 해양,수산,어촌,남해,
+                    - emphasis [ref=f29e569]: EEZ
+                    - text: ",격자"
+                  - generic [ref=f29e570]:
+                    - button "미리보기" [ref=f29e571] [cursor=pointer]
+                    - button "다운로드" [ref=f29e573] [cursor=pointer]
+                - generic [ref=f29e575]:
+                  - generic [ref=f29e576]:
+                    - generic [ref=f29e577]:
+                      - generic [ref=f29e578]: 농축수산
+                      - generic [ref=f29e579]: 국가행정기관
+                    - generic [ref=f29e580]:
+                      - generic [ref=f29e581]: PDF
+                      - link "해양수산부_국립수산과학원_수산물 중 방사성 물질 분석결과" [ref=f29e582] [cursor=pointer]:
+                        - /url: /data/15117794/fileData.do
+                    - generic [ref=f29e583]:
+                      - text: 본 데이터는 우리나라 연근해 및 배타적경제수역(
+                      - emphasis [ref=f29e584]: EEZ
+                      - text: )에서 어획·채취된 수산물의 방사성 물질 오염 여부를 정기적으로 조사하여 공개하는 자료입니다.
+                    - strong [ref=f29e585]: 제공기관
+                    - text: 해양수산부
+                    - strong [ref=f29e586]: 수정일
+                    - text: 2025-12-08
+                    - strong [ref=f29e587]: 조회수
+                    - text: 812건
+                    - strong [ref=f29e588]: 다운로드
+                    - text: 51건
+                    - strong [ref=f29e589]: 키워드
+                    - text: 수산물,방사성검사,시료 채취,방사성물질,식품위생
+                  - generic [ref=f29e590]:
+                    - button "미리보기" [ref=f29e591] [cursor=pointer]
+                    - button "새창 열림 제공처 바로가기" [ref=f29e593] [cursor=pointer]:
+                      - generic [ref=f29e594]: 새창 열림
+                      - text: 제공처 바로가기
+              - generic [ref=f29e596]:
+                - generic [ref=f29e597]: 이전
+                - link "현재페이지 1" [ref=f29e599] [cursor=pointer]:
+                  - /url: javascript:fn_page(1)
+                  - generic [ref=f29e600]: 현재페이지
+                  - text: "1"
+                - generic [ref=f29e601]: 다음
+      - button "페이지 상단으로 이동" [ref=f29e602] [cursor=pointer]
+    - contentinfo [ref=f29e604]:
+      - generic [ref=f29e606]:
+        - generic [ref=f29e607]:
+          - button "관련기관" [ref=f29e608] [cursor=pointer]
+          - list:
+            - listitem [ref=f29e609]:
+              - link "행정안전부" [ref=f29e610] [cursor=pointer]:
+                - /url: https://www.mois.go.kr/
+            - listitem [ref=f29e611]:
+              - link "한국지능정보사회진흥원" [ref=f29e612] [cursor=pointer]:
+                - /url: https://www.nia.or.kr/
+            - listitem [ref=f29e613]:
+              - link "오픈데이터포럼" [ref=f29e614] [cursor=pointer]:
+                - /url: https://www.odf.or.kr/
+            - listitem [ref=f29e615]:
+              - link "국가정보자원관리원" [ref=f29e616] [cursor=pointer]:
+                - /url: https://www.nirs.go.kr/
+            - listitem [ref=f29e617]:
+              - link "한국지역정보개발원" [ref=f29e618] [cursor=pointer]:
+                - /url: https://www.klid.or.kr/
+        - generic [ref=f29e619]:
+          - button "지역별 데이터포털" [ref=f29e620] [cursor=pointer]
+          - list:
+            - listitem [ref=f29e621]:
+              - link "서울 열린데이터광장" [ref=f29e622] [cursor=pointer]:
+                - /url: https://data.seoul.go.kr/
+            - listitem [ref=f29e623]:
+              - link "경기데이터드림" [ref=f29e624] [cursor=pointer]:
+                - /url: https://data.gg.go.kr/
+            - listitem [ref=f29e625]:
+              - link "부산데이터웨이브" [ref=f29e626] [cursor=pointer]:
+                - /url: https://data.busan.go.kr/
+            - listitem [ref=f29e627]:
+              - link "D-데이터허브" [ref=f29e628] [cursor=pointer]:
+                - /url: https://data.daegu.go.kr/
+            - listitem [ref=f29e629]:
+              - link "인천데이터포털" [ref=f29e630] [cursor=pointer]:
+                - /url: https://data.incheon.go.kr/
+            - listitem [ref=f29e631]:
+              - link "울산광역시 데이터포털" [ref=f29e632] [cursor=pointer]:
+                - /url: https://data.ulsan.go.kr/
+            - listitem [ref=f29e633]:
+              - link "전남광주통합특별시 빅데이터 플랫폼" [ref=f29e634] [cursor=pointer]:
+                - /url: https://bigdata.gwangju.go.kr/
+            - listitem [ref=f29e635]:
+              - link "대전광역시 데이터포털" [ref=f29e636] [cursor=pointer]:
+                - /url: https://openlab.daejeon.go.kr/
+            - listitem [ref=f29e637]:
+              - link "세종특별자치시 데이터포털" [ref=f29e638] [cursor=pointer]:
+                - /url: https://www.sejong.go.kr/
+            - listitem [ref=f29e639]:
+              - link "충청북도 데이터허브" [ref=f29e640] [cursor=pointer]:
+                - /url: https://data.chungbuk.go.kr/
+        - generic [ref=f29e641]:
+          - button "분야별 데이터포털" [ref=f29e642] [cursor=pointer]
+          - list:
+            - listitem [ref=f29e643]:
+              - link "기상자료개방포털" [ref=f29e644] [cursor=pointer]:
+                - /url: https://data.kma.go.kr/
+            - listitem [ref=f29e645]:
+              - link "국토교통부 공간정보오픈플랫폼" [ref=f29e646] [cursor=pointer]:
+                - /url: https://www.vworld.kr/
+            - listitem [ref=f29e647]:
+              - link "환경부 환경데이터포털" [ref=f29e648] [cursor=pointer]:
+                - /url: https://www.bigdata-environment.kr/
+            - listitem [ref=f29e649]:
+              - link "문화데이터광장" [ref=f29e650] [cursor=pointer]:
+                - /url: https://www.culture.go.kr/
+            - listitem [ref=f29e651]:
+              - link "농림축산식품 공공데이터포털" [ref=f29e652] [cursor=pointer]:
+                - /url: https://data.mafra.go.kr/
+            - listitem [ref=f29e653]:
+              - link "보건의료빅데이터개방시스템" [ref=f29e654] [cursor=pointer]:
+                - /url: https://opendata.hira.or.kr/
+            - listitem [ref=f29e655]:
+              - link "식품의약품안전처 데이터포털" [ref=f29e656] [cursor=pointer]:
+                - /url: https://www.foodsafetykorea.go.kr/
+            - listitem [ref=f29e657]:
+              - link "교육통계서비스" [ref=f29e658] [cursor=pointer]:
+                - /url: https://kess.kedi.re.kr/
+      - generic [ref=f29e659]:
+        - link "공공데이터포털 바로가기" [ref=f29e660] [cursor=pointer]:
+          - /url: /index.do
+        - generic [ref=f29e663]:
+          - generic [ref=f29e664]:
+            - paragraph [ref=f29e665]: (30112) 세종특별자치시 도움6로 42
+            - list [ref=f29e666]:
+              - listitem [ref=f29e667]:
+                - strong [ref=f29e668]:
+                  - text: 대표전화
+                  - generic [ref=f29e669]:
+                    - link "1566-0025" [ref=f29e670] [cursor=pointer]:
+                      - /url: tel:1566-0025
+                    - text: "| (유료, 평일 09시-18시)"
+              - listitem [ref=f29e671]:
+                - link "운영자 메일 상담 opendata_help@nia.or.kr" [ref=f29e672] [cursor=pointer]:
+                  - /url: mailto:opendata_help@nia.or.kr
+                  - strong [ref=f29e673]:
+                    - text: 운영자 메일 상담
+                    - generic [ref=f29e674]: opendata_help@nia.or.kr
+          - generic [ref=f29e675]:
+            - generic [ref=f29e676]:
+              - link "이용가이드" [ref=f29e677] [cursor=pointer]:
+                - /url: /ugs/selectPublicDataUseGuideView.do
+              - link "분쟁조정 신청" [ref=f29e679] [cursor=pointer]:
+                - /url: /tcs/dor/insertTrublMdatReqstProcssView.do
+              - link "문의하기" [ref=f29e681] [cursor=pointer]:
+                - /url: /bbs/faq/selectFaqList.do
+            - generic [ref=f29e683]:
+              - link "유튜브" [ref=f29e684] [cursor=pointer]:
+                - /url: https://www.youtube.com/@koropendata
+              - link "X" [ref=f29e687] [cursor=pointer]:
+                - /url: https://twitter.com/koreadataportal
+              - link "페이스북" [ref=f29e690] [cursor=pointer]:
+                - /url: http://www.facebook.com/koreadataportal
+              - link "블로그" [ref=f29e693] [cursor=pointer]:
+                - /url: http://blog.naver.com/nia_korea
+        - generic [ref=f29e696]:
+          - generic [ref=f29e697]:
+            - generic [ref=f29e698]:
+              - link "이용약관" [ref=f29e699] [cursor=pointer]:
+                - /url: /ugs/selectPortalPolicyView.do#use_stplat
+              - link "개인정보처리방침" [ref=f29e700] [cursor=pointer]:
+                - /url: /ugs/selectPortalPolicyView.do#indvdlinfo_process
+              - link "공공데이터포털 소개" [ref=f29e701] [cursor=pointer]:
+                - /url: /ugs/selectPortalInfoView.do#portal_info
+            - paragraph [ref=f29e702]: © Ministry of the Interior and Safety. All rights reserved.
+          - generic [ref=f29e703]:
+            - generic [ref=f29e704]: 행정안전부
+            - generic [ref=f29e706]: 이 누리집은 행정안전부 누리집입니다.

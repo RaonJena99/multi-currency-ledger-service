@@ -1,0 +1,549 @@
+- generic [active] [ref=f31e1]:
+  - generic:
+    - link "콘텐츠 바로가기" [ref=f31e2] [cursor=pointer]:
+      - /url: "#contents"
+    - link "푸터 바로가기" [ref=f31e3] [cursor=pointer]:
+      - /url: "#krds-footer"
+  - generic [ref=f31e4]:
+    - generic [ref=f31e5]: 이 누리집은 대한민국 공식 전자정부 누리집입니다.
+    - banner [ref=f31e10]:
+      - generic [ref=f31e11]:
+        - generic [ref=f31e14]:
+          - heading [level=2] [ref=f31e15]:
+            - link "DATA.GO.KR 공공데이터포털" [ref=f31e16] [cursor=pointer]:
+              - /url: /index.do
+          - generic [ref=f31e18]:
+            - list [ref=f31e20]:
+              - listitem [ref=f31e21]:
+                - link "English" [ref=f31e22] [cursor=pointer]:
+                  - /url: /en/index.do
+            - generic [ref=f31e24]:
+              - link "로그인" [ref=f31e25] [cursor=pointer]:
+                - /url: javascript:procLogin()
+              - link "회원가입" [ref=f31e26] [cursor=pointer]:
+                - /url: javascript:window.location.href='/uim/login/signupView.do'
+            - button "전체메뉴 열기" [ref=f31e27] [cursor=pointer]
+        - navigation [ref=f31e29]:
+          - list "메인 메뉴" [ref=f31e31]:
+            - listitem [ref=f31e32]:
+              - button "공공데이터" [ref=f31e33] [cursor=pointer]
+            - listitem [ref=f31e34]:
+              - button "데이터활용" [ref=f31e35] [cursor=pointer]
+            - listitem [ref=f31e36]:
+              - link "기업공공데이터 문제해결지원센터" [ref=f31e37] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=f31e38]:
+              - button "정보공유" [ref=f31e39] [cursor=pointer]
+            - listitem [ref=f31e40]:
+              - button "이용안내" [ref=f31e41] [cursor=pointer]
+    - generic [ref=f31e43]:
+      - generic [ref=f31e44]:
+        - navigation "현재 경로" [ref=f31e45]:
+          - list [ref=f31e46]:
+            - listitem [ref=f31e47]:
+              - link "홈" [ref=f31e48] [cursor=pointer]:
+                - /url: /index.do
+            - listitem [ref=f31e49]: 공공데이터
+            - listitem [ref=f31e50]: 데이터목록
+        - generic [ref=f31e52]:
+          - generic [ref=f31e53]:
+            - generic [ref=f31e54]:
+              - generic [ref=f31e55]:
+                - generic [ref=f31e56]: CSV
+                - generic [ref=f31e57]:
+                  - button "새창 열림 페이스북 공유하기" [ref=f31e58] [cursor=pointer]:
+                    - generic [ref=f31e60]: 새창 열림
+                  - button "새창 열림 엑스 공유하기" [ref=f31e61] [cursor=pointer]:
+                    - generic [ref=f31e63]: 새창 열림
+                  - button "새창 열림 URL 복사하기" [ref=f31e64] [cursor=pointer]:
+                    - generic [ref=f31e66]: 새창 열림
+              - heading "해양경찰청_불법조업 외국어선 월별 나포 현황" [level=1] [ref=f31e67]
+            - generic [ref=f31e68]:
+              - generic [ref=f31e69]:
+                - text: Quick
+                - generic [ref=f31e70]: AI
+                - text: Summary
+              - generic [ref=f31e71]:
+                - paragraph [ref=f31e72]: 정책·연구 활용해양경찰청이 제공한 2016년부터 2024년까지 월별 불법조업 외국어선 나포 현황은 연도·월별 추이를 정량적으로 파악할 수 있는 귀중한 자료입니다. 이를 기반으로 학계와 정책 연구기관은 배타적경제수역 내 불법 어업 집중 시기를 분석하여 장기적인 어업 관리 방안을 제시할 수 있습니다. 또한, 연도별 변동성을 비교함으로써 현행 단속 정책의 효과성을 평가하고 향후 입법·예산 편성에 참고할 수 있습니다.
+                - paragraph [ref=f31e73]: 현장 단속 계획 수립월별 나포 데이터는 제주 해역·연평도 등 특정 지역에서 불법 어선이 급증하는 시기를 명확히 보여줍니다. 해양경찰은 이러한 정보를 활용해 인력·함정 배치를 최적화하고, 집중 단속 일정을 사전에 공지함으로써 효율적인 억제 효과를 기대할 수 있습니다. 특히, 무허가 조업과 조업 일지 허위 기재가 빈번히 발생하는 월에는 특수 장비와 전담 팀을 투입하여 신속한 대응이 가능하도록 준비합니다.
+                - paragraph [ref=f31e74]: 국제 협력 및 정보 공유중국어선에 대한 나포 현황은 양국 간 어업 관리 협의의 근거 자료로 활용될 수 있습니다. 해양수산부와 외교부는 이 데이터를 바탕으로 중국 해양당국과 정기적인 회의를 진행하고, 불법 어업 방지를 위한 공동 감시 체계를 구축할 수 있습니다. 또한, 나포 사례를 투명하게 공개함으로써 국제 사회에 우리 해역 보호 의지를 알리고, 다자간 어업 협약 이행을 촉구하는 데 기여합니다.
+                - paragraph [ref=f31e75]: 교육·홍보 활용해양경찰청은 월별 나포 현황을 활용해 어민 및 일반 시민에게 불법 조업의 위험성과 단속 강화를 알리는 교육 프로그램을 운영할 수 있습니다. 실제 사례를 중심으로 한 교육 자료는 어민들의 인식 전환을 돕고, 자발적인 신고 체계를 강화하는 데 효과적입니다. 또한, 언론과 협력해 나포 성공 사례를 보도함으로써 불법 어선에 대한 억제 효과를 사회 전반에 확산시킬 수 있습니다.
+            - generic [ref=f31e76]:
+              - generic [ref=f31e77]:
+                - checkbox "관심목록에 추가" [ref=f31e78]
+                - generic [ref=f31e79] [cursor=pointer]: 관심목록에 추가
+              - generic [ref=f31e80]:
+                - button "0 좋아요" [ref=f31e81] [cursor=pointer]: "0"
+                - button "0 싫어요" [ref=f31e82] [cursor=pointer]: "0"
+          - generic [ref=f31e83]:
+            - tablist [ref=f31e85]:
+              - tab [selected] [ref=f31e86]:
+                - button "파일데이터 선택됨" [ref=f31e87] [cursor=pointer]:
+                  - text: 파일데이터
+                  - generic [ref=f31e88]: 선택됨
+              - tab [ref=f31e89]:
+                - button "오픈 API" [ref=f31e90] [cursor=pointer]
+              - tab [ref=f31e91]:
+                - button "추천데이터" [ref=f31e92] [cursor=pointer]
+            - generic [ref=f31e93]:
+              - tabpanel "파일데이터 선택됨" [ref=f31e94]:
+                - generic [ref=f31e95]:
+                  - generic [ref=f31e96]:
+                    - paragraph [ref=f31e97]: 이 페이지의 구성
+                    - paragraph [ref=f31e98]: 데이터 상세
+                  - navigation [ref=f31e99]:
+                    - list [ref=f31e100]:
+                      - listitem [ref=f31e101]:
+                        - link "파일데이터 정보" [ref=f31e102] [cursor=pointer]:
+                          - /url: "#tab-layer-file-01"
+                      - listitem [ref=f31e103]:
+                        - link "표준 메타데이터" [ref=f31e104] [cursor=pointer]:
+                          - /url: "#tab-layer-file-02"
+                      - listitem [ref=f31e105]:
+                        - link "이용 조건 및 라이선스 정보" [ref=f31e106] [cursor=pointer]:
+                          - /url: "#tab-layer-file-03"
+                      - listitem [ref=f31e107]:
+                        - link "미리보기" [ref=f31e108] [cursor=pointer]:
+                          - /url: "#tab-layer-file-04"
+                      - listitem [ref=f31e109]:
+                        - link "주기성 과거 데이터" [ref=f31e110] [cursor=pointer]:
+                          - /url: "#tab-layer-file-05"
+                - generic [ref=f31e111]:
+                  - generic [ref=f31e112]:
+                    - generic [ref=f31e113]:
+                      - generic [ref=f31e114]: 도움말
+                      - list [ref=f31e115]:
+                        - listitem [ref=f31e116]: 공공데이터활용지원센터는 공공데이터포털에 개방되는 3단계 이상의 오픈 포맷 파일데이터를 오픈 API(RestAPI 기반의 JSON/XML)로 자동변환하여 제공합니다.
+                        - listitem [ref=f31e117]: 오픈 API를 활용하기 위해서는 공공데이터포털 회원 가입 및 활용신청이 필요하며, 활용 관련 문의는 공공데이터활용지원센터로 연락주시기 바랍니다.
+                        - listitem [ref=f31e118]: 데이터 자체에 대한 문의는 아래 제공기관의 관리부서 전화번호로 연락주시기 바랍니다.
+                        - listitem [ref=f31e119]: 파일데이터는 로그인 없이 다운로드를 통해 이용하실 수 있습니다.
+                    - list [ref=f31e122]:
+                      - listitem [ref=f31e123]:
+                        - generic [ref=f31e124]:
+                          - generic [ref=f31e125]:
+                            - generic [ref=f31e126]: CSV
+                            - text: 해양경찰청_불법조업 외국어선 월별 나포 현황
+                          - button "다운로드" [ref=f31e128] [cursor=pointer]
+                  - generic [ref=f31e130]:
+                    - generic [ref=f31e131]:
+                      - heading "파일데이터 정보" [level=3] [ref=f31e132]
+                      - generic [ref=f31e133]:
+                        - strong [ref=f31e134]: 데이터 오류·개선 의견이 있으신가요?
+                        - button "데이터 개선요청" [ref=f31e135] [cursor=pointer]
+                        - button "오류신고 및 문의" [ref=f31e137] [cursor=pointer]
+                    - generic [ref=f31e139]:
+                      - generic [ref=f31e140]:
+                        - heading "기본 정보" [level=4] [ref=f31e141]
+                        - list [ref=f31e143]:
+                          - listitem [ref=f31e144]:
+                            - strong [ref=f31e145]: 파일데이터명
+                            - generic [ref=f31e146]: 해양경찰청_불법조업 외국어선 월별 나포 현황_20241231
+                          - listitem [ref=f31e147]:
+                            - strong [ref=f31e148]: 분류체계
+                            - generic [ref=f31e149]: 공공질서및안전 - 해경
+                          - listitem [ref=f31e150]:
+                            - strong [ref=f31e151]: 제공기관
+                            - link "해양경찰청" [ref=f31e153] [cursor=pointer]:
+                              - /url: /tcs/dss/selectDataSetList.do?dType=&keyword=&orgNm=해양경찰청&conditionType=search
+                          - listitem [ref=f31e155]:
+                            - strong [ref=f31e156]: 관리부서명
+                            - generic [ref=f31e157]: 인공지능전환팀
+                          - listitem [ref=f31e158]:
+                            - strong [ref=f31e159]: 관리부서 전화번호
+                            - generic [ref=f31e160]: 032-835-2770
+                          - listitem [ref=f31e161]:
+                            - strong [ref=f31e162]: 보유근거
+                          - listitem [ref=f31e163]:
+                            - strong [ref=f31e164]: 수집방법
+                          - listitem [ref=f31e165]:
+                            - strong [ref=f31e166]: 업데이트 주기
+                            - generic [ref=f31e167]: 연간
+                          - listitem [ref=f31e168]:
+                            - strong [ref=f31e169]: 차기 등록 예정일
+                            - generic [ref=f31e170]: 2026-09-30
+                      - generic [ref=f31e171]:
+                        - heading "상세 및 제공정보" [level=4] [ref=f31e172]
+                        - list [ref=f31e174]:
+                          - listitem [ref=f31e175]:
+                            - strong [ref=f31e176]: 설명
+                            - generic [ref=f31e177]: 최근 8년간(2016년~2024년) 불법조업 외국어선(중국어선)의 월별 나포(검거) 현황 입니다.불법조업 외국어선 나포는 해양경찰이 우리 해역에서 허가 없이 조업하거나 허가 내용을 위반하는 외국어선을 적발하여 억류하는 행위를 의미합니다. 이러한 나포 행위는 해양경찰청, 각 해양경찰서, 해군, 해양수산부 등 정부 기관들이 합동으로 특별 단속을 실시하면서 이루어지며, 특히 제주 해역이나 연평도 해상 등에서 빈번하게 발생합니다. 나포 대상 행위무허가 조업:우리 EEZ(배타적경제수역)나 영해 내에서 허가를 받지 않고 조업하는 행위. 조업 일지 허위 기재:조업 일지를 허위로 작성하여 불법 조업 사실을 은폐하려는 행위. 기타 위반 행위:단속 과정에서의 저항 등 불법 조업에 해당되는 다양한 위반 행위.
+                          - listitem [ref=f31e178]:
+                            - strong [ref=f31e179]: 데이터 항목(컬럼) 정보
+                            - generic [ref=f31e181]:
+                              - button "데이터 항목(컬럼) 정보 펼쳐보기" [ref=f31e182] [cursor=pointer]
+                              - button "컬럼 정의서 다운로드" [ref=f31e184] [cursor=pointer]
+                            - table [ref=f31e187]:
+                              - caption [ref=f31e188]: 데이터 항목 표로 항목명, 항목명(영문명), 항목 설명, 도메인분류, 데이터타입, 최대길이, 표현방식, 단위, 생성출처(정보시스템명, DB명, Table명), 코드로 구성되어있습니다.
+                              - rowgroup [ref=f31e202]:
+                                - row [ref=f31e203]:
+                                  - columnheader "항목명" [ref=f31e204]
+                                  - columnheader "항목명(영문명)" [ref=f31e205]
+                                  - columnheader "항목 설명" [ref=f31e206]
+                                  - columnheader "도메인분류" [ref=f31e207]
+                                  - columnheader "데이터타입" [ref=f31e208]
+                                  - columnheader "최대길이" [ref=f31e209]
+                                  - columnheader "표현방식" [ref=f31e210]
+                                  - columnheader "단위" [ref=f31e211]
+                                  - columnheader "생성출처" [ref=f31e212]
+                                  - columnheader "코드" [ref=f31e213]
+                                - row [ref=f31e214]:
+                                  - columnheader "정보시스템명" [ref=f31e215]
+                                  - columnheader "DB명" [ref=f31e216]
+                                  - columnheader "Table명" [ref=f31e217]
+                              - rowgroup [ref=f31e218]:
+                                - row [ref=f31e219]:
+                                  - cell "년도" [ref=f31e220]
+                                  - cell [ref=f31e221]
+                                  - cell "연도" [ref=f31e222]
+                                  - cell [ref=f31e224]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e225]
+                                  - cell "99" [ref=f31e226]
+                                  - cell [ref=f31e227]
+                                  - cell "-" [ref=f31e228]
+                                  - cell [ref=f31e229]
+                                  - cell [ref=f31e230]
+                                  - cell [ref=f31e231]
+                                  - cell "-" [ref=f31e232]
+                                - row [ref=f31e233]:
+                                  - cell "1월" [ref=f31e234]
+                                  - cell [ref=f31e235]
+                                  - cell "1월 나포건수" [ref=f31e236]
+                                  - cell [ref=f31e238]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e239]
+                                  - cell "99" [ref=f31e240]
+                                  - cell [ref=f31e241]
+                                  - cell "-" [ref=f31e242]
+                                  - cell [ref=f31e243]
+                                  - cell [ref=f31e244]
+                                  - cell [ref=f31e245]
+                                  - cell "-" [ref=f31e246]
+                                - row [ref=f31e247]:
+                                  - cell "2월" [ref=f31e248]
+                                  - cell [ref=f31e249]
+                                  - cell "2월 나포건수" [ref=f31e250]
+                                  - cell [ref=f31e252]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e253]
+                                  - cell "99" [ref=f31e254]
+                                  - cell [ref=f31e255]
+                                  - cell "-" [ref=f31e256]
+                                  - cell [ref=f31e257]
+                                  - cell [ref=f31e258]
+                                  - cell [ref=f31e259]
+                                  - cell "-" [ref=f31e260]
+                                - row [ref=f31e261]:
+                                  - cell "3월" [ref=f31e262]
+                                  - cell [ref=f31e263]
+                                  - cell "3월 나포건수" [ref=f31e264]
+                                  - cell [ref=f31e266]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e267]
+                                  - cell "99" [ref=f31e268]
+                                  - cell [ref=f31e269]
+                                  - cell "-" [ref=f31e270]
+                                  - cell [ref=f31e271]
+                                  - cell [ref=f31e272]
+                                  - cell [ref=f31e273]
+                                  - cell "-" [ref=f31e274]
+                                - row [ref=f31e275]:
+                                  - cell "4월" [ref=f31e276]
+                                  - cell [ref=f31e277]
+                                  - cell "4월 나포건수" [ref=f31e278]
+                                  - cell [ref=f31e280]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e281]
+                                  - cell "99" [ref=f31e282]
+                                  - cell [ref=f31e283]
+                                  - cell "-" [ref=f31e284]
+                                  - cell [ref=f31e285]
+                                  - cell [ref=f31e286]
+                                  - cell [ref=f31e287]
+                                  - cell "-" [ref=f31e288]
+                                - row [ref=f31e289]:
+                                  - cell "5월" [ref=f31e290]
+                                  - cell [ref=f31e291]
+                                  - cell "5월 나포건수" [ref=f31e292]
+                                  - cell [ref=f31e294]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e295]
+                                  - cell "99" [ref=f31e296]
+                                  - cell [ref=f31e297]
+                                  - cell "-" [ref=f31e298]
+                                  - cell [ref=f31e299]
+                                  - cell [ref=f31e300]
+                                  - cell [ref=f31e301]
+                                  - cell "-" [ref=f31e302]
+                                - row [ref=f31e303]:
+                                  - cell "6월" [ref=f31e304]
+                                  - cell [ref=f31e305]
+                                  - cell "6월 나포건수" [ref=f31e306]
+                                  - cell [ref=f31e308]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e309]
+                                  - cell "99" [ref=f31e310]
+                                  - cell [ref=f31e311]
+                                  - cell "-" [ref=f31e312]
+                                  - cell [ref=f31e313]
+                                  - cell [ref=f31e314]
+                                  - cell [ref=f31e315]
+                                  - cell "-" [ref=f31e316]
+                                - row [ref=f31e317]:
+                                  - cell "7월" [ref=f31e318]
+                                  - cell [ref=f31e319]
+                                  - cell "7월 나포건수" [ref=f31e320]
+                                  - cell [ref=f31e322]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e323]
+                                  - cell "99" [ref=f31e324]
+                                  - cell [ref=f31e325]
+                                  - cell "-" [ref=f31e326]
+                                  - cell [ref=f31e327]
+                                  - cell [ref=f31e328]
+                                  - cell [ref=f31e329]
+                                  - cell "-" [ref=f31e330]
+                                - row [ref=f31e331]:
+                                  - cell "8월" [ref=f31e332]
+                                  - cell [ref=f31e333]
+                                  - cell "8월 나포건수" [ref=f31e334]
+                                  - cell [ref=f31e336]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e337]
+                                  - cell "99" [ref=f31e338]
+                                  - cell [ref=f31e339]
+                                  - cell "-" [ref=f31e340]
+                                  - cell [ref=f31e341]
+                                  - cell [ref=f31e342]
+                                  - cell [ref=f31e343]
+                                  - cell "-" [ref=f31e344]
+                                - row [ref=f31e345]:
+                                  - cell "9월" [ref=f31e346]
+                                  - cell [ref=f31e347]
+                                  - cell "9월 나포건수" [ref=f31e348]
+                                  - cell [ref=f31e350]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e351]
+                                  - cell "99" [ref=f31e352]
+                                  - cell [ref=f31e353]
+                                  - cell "-" [ref=f31e354]
+                                  - cell [ref=f31e355]
+                                  - cell [ref=f31e356]
+                                  - cell [ref=f31e357]
+                                  - cell "-" [ref=f31e358]
+                                - row [ref=f31e359]:
+                                  - cell "10월" [ref=f31e360]
+                                  - cell [ref=f31e361]
+                                  - cell "10월 나포건수" [ref=f31e362]
+                                  - cell [ref=f31e364]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e365]
+                                  - cell "99" [ref=f31e366]
+                                  - cell [ref=f31e367]
+                                  - cell "-" [ref=f31e368]
+                                  - cell [ref=f31e369]
+                                  - cell [ref=f31e370]
+                                  - cell [ref=f31e371]
+                                  - cell "-" [ref=f31e372]
+                                - row [ref=f31e373]:
+                                  - cell "11월" [ref=f31e374]
+                                  - cell [ref=f31e375]
+                                  - cell "11월 나포건수" [ref=f31e376]
+                                  - cell [ref=f31e378]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e379]
+                                  - cell "99" [ref=f31e380]
+                                  - cell [ref=f31e381]
+                                  - cell "-" [ref=f31e382]
+                                  - cell [ref=f31e383]
+                                  - cell [ref=f31e384]
+                                  - cell [ref=f31e385]
+                                  - cell "-" [ref=f31e386]
+                                - row [ref=f31e387]:
+                                  - cell "12월" [ref=f31e388]
+                                  - cell [ref=f31e389]
+                                  - cell "12월 나포건수" [ref=f31e390]
+                                  - cell [ref=f31e392]
+                                  - cell "숫자형(NUMERIC)" [ref=f31e393]
+                                  - cell "99" [ref=f31e394]
+                                  - cell [ref=f31e395]
+                                  - cell "-" [ref=f31e396]
+                                  - cell [ref=f31e397]
+                                  - cell [ref=f31e398]
+                                  - cell [ref=f31e399]
+                                  - cell "-" [ref=f31e400]
+                          - listitem [ref=f31e401]:
+                            - strong [ref=f31e402]: 매체유형
+                            - generic [ref=f31e403]: 텍스트
+                          - listitem [ref=f31e404]:
+                            - strong [ref=f31e405]: 확장자
+                            - generic [ref=f31e406]: CSV
+                          - listitem [ref=f31e407]:
+                            - strong [ref=f31e408]: 전체 행
+                            - generic [ref=f31e409]: "9"
+                          - listitem [ref=f31e410]:
+                            - strong [ref=f31e411]: 키워드
+                            - generic [ref=f31e412]: 불법 조업,중국 어선,해경,나포,배타적경제수역,잠정조치수역,어선
+                          - listitem [ref=f31e413]:
+                            - strong [ref=f31e414]: 데이터 한계
+                          - listitem [ref=f31e415]:
+                            - strong [ref=f31e416]: 공간범위
+                          - listitem [ref=f31e417]:
+                            - strong [ref=f31e418]: 시간범위
+                          - listitem [ref=f31e419]:
+                            - strong [ref=f31e420]: 제공형태
+                            - generic [ref=f31e421]: 공공데이터포털에서 다운로드(원문파일등록)
+                          - listitem [ref=f31e422]:
+                            - strong [ref=f31e423]: 다운로드(바로가기)
+                            - generic [ref=f31e424]: "1296"
+                          - listitem [ref=f31e425]:
+                            - strong [ref=f31e426]: 등록일
+                            - generic [ref=f31e427]: 2025-09-10
+                          - listitem [ref=f31e428]:
+                            - strong [ref=f31e429]: 수정일
+                            - generic [ref=f31e430]: 2025-09-10
+                          - listitem [ref=f31e431]:
+                            - strong [ref=f31e432]: 기타 유의사항
+                  - generic [ref=f31e433]:
+                    - heading "표준 메타데이터" [level=3] [ref=f31e435]
+                    - generic [ref=f31e436]:
+                      - paragraph [ref=f31e437]: ※ 데이터 연계 및 검색을 위한 표준 메타데이터입니다.
+                      - generic [ref=f31e438]:
+                        - link "Schema.org" [ref=f31e439] [cursor=pointer]:
+                          - /url: /catalog/15063382/fileData.json
+                        - link "DCAT" [ref=f31e441] [cursor=pointer]:
+                          - /url: /biz/dcat/metadata/15063382.do
+                  - generic [ref=f31e443]:
+                    - heading "이용 조건 및 라이선스 정보" [level=3] [ref=f31e445]
+                    - list [ref=f31e448]:
+                      - listitem [ref=f31e449]:
+                        - strong [ref=f31e450]: 비용부과유무
+                        - generic [ref=f31e451]: 무료
+                      - listitem [ref=f31e452]:
+                        - strong [ref=f31e453]: 비용부과기준 및 단위
+                        - generic [ref=f31e454]: 건
+                      - listitem [ref=f31e455]:
+                        - strong [ref=f31e456]: 이용허락범위
+                        - link "이용허락범위 제한 없음" [ref=f31e458] [cursor=pointer]:
+                          - /url: /ugs/selectPortalPolicyView.do
+              - text: loading
+          - button "목록으로 돌아가기" [ref=f31e461] [cursor=pointer]
+      - button "페이지 상단으로 이동" [ref=f31e462] [cursor=pointer]
+    - contentinfo [ref=f31e464]:
+      - generic [ref=f31e466]:
+        - generic [ref=f31e467]:
+          - button "관련기관" [ref=f31e468] [cursor=pointer]
+          - list:
+            - listitem [ref=f31e469]:
+              - link "행정안전부" [ref=f31e470] [cursor=pointer]:
+                - /url: https://www.mois.go.kr/
+            - listitem [ref=f31e471]:
+              - link "한국지능정보사회진흥원" [ref=f31e472] [cursor=pointer]:
+                - /url: https://www.nia.or.kr/
+            - listitem [ref=f31e473]:
+              - link "오픈데이터포럼" [ref=f31e474] [cursor=pointer]:
+                - /url: https://www.odf.or.kr/
+            - listitem [ref=f31e475]:
+              - link "국가정보자원관리원" [ref=f31e476] [cursor=pointer]:
+                - /url: https://www.nirs.go.kr/
+            - listitem [ref=f31e477]:
+              - link "한국지역정보개발원" [ref=f31e478] [cursor=pointer]:
+                - /url: https://www.klid.or.kr/
+        - generic [ref=f31e479]:
+          - button "지역별 데이터포털" [ref=f31e480] [cursor=pointer]
+          - list:
+            - listitem [ref=f31e481]:
+              - link "서울 열린데이터광장" [ref=f31e482] [cursor=pointer]:
+                - /url: https://data.seoul.go.kr/
+            - listitem [ref=f31e483]:
+              - link "경기데이터드림" [ref=f31e484] [cursor=pointer]:
+                - /url: https://data.gg.go.kr/
+            - listitem [ref=f31e485]:
+              - link "부산데이터웨이브" [ref=f31e486] [cursor=pointer]:
+                - /url: https://data.busan.go.kr/
+            - listitem [ref=f31e487]:
+              - link "D-데이터허브" [ref=f31e488] [cursor=pointer]:
+                - /url: https://data.daegu.go.kr/
+            - listitem [ref=f31e489]:
+              - link "인천데이터포털" [ref=f31e490] [cursor=pointer]:
+                - /url: https://data.incheon.go.kr/
+            - listitem [ref=f31e491]:
+              - link "울산광역시 데이터포털" [ref=f31e492] [cursor=pointer]:
+                - /url: https://data.ulsan.go.kr/
+            - listitem [ref=f31e493]:
+              - link "전남광주통합특별시 빅데이터 플랫폼" [ref=f31e494] [cursor=pointer]:
+                - /url: https://bigdata.gwangju.go.kr/
+            - listitem [ref=f31e495]:
+              - link "대전광역시 데이터포털" [ref=f31e496] [cursor=pointer]:
+                - /url: https://openlab.daejeon.go.kr/
+            - listitem [ref=f31e497]:
+              - link "세종특별자치시 데이터포털" [ref=f31e498] [cursor=pointer]:
+                - /url: https://www.sejong.go.kr/
+            - listitem [ref=f31e499]:
+              - link "충청북도 데이터허브" [ref=f31e500] [cursor=pointer]:
+                - /url: https://data.chungbuk.go.kr/
+        - generic [ref=f31e501]:
+          - button "분야별 데이터포털" [ref=f31e502] [cursor=pointer]
+          - list:
+            - listitem [ref=f31e503]:
+              - link "기상자료개방포털" [ref=f31e504] [cursor=pointer]:
+                - /url: https://data.kma.go.kr/
+            - listitem [ref=f31e505]:
+              - link "국토교통부 공간정보오픈플랫폼" [ref=f31e506] [cursor=pointer]:
+                - /url: https://www.vworld.kr/
+            - listitem [ref=f31e507]:
+              - link "환경부 환경데이터포털" [ref=f31e508] [cursor=pointer]:
+                - /url: https://www.bigdata-environment.kr/
+            - listitem [ref=f31e509]:
+              - link "문화데이터광장" [ref=f31e510] [cursor=pointer]:
+                - /url: https://www.culture.go.kr/
+            - listitem [ref=f31e511]:
+              - link "농림축산식품 공공데이터포털" [ref=f31e512] [cursor=pointer]:
+                - /url: https://data.mafra.go.kr/
+            - listitem [ref=f31e513]:
+              - link "보건의료빅데이터개방시스템" [ref=f31e514] [cursor=pointer]:
+                - /url: https://opendata.hira.or.kr/
+            - listitem [ref=f31e515]:
+              - link "식품의약품안전처 데이터포털" [ref=f31e516] [cursor=pointer]:
+                - /url: https://www.foodsafetykorea.go.kr/
+            - listitem [ref=f31e517]:
+              - link "교육통계서비스" [ref=f31e518] [cursor=pointer]:
+                - /url: https://kess.kedi.re.kr/
+      - generic [ref=f31e519]:
+        - link "공공데이터포털 바로가기" [ref=f31e520] [cursor=pointer]:
+          - /url: /index.do
+        - generic [ref=f31e523]:
+          - generic [ref=f31e524]:
+            - paragraph [ref=f31e525]: (30112) 세종특별자치시 도움6로 42
+            - list [ref=f31e526]:
+              - listitem [ref=f31e527]:
+                - strong [ref=f31e528]:
+                  - text: 대표전화
+                  - generic [ref=f31e529]:
+                    - link "1566-0025" [ref=f31e530] [cursor=pointer]:
+                      - /url: tel:1566-0025
+                    - text: "| (유료, 평일 09시-18시)"
+              - listitem [ref=f31e531]:
+                - link "운영자 메일 상담 opendata_help@nia.or.kr" [ref=f31e532] [cursor=pointer]:
+                  - /url: mailto:opendata_help@nia.or.kr
+                  - strong [ref=f31e533]:
+                    - text: 운영자 메일 상담
+                    - generic [ref=f31e534]: opendata_help@nia.or.kr
+          - generic [ref=f31e535]:
+            - generic [ref=f31e536]:
+              - link "이용가이드" [ref=f31e537] [cursor=pointer]:
+                - /url: /ugs/selectPublicDataUseGuideView.do
+              - link "분쟁조정 신청" [ref=f31e539] [cursor=pointer]:
+                - /url: /tcs/dor/insertTrublMdatReqstProcssView.do
+              - link "문의하기" [ref=f31e541] [cursor=pointer]:
+                - /url: /bbs/faq/selectFaqList.do
+            - generic [ref=f31e543]:
+              - link "유튜브" [ref=f31e544] [cursor=pointer]:
+                - /url: https://www.youtube.com/@koropendata
+              - link "X" [ref=f31e547] [cursor=pointer]:
+                - /url: https://twitter.com/koreadataportal
+              - link "페이스북" [ref=f31e550] [cursor=pointer]:
+                - /url: http://www.facebook.com/koreadataportal
+              - link "블로그" [ref=f31e553] [cursor=pointer]:
+                - /url: http://blog.naver.com/nia_korea
+        - generic [ref=f31e556]:
+          - generic [ref=f31e557]:
+            - generic [ref=f31e558]:
+              - link "이용약관" [ref=f31e559] [cursor=pointer]:
+                - /url: /ugs/selectPortalPolicyView.do#use_stplat
+              - link "개인정보처리방침" [ref=f31e560] [cursor=pointer]:
+                - /url: /ugs/selectPortalPolicyView.do#indvdlinfo_process
+              - link "공공데이터포털 소개" [ref=f31e561] [cursor=pointer]:
+                - /url: /ugs/selectPortalInfoView.do#portal_info
+            - paragraph [ref=f31e562]: © Ministry of the Interior and Safety. All rights reserved.
+          - generic [ref=f31e563]:
+            - generic [ref=f31e564]: 행정안전부
+            - generic [ref=f31e566]: 이 누리집은 행정안전부 누리집입니다.

@@ -9,8 +9,7 @@ scrape_configs:
 
   - job_name: "multi-currency-ledger-service"
     metrics_path: "/actuator/prometheus"
-    # /actuator/prometheus 는 SecurityConfig 에서 공개(permitAll) 경로라 인증 헤더 없이 수집된다.
-    # 나머지 /actuator/** 는 ROLE_ADMIN 이 필요하다. 이 경로를 보호 대상으로 바꾸면 스크랩 요청에
-    # 인증 헤더(게이트웨이 시크릿 포함)를 실어야 한다. (http_headers 는 Prometheus v2.55+)
+    # 관리용 엔드포인트는 앱 포트(8080)가 아니라 관리 포트(MANAGEMENT_PORT, 기본 9091)에서만 응답한다.
+    # 관리 포트는 내부 네트워크 전용이라는 전제로 /actuator/prometheus 를 인증 없이 수집한다.
     static_configs:
-      - targets: ["host.docker.internal:8080"]
+      - targets: ["host.docker.internal:9091"]

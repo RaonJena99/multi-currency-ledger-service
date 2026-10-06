@@ -1,0 +1,87 @@
+- table [ref=f12e2]:
+  - rowgroup [ref=f12e3]:
+    - row [ref=f12e4]:
+      - cell [ref=f12e5]:
+        - iframe [ref=f12e6]:
+          - generic [ref=f13e1]:
+            - generic [ref=f13e2]:
+              - generic [ref=f13e4]:
+                - heading "법령" [level=2] [ref=f13e5]
+                - heading "- 배타적 경제수역에서의 외국인어업 등에 대한 주권적 권리의 행사에 관한 법률 시행령" [level=2] [ref=f13e6]
+                - heading [level=2] [ref=f13e7]
+                - paragraph [ref=f13e8]:
+                  - img "법제처 국가법령정보센터 - 새창열림" [ref=f13e9]
+              - generic [ref=f13e10]:
+                - list [ref=f13e14]:
+                  - listitem [ref=f13e15]:
+                    - link "배타적 경제수역에서의 외국인어업 등에 대한 주권적 권리의 행사에 관한 법률 시행령 [시행 2025. 5. 20.] [대통령령 제35530호, 2025. 5. 20., 일부개정]" [ref=f13e16] [cursor=pointer]:
+                      - /url: javascript:;
+                      - generic [ref=f13e17]: 배타적 경제수역에서의 외국인어업 등에 대한 주권적 권리의 행사에 관한 법률 시행령
+                      - generic [ref=f13e18]: "[시행 2025. 5. 20.] [대통령령 제35530호, 2025. 5. 20., 일부개정]"
+                    - list [ref=f13e20]:
+                      - listitem [ref=f13e21]:
+                        - link "본문목록열림 본문" [ref=f13e22] [cursor=pointer]:
+                          - /url: javascript:;
+                          - generic [ref=f13e23]: 본문목록열림
+                          - text: 본문
+                      - listitem [ref=f13e24]:
+                        - link "부칙목록열림 부칙" [ref=f13e25] [cursor=pointer]:
+                          - /url: javascript:;
+                          - generic [ref=f13e26]: 부칙목록열림
+                          - text: 부칙
+                      - listitem [ref=f13e27]:
+                        - link "별표목록열림 별표" [ref=f13e28] [cursor=pointer]:
+                          - /url: javascript:;
+                          - generic [ref=f13e29]: 별표목록열림
+                          - text: 별표
+                - generic [ref=f13e30]:
+                  - generic [ref=f13e31]:
+                    - generic [ref=f13e32]:
+                      - link "본문" [ref=f13e33] [cursor=pointer]:
+                        - /url: javascript:;
+                      - link "제정·개정이유" [ref=f13e34] [cursor=pointer]:
+                        - /url: javascript:;
+                      - link "연혁" [ref=f13e35] [cursor=pointer]:
+                        - /url: javascript:;
+                      - link "3단비교" [ref=f13e36] [cursor=pointer]:
+                        - /url: javascript:;
+                      - link "신구법비교" [ref=f13e37] [cursor=pointer]:
+                        - /url: javascript:;
+                      - link "법령체계도" [ref=f13e38] [cursor=pointer]:
+                        - /url: javascript:;
+                      - link "법령비교" [ref=f13e39] [cursor=pointer]:
+                        - /url: javascript:;
+                      - link "점자뷰어" [ref=f13e40] [cursor=pointer]:
+                        - /url: javascript:;
+                    - generic [ref=f13e41]:
+                      - generic [ref=f13e42]:
+                        - generic [ref=f13e43]: 조문 선택
+                        - combobox "조문 선택" [ref=f13e44]:
+                          - option "조문선택" [selected]
+                      - link "화면내검색" [ref=f13e45] [cursor=pointer]:
+                        - /url: javascript:;
+                      - generic [ref=f13e46]: 새창 선택
+                      - link [ref=f13e47] [cursor=pointer]:
+                        - /url: javascript:;
+                        - img "공유하기" [ref=f13e48]
+                      - link [ref=f13e49] [cursor=pointer]:
+                        - /url: javascript:;
+                        - img "관심법령추가" [ref=f13e50]
+                      - link [ref=f13e51] [cursor=pointer]:
+                        - /url: javascript:;
+                        - img "한자" [ref=f13e52]
+                      - link [ref=f13e53] [cursor=pointer]:
+                        - /url: javascript:;
+                        - img "저장" [ref=f13e54]
+                      - link [ref=f13e55] [cursor=pointer]:
+                        - /url: javascript:;
+                        - img "인쇄" [ref=f13e56]
+                  - generic [ref=f13e60]:
+                    - heading [level=3] [ref=f13e61]:
+                      - img "법령정보" [ref=f13e62]
+                    - paragraph [ref=f13e63]:
+                      - img "이 곳에서는 현재 시행되고 있는 헌법, 법률, 대통령, 총리령, 부령과 국회규칙, 대법원규칙, 헌법재판소규칙, 선거관리위원회규칙, 감사원규칙을 찾아 볼 수 있습니다. 법령내용이나 법령명에 포함된 용어를 입력하거나, 공포번호 및 공포일자를 입력하십시오." [ref=f13e64]
+                    - paragraph [ref=f13e65]:
+                      - img "위 검색창에 검색어를 입력하십시오" [ref=f13e66]
+                  - generic [ref=f13e68]: Loading data...
+            - generic "Open" [ref=f13e71] [cursor=pointer]

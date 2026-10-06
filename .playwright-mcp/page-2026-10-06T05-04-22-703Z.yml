@@ -1,0 +1,784 @@
+- generic [active] [ref=f27e1]:
+  - region "We value your privacy" [ref=f27e2]:
+    - generic [ref=f27e4]:
+      - heading "We value your privacy" [level=2] [ref=f27e5]
+      - generic [ref=f27e6]:
+        - paragraph [ref=f27e8]: We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.
+        - generic [ref=f27e9]:
+          - button "Customize" [ref=f27e10] [cursor=pointer]
+          - button "Reject All" [ref=f27e11] [cursor=pointer]
+          - button "Accept All" [ref=f27e12] [cursor=pointer]
+  - generic [ref=f27e14]:
+    - banner [ref=f27e15]:
+      - generic [ref=f27e18]:
+        - link [ref=f27e21] [cursor=pointer]:
+          - /url: https://datalastic.com/
+          - img "Datalastic Maritime API Logo" [ref=f27e23]
+        - generic [ref=f27e27]:
+          - navigation [ref=f27e29]:
+            - list [ref=f27e30]:
+              - listitem [ref=f27e31]:
+                - link [ref=f27e32] [cursor=pointer]:
+                  - /url: https://datalastic.com/maritime-api/
+              - listitem [ref=f27e36]:
+                - link [ref=f27e37] [cursor=pointer]:
+                  - /url: https://datalastic.com/dry-dock-dates-vessels-api/
+              - listitem [ref=f27e41]:
+                - link "MCP" [ref=f27e42] [cursor=pointer]:
+                  - /url: https://datalastic.com/mcp/
+              - listitem [ref=f27e43]:
+                - link "Docs" [ref=f27e44] [cursor=pointer]:
+                  - /url: https://docs.datalastic.com/
+              - listitem [ref=f27e45]:
+                - link "Pricing" [ref=f27e46] [cursor=pointer]:
+                  - /url: https://datalastic.com/pricing/
+              - listitem [ref=f27e47]:
+                - link "Contact" [ref=f27e48] [cursor=pointer]:
+                  - /url: https://datalastic.com/contact/
+          - text: a
+        - generic [ref=f27e49]:
+          - link "Log In" [ref=f27e51] [cursor=pointer]:
+            - /url: https://datalastic.com/login/
+          - link "Sign Up" [ref=f27e53] [cursor=pointer]:
+            - /url: https://datalastic.com/register/
+    - generic [ref=f27e54]:
+      - article [ref=f27e56]:
+        - generic [ref=f27e59]:
+          - generic [ref=f27e68]:
+            - heading "Get your API key in 3 clicks" [level=1] [ref=f27e69]
+            - paragraph [ref=f27e70]: Select your plan, subscribe, receive your API Key.
+            - paragraph [ref=f27e71]: 2 Weeks Discount. 2 Weeks trial Money-Back guarantee. Cancel anytime!
+          - heading "Pricing plans" [level=2] [ref=f27e75]
+          - generic [ref=f27e81]:
+            - generic [ref=f27e82]:
+              - generic [ref=f27e83]:
+                - generic [ref=f27e84]: Data scope
+                - generic [ref=f27e85]:
+                  - button "◆ Data Feed" [ref=f27e86] [cursor=pointer]
+                  - button "➕ All Data (+ Add-Ons)" [ref=f27e87] [cursor=pointer]
+              - generic [ref=f27e88]:
+                - generic [ref=f27e89]: Billing period
+                - generic [ref=f27e90]:
+                  - button "Monthly" [ref=f27e91] [cursor=pointer]
+                  - button "Annual −10%" [ref=f27e92] [cursor=pointer]:
+                    - text: Annual
+                    - generic [ref=f27e93]: −10%
+            - generic [ref=f27e94]:
+              - generic [ref=f27e95]:
+                - heading "Starter" [level=3] [ref=f27e96]
+                - generic [ref=f27e97]: 14 days trial, then €199/month
+                - generic [ref=f27e98]:
+                  - generic [ref=f27e99]: €
+                  - generic [ref=f27e100]: "9"
+                  - generic [ref=f27e101]: then €199
+                - generic [ref=f27e102]:
+                  - text: 20,000
+                  - generic [ref=f27e103]: credits / month
+                - link "Get API Key" [ref=f27e104] [cursor=pointer]:
+                  - /url: https://datalastic.com/pricing/checkout-bronze/
+                - generic [ref=f27e105]:
+                  - generic [ref=f27e106]:
+                    - generic [ref=f27e107]: ◆
+                    - text: Data Feed
+                  - list [ref=f27e108]:
+                    - listitem [ref=f27e109]:
+                      - generic [ref=f27e110]: ✓
+                      - generic [ref=f27e111]:
+                        - text: Vessel Tracking
+                        - generic [ref=f27e112]: Basic, Pro & Bulk
+                    - listitem [ref=f27e113]:
+                      - generic [ref=f27e114]: ✓
+                      - generic [ref=f27e115]: Area Traffic Scan
+                    - listitem [ref=f27e116]:
+                      - generic [ref=f27e117]: ✓
+                      - generic [ref=f27e118]: Historical Vessel Data
+                    - listitem [ref=f27e119]:
+                      - generic [ref=f27e120]: ✓
+                      - generic [ref=f27e121]: Historical Area Scan
+                    - listitem [ref=f27e122]:
+                      - generic [ref=f27e123]: ✓
+                      - generic [ref=f27e124]: Vessel Info & Finder
+                    - listitem [ref=f27e125]:
+                      - generic [ref=f27e126]: ✓
+                      - generic [ref=f27e127]: Port Finder, Info & Terminals
+                    - listitem [ref=f27e128]:
+                      - generic [ref=f27e129]: ✓
+                      - generic [ref=f27e130]: Weather API
+                    - listitem [ref=f27e131]:
+                      - generic [ref=f27e132]: ✓
+                      - generic [ref=f27e133]: Vessel & Port List Reports
+                    - listitem [ref=f27e134]:
+                      - generic [ref=f27e135]: ✓
+                      - generic [ref=f27e136]: MCP Server Available
+                    - listitem [ref=f27e137]:
+                      - generic [ref=f27e138]: ✓
+                      - generic [ref=f27e139]: Credit spend tracking
+              - generic [ref=f27e140]:
+                - heading "Growth" [level=3] [ref=f27e141]
+                - generic [ref=f27e142]: 14 days trial, then €569/month
+                - generic [ref=f27e143]:
+                  - generic [ref=f27e144]: €
+                  - generic [ref=f27e145]: "19"
+                  - generic [ref=f27e146]: then €569
+                - generic [ref=f27e147]:
+                  - text: 80,000
+                  - generic [ref=f27e148]: credits / month
+                - link "Get API Key" [ref=f27e149] [cursor=pointer]:
+                  - /url: https://datalastic.com/pricing/checkout-silver/
+                - generic [ref=f27e150]:
+                  - generic [ref=f27e151]:
+                    - generic [ref=f27e152]: ◆
+                    - text: Data Feed
+                  - list [ref=f27e153]:
+                    - listitem [ref=f27e154]:
+                      - generic [ref=f27e155]: ✓
+                      - generic [ref=f27e156]:
+                        - text: Vessel Tracking
+                        - generic [ref=f27e157]: Basic, Pro & Bulk
+                    - listitem [ref=f27e158]:
+                      - generic [ref=f27e159]: ✓
+                      - generic [ref=f27e160]: Area Traffic Scan
+                    - listitem [ref=f27e161]:
+                      - generic [ref=f27e162]: ✓
+                      - generic [ref=f27e163]: Historical Vessel Data
+                    - listitem [ref=f27e164]:
+                      - generic [ref=f27e165]: ✓
+                      - generic [ref=f27e166]: Historical Area Scan
+                    - listitem [ref=f27e167]:
+                      - generic [ref=f27e168]: ✓
+                      - generic [ref=f27e169]: Vessel Info & Finder
+                    - listitem [ref=f27e170]:
+                      - generic [ref=f27e171]: ✓
+                      - generic [ref=f27e172]: Port Finder, Info & Terminals
+                    - listitem [ref=f27e173]:
+                      - generic [ref=f27e174]: ✓
+                      - generic [ref=f27e175]: Weather API
+                    - listitem [ref=f27e176]:
+                      - generic [ref=f27e177]: ✓
+                      - generic [ref=f27e178]: Vessel & Port List Reports
+                    - listitem [ref=f27e179]:
+                      - generic [ref=f27e180]: ✓
+                      - generic [ref=f27e181]: MCP Server Available
+                    - listitem [ref=f27e182]:
+                      - generic [ref=f27e183]: ✓
+                      - generic [ref=f27e184]: Credit spend tracking
+              - generic [ref=f27e185]:
+                - heading "Developer Pro" [level=3] [ref=f27e186]
+                - generic [ref=f27e187]: 14 days trial, then €679/month
+                - generic [ref=f27e188]:
+                  - generic [ref=f27e189]: €
+                  - generic [ref=f27e190]: "45"
+                  - generic [ref=f27e191]: then €679
+                - generic [ref=f27e192]:
+                  - text: Unlimited
+                  - generic [ref=f27e193]: credits / month
+                - link "Get API Key" [ref=f27e194] [cursor=pointer]:
+                  - /url: https://datalastic.com/pricing/checkout-platinum/
+                - generic [ref=f27e195]:
+                  - generic [ref=f27e196]:
+                    - generic [ref=f27e197]: ◆
+                    - text: Data Feed
+                  - list [ref=f27e198]:
+                    - listitem [ref=f27e199]:
+                      - generic [ref=f27e200]: ✓
+                      - generic [ref=f27e201]:
+                        - text: Vessel Tracking
+                        - generic [ref=f27e202]: Basic, Pro & Bulk
+                    - listitem [ref=f27e203]:
+                      - generic [ref=f27e204]: ✓
+                      - generic [ref=f27e205]: Area Traffic Scan
+                    - listitem [ref=f27e206]:
+                      - generic [ref=f27e207]: ✓
+                      - generic [ref=f27e208]: Historical Vessel Data
+                    - listitem [ref=f27e209]:
+                      - generic [ref=f27e210]: ✓
+                      - generic [ref=f27e211]: Historical Area Scan
+                    - listitem [ref=f27e212]:
+                      - generic [ref=f27e213]: ✓
+                      - generic [ref=f27e214]: Vessel Info & Finder
+                    - listitem [ref=f27e215]:
+                      - generic [ref=f27e216]: ✓
+                      - generic [ref=f27e217]: Port Finder, Info & Terminals
+                    - listitem [ref=f27e218]:
+                      - generic [ref=f27e219]: ✓
+                      - generic [ref=f27e220]: Weather API
+                    - listitem [ref=f27e221]:
+                      - generic [ref=f27e222]: ✓
+                      - generic [ref=f27e223]: Vessel & Port List Reports
+                    - listitem [ref=f27e224]:
+                      - generic [ref=f27e225]: ✓
+                      - generic [ref=f27e226]: MCP Server Available
+                    - listitem [ref=f27e227]:
+                      - generic [ref=f27e228]: ✓
+                      - generic [ref=f27e229]: Credit spend tracking
+                - generic [ref=f27e230]:
+                  - generic [ref=f27e231]:
+                    - generic [ref=f27e232]: ✦
+                    - text: Support
+                  - list [ref=f27e233]:
+                    - listitem [ref=f27e234]:
+                      - generic [ref=f27e235]: ✦
+                      - generic [ref=f27e236]:
+                        - text: Premium Support
+                        - generic [ref=f27e237]: Priority response for technical & billing questions
+          - heading "What’s included in each plan" [level=2] [ref=f27e241]
+          - generic [ref=f27e243]:
+            - generic [ref=f27e247]:
+              - heading "◆ Data Feed (included in all plans)" [level=3] [ref=f27e248]:
+                - generic [ref=f27e249]: ◆
+                - text: Data Feed (included in all plans)
+              - paragraph [ref=f27e250]: Core maritime API. Live AIS tracking, historical data, vessel & port information. Identical across all three tiers, only the credit volume differs.
+              - list [ref=f27e251]:
+                - listitem [ref=f27e252]: Vessel Tracking (Basic, Pro & Bulk)
+                - listitem [ref=f27e253]: Area Traffic Scan
+                - listitem [ref=f27e254]: Historical Vessel Data
+                - listitem [ref=f27e255]: Historical Area Scan
+                - listitem [ref=f27e256]: Vessel Info & Finder
+                - listitem [ref=f27e257]: Port Finder & Info
+                - listitem [ref=f27e258]: Port Terminals
+                - listitem [ref=f27e259]: Weather API
+                - listitem [ref=f27e260]: Vessel & Port List Reports
+                - listitem [ref=f27e261]: MCP Server Available
+                - listitem [ref=f27e262]: Credit Spend Tracking
+            - generic [ref=f27e266]:
+              - heading "➕ Add-Ons (All Data plans only)" [level=3] [ref=f27e267]:
+                - generic [ref=f27e268]: ➕
+                - text: Add-Ons (All Data plans only)
+              - paragraph [ref=f27e269]: Maritime intelligence datasets for due diligence, compliance, and logistics. Unlocked as a bundle on any All Data plan, with no per-addon pricing.
+              - list [ref=f27e270]:
+                - listitem [ref=f27e271]: SAT-E Satellite Estimator
+                - listitem [ref=f27e272]: Sea Routes
+                - listitem [ref=f27e273]: Dry Dock Dates
+                - listitem [ref=f27e274]: Ship Casualties
+                - listitem [ref=f27e275]: Inspections & Detentions
+                - listitem [ref=f27e276]: Sales & Demolitions
+                - listitem [ref=f27e277]: Vessel Ownership
+                - listitem [ref=f27e278]: Classification Society
+                - listitem [ref=f27e279]: Vessel Engines
+                - listitem [ref=f27e280]: Maritime Companies
+          - generic [ref=f27e290]:
+            - heading "Full feature comparison" [level=2] [ref=f27e291]
+            - paragraph [ref=f27e292]: Everything included across all plans. Add-On rows require an All Data plan.
+          - generic [ref=f27e297]:
+            - table [ref=f27e299]:
+              - rowgroup [ref=f27e308]:
+                - row [ref=f27e309]:
+                  - columnheader "Feature" [ref=f27e310]
+                  - columnheader "◆ Data Feed" [ref=f27e311]
+                  - columnheader "➕ All Data (+ Add-Ons)" [ref=f27e312]
+                - row [ref=f27e313]:
+                  - columnheader "Starter" [ref=f27e314]
+                  - columnheader "Growth" [ref=f27e315]
+                  - columnheader "Developer Pro" [ref=f27e316]
+                  - columnheader "Starter" [ref=f27e317]
+                  - columnheader "Growth" [ref=f27e318]
+                  - columnheader "Developer Pro" [ref=f27e319]
+              - rowgroup [ref=f27e320]:
+                - row [ref=f27e321]:
+                  - cell "◆ Vessel Tracking Basic, Pro & Bulk" [ref=f27e322]:
+                    - generic [ref=f27e323]:
+                      - generic [ref=f27e324]: ◆
+                      - text: Vessel Tracking
+                    - generic [ref=f27e325]: Basic, Pro & Bulk
+                  - cell "✓" [ref=f27e326]
+                  - cell "✓" [ref=f27e327]
+                  - cell "✓" [ref=f27e328]
+                  - cell "✓" [ref=f27e329]
+                  - cell "✓" [ref=f27e330]
+                  - cell "✓" [ref=f27e331]
+                - row [ref=f27e332]:
+                  - cell "◆ Area Traffic Scan All vessels within a radius" [ref=f27e333]:
+                    - generic [ref=f27e334]:
+                      - generic [ref=f27e335]: ◆
+                      - text: Area Traffic Scan
+                    - generic [ref=f27e336]: All vessels within a radius
+                  - cell "✓" [ref=f27e337]
+                  - cell "✓" [ref=f27e338]
+                  - cell "✓" [ref=f27e339]
+                  - cell "✓" [ref=f27e340]
+                  - cell "✓" [ref=f27e341]
+                  - cell "✓" [ref=f27e342]
+                - row [ref=f27e343]:
+                  - cell "◆ Weather API Current conditions at any coordinate" [ref=f27e344]:
+                    - generic [ref=f27e345]:
+                      - generic [ref=f27e346]: ◆
+                      - text: Weather API
+                    - generic [ref=f27e347]: Current conditions at any coordinate
+                  - cell "✓" [ref=f27e348]
+                  - cell "✓" [ref=f27e349]
+                  - cell "✓" [ref=f27e350]
+                  - cell "✓" [ref=f27e351]
+                  - cell "✓" [ref=f27e352]
+                  - cell "✓" [ref=f27e353]
+                - row [ref=f27e354]:
+                  - cell "◆ Vessel History AIS track replay for any date range" [ref=f27e355]:
+                    - generic [ref=f27e356]:
+                      - generic [ref=f27e357]: ◆
+                      - text: Vessel History
+                    - generic [ref=f27e358]: AIS track replay for any date range
+                  - cell "✓" [ref=f27e359]
+                  - cell "✓" [ref=f27e360]
+                  - cell "✓" [ref=f27e361]
+                  - cell "✓" [ref=f27e362]
+                  - cell "✓" [ref=f27e363]
+                  - cell "✓" [ref=f27e364]
+                - row [ref=f27e365]:
+                  - cell "◆ Historical Area Scan Past vessel traffic within a radius" [ref=f27e366]:
+                    - generic [ref=f27e367]:
+                      - generic [ref=f27e368]: ◆
+                      - text: Historical Area Scan
+                    - generic [ref=f27e369]: Past vessel traffic within a radius
+                  - cell "✓" [ref=f27e370]
+                  - cell "✓" [ref=f27e371]
+                  - cell "✓" [ref=f27e372]
+                  - cell "✓" [ref=f27e373]
+                  - cell "✓" [ref=f27e374]
+                  - cell "✓" [ref=f27e375]
+                - row [ref=f27e376]:
+                  - cell "◆ Vessel Info Type, flag, dimensions, built year, call sign" [ref=f27e377]:
+                    - generic [ref=f27e378]:
+                      - generic [ref=f27e379]: ◆
+                      - text: Vessel Info
+                    - generic [ref=f27e380]: Type, flag, dimensions, built year, call sign
+                  - cell "✓" [ref=f27e381]
+                  - cell "✓" [ref=f27e382]
+                  - cell "✓" [ref=f27e383]
+                  - cell "✓" [ref=f27e384]
+                  - cell "✓" [ref=f27e385]
+                  - cell "✓" [ref=f27e386]
+                - row [ref=f27e387]:
+                  - cell "◆ Vessel Finder Search by name, MMSI, IMO or call sign" [ref=f27e388]:
+                    - generic [ref=f27e389]:
+                      - generic [ref=f27e390]: ◆
+                      - text: Vessel Finder
+                    - generic [ref=f27e391]: Search by name, MMSI, IMO or call sign
+                  - cell "✓" [ref=f27e392]
+                  - cell "✓" [ref=f27e393]
+                  - cell "✓" [ref=f27e394]
+                  - cell "✓" [ref=f27e395]
+                  - cell "✓" [ref=f27e396]
+                  - cell "✓" [ref=f27e397]
+                - row [ref=f27e398]:
+                  - cell "◆ Port Finder Search by name, country, UNLOCODE or coordinates" [ref=f27e399]:
+                    - generic [ref=f27e400]:
+                      - generic [ref=f27e401]: ◆
+                      - text: Port Finder
+                    - generic [ref=f27e402]: Search by name, country, UNLOCODE or coordinates
+                  - cell "✓" [ref=f27e403]
+                  - cell "✓" [ref=f27e404]
+                  - cell "✓" [ref=f27e405]
+                  - cell "✓" [ref=f27e406]
+                  - cell "✓" [ref=f27e407]
+                  - cell "✓" [ref=f27e408]
+                - row [ref=f27e409]:
+                  - cell "◆ Port Info Type, facilities, timezone, UNLOCODE" [ref=f27e410]:
+                    - generic [ref=f27e411]:
+                      - generic [ref=f27e412]: ◆
+                      - text: Port Info
+                    - generic [ref=f27e413]: Type, facilities, timezone, UNLOCODE
+                  - cell "✓" [ref=f27e414]
+                  - cell "✓" [ref=f27e415]
+                  - cell "✓" [ref=f27e416]
+                  - cell "✓" [ref=f27e417]
+                  - cell "✓" [ref=f27e418]
+                  - cell "✓" [ref=f27e419]
+                - row [ref=f27e420]:
+                  - cell "◆ Port Terminals Terminal-level data within a port" [ref=f27e421]:
+                    - generic [ref=f27e422]:
+                      - generic [ref=f27e423]: ◆
+                      - text: Port Terminals
+                    - generic [ref=f27e424]: Terminal-level data within a port
+                  - cell "✓" [ref=f27e425]
+                  - cell "✓" [ref=f27e426]
+                  - cell "✓" [ref=f27e427]
+                  - cell "✓" [ref=f27e428]
+                  - cell "✓" [ref=f27e429]
+                  - cell "✓" [ref=f27e430]
+                - row [ref=f27e431]:
+                  - cell "◆ Vessel & Port List Reports Async bulk exports" [ref=f27e432]:
+                    - generic [ref=f27e433]:
+                      - generic [ref=f27e434]: ◆
+                      - text: Vessel & Port List Reports
+                    - generic [ref=f27e435]: Async bulk exports
+                  - cell "✓" [ref=f27e436]
+                  - cell "✓" [ref=f27e437]
+                  - cell "✓" [ref=f27e438]
+                  - cell "✓" [ref=f27e439]
+                  - cell "✓" [ref=f27e440]
+                  - cell "✓" [ref=f27e441]
+                - row [ref=f27e442]:
+                  - cell "◆ MCP Server Available Works with Claude, ChatGPT & other AI Agents" [ref=f27e443]:
+                    - generic [ref=f27e444]:
+                      - generic [ref=f27e445]: ◆
+                      - text: MCP Server Available
+                    - generic [ref=f27e446]: Works with Claude, ChatGPT & other AI Agents
+                  - cell "✓" [ref=f27e447]
+                  - cell "✓" [ref=f27e448]
+                  - cell "✓" [ref=f27e449]
+                  - cell "✓" [ref=f27e450]
+                  - cell "✓" [ref=f27e451]
+                  - cell "✓" [ref=f27e452]
+                - row [ref=f27e453]:
+                  - cell "◆ Credit Spend Tracking Real-time usage dashboard" [ref=f27e454]:
+                    - generic [ref=f27e455]:
+                      - generic [ref=f27e456]: ◆
+                      - text: Credit Spend Tracking
+                    - generic [ref=f27e457]: Real-time usage dashboard
+                  - cell "✓" [ref=f27e458]
+                  - cell "✓" [ref=f27e459]
+                  - cell "✓" [ref=f27e460]
+                  - cell "✓" [ref=f27e461]
+                  - cell "✓" [ref=f27e462]
+                  - cell "✓" [ref=f27e463]
+                - row [ref=f27e464]:
+                  - cell "➕ SAT-E Satellite Estimator Estimated position beyond AIS range" [ref=f27e465]:
+                    - generic [ref=f27e466]:
+                      - generic [ref=f27e467]: ➕
+                      - text: SAT-E Satellite Estimator
+                    - generic [ref=f27e468]: Estimated position beyond AIS range
+                  - cell "-" [ref=f27e469]
+                  - cell "-" [ref=f27e470]
+                  - cell "-" [ref=f27e471]
+                  - cell "✓" [ref=f27e472]
+                  - cell "✓" [ref=f27e473]
+                  - cell "✓" [ref=f27e474]
+                - row [ref=f27e475]:
+                  - cell "➕ Sea Routes Route distance & waypoints" [ref=f27e476]:
+                    - generic [ref=f27e477]:
+                      - generic [ref=f27e478]: ➕
+                      - text: Sea Routes
+                    - generic [ref=f27e479]: Route distance & waypoints
+                  - cell "-" [ref=f27e480]
+                  - cell "-" [ref=f27e481]
+                  - cell "-" [ref=f27e482]
+                  - cell "✓" [ref=f27e483]
+                  - cell "✓" [ref=f27e484]
+                  - cell "✓" [ref=f27e485]
+                - row [ref=f27e486]:
+                  - cell "➕ Dry Dock Dates Scheduled & completed dry docks" [ref=f27e487]:
+                    - generic [ref=f27e488]:
+                      - generic [ref=f27e489]: ➕
+                      - text: Dry Dock Dates
+                    - generic [ref=f27e490]: Scheduled & completed dry docks
+                  - cell "-" [ref=f27e491]
+                  - cell "-" [ref=f27e492]
+                  - cell "-" [ref=f27e493]
+                  - cell "✓" [ref=f27e494]
+                  - cell "✓" [ref=f27e495]
+                  - cell "✓" [ref=f27e496]
+                - row [ref=f27e497]:
+                  - cell "➕ Ship Casualties Casualty records & incident history" [ref=f27e498]:
+                    - generic [ref=f27e499]:
+                      - generic [ref=f27e500]: ➕
+                      - text: Ship Casualties
+                    - generic [ref=f27e501]: Casualty records & incident history
+                  - cell "-" [ref=f27e502]
+                  - cell "-" [ref=f27e503]
+                  - cell "-" [ref=f27e504]
+                  - cell "✓" [ref=f27e505]
+                  - cell "✓" [ref=f27e506]
+                  - cell "✓" [ref=f27e507]
+                - row [ref=f27e508]:
+                  - cell "➕ Inspections & Detentions Port State Control records" [ref=f27e509]:
+                    - generic [ref=f27e510]:
+                      - generic [ref=f27e511]: ➕
+                      - text: Inspections & Detentions
+                    - generic [ref=f27e512]: Port State Control records
+                  - cell "-" [ref=f27e513]
+                  - cell "-" [ref=f27e514]
+                  - cell "-" [ref=f27e515]
+                  - cell "✓" [ref=f27e516]
+                  - cell "✓" [ref=f27e517]
+                  - cell "✓" [ref=f27e518]
+                - row [ref=f27e519]:
+                  - cell "➕ Sales & Demolitions Second-hand sale & demolition data" [ref=f27e520]:
+                    - generic [ref=f27e521]:
+                      - generic [ref=f27e522]: ➕
+                      - text: Sales & Demolitions
+                    - generic [ref=f27e523]: Second-hand sale & demolition data
+                  - cell "-" [ref=f27e524]
+                  - cell "-" [ref=f27e525]
+                  - cell "-" [ref=f27e526]
+                  - cell "✓" [ref=f27e527]
+                  - cell "✓" [ref=f27e528]
+                  - cell "✓" [ref=f27e529]
+                - row [ref=f27e530]:
+                  - cell "➕ Vessel Ownership Owner, beneficial owner & management chain" [ref=f27e531]:
+                    - generic [ref=f27e532]:
+                      - generic [ref=f27e533]: ➕
+                      - text: Vessel Ownership
+                    - generic [ref=f27e534]: Owner, beneficial owner & management chain
+                  - cell "-" [ref=f27e535]
+                  - cell "-" [ref=f27e536]
+                  - cell "-" [ref=f27e537]
+                  - cell "✓" [ref=f27e538]
+                  - cell "✓" [ref=f27e539]
+                  - cell "✓" [ref=f27e540]
+                - row [ref=f27e541]:
+                  - cell "➕ Classification Society Class society, surveys & notations" [ref=f27e542]:
+                    - generic [ref=f27e543]:
+                      - generic [ref=f27e544]: ➕
+                      - text: Classification Society
+                    - generic [ref=f27e545]: Class society, surveys & notations
+                  - cell "-" [ref=f27e546]
+                  - cell "-" [ref=f27e547]
+                  - cell "-" [ref=f27e548]
+                  - cell "✓" [ref=f27e549]
+                  - cell "✓" [ref=f27e550]
+                  - cell "✓" [ref=f27e551]
+                - row [ref=f27e552]:
+                  - cell "➕ Vessel Engines Engine make, model, power & speed" [ref=f27e553]:
+                    - generic [ref=f27e554]:
+                      - generic [ref=f27e555]: ➕
+                      - text: Vessel Engines
+                    - generic [ref=f27e556]: Engine make, model, power & speed
+                  - cell "-" [ref=f27e557]
+                  - cell "-" [ref=f27e558]
+                  - cell "-" [ref=f27e559]
+                  - cell "✓" [ref=f27e560]
+                  - cell "✓" [ref=f27e561]
+                  - cell "✓" [ref=f27e562]
+                - row [ref=f27e563]:
+                  - cell "➕ Maritime Companies Operator & ship manager profiles" [ref=f27e564]:
+                    - generic [ref=f27e565]:
+                      - generic [ref=f27e566]: ➕
+                      - text: Maritime Companies
+                    - generic [ref=f27e567]: Operator & ship manager profiles
+                  - cell "-" [ref=f27e568]
+                  - cell "-" [ref=f27e569]
+                  - cell "-" [ref=f27e570]
+                  - cell "✓" [ref=f27e571]
+                  - cell "✓" [ref=f27e572]
+                  - cell "✓" [ref=f27e573]
+                - row [ref=f27e574]:
+                  - cell "➕ Intelligence Bulk Reports Async export for every add-on dataset" [ref=f27e575]:
+                    - generic [ref=f27e576]:
+                      - generic [ref=f27e577]: ➕
+                      - text: Intelligence Bulk Reports
+                    - generic [ref=f27e578]: Async export for every add-on dataset
+                  - cell "-" [ref=f27e579]
+                  - cell "-" [ref=f27e580]
+                  - cell "-" [ref=f27e581]
+                  - cell "✓" [ref=f27e582]
+                  - cell "✓" [ref=f27e583]
+                  - cell "✓" [ref=f27e584]
+                - row [ref=f27e585]:
+                  - cell "✦ Support Response channel for technical & billing questions" [ref=f27e586]:
+                    - generic [ref=f27e587]:
+                      - generic [ref=f27e588]: ✦
+                      - text: Support
+                    - generic [ref=f27e589]: Response channel for technical & billing questions
+                  - cell "Email" [ref=f27e590]
+                  - cell "Email" [ref=f27e591]
+                  - cell "✦ Premium" [ref=f27e592]
+                  - cell "Email" [ref=f27e593]
+                  - cell "Email" [ref=f27e594]
+                  - cell "✦ Premium" [ref=f27e595]
+            - paragraph [ref=f27e596]:
+              - generic [ref=f27e597]: ℹ️
+              - generic [ref=f27e598]: Add-Ons are unlocked as a complete bundle, with no per-add-on pricing. Prices update with the billing toggle above.
+          - generic [ref=f27e608]:
+            - heading "API Usage Calculator" [level=2] [ref=f27e609]
+            - paragraph [ref=f27e610]: Estimate your monthly credit usage and find the right plan.
+          - generic [ref=f27e616]:
+            - generic [ref=f27e617]:
+              - generic [ref=f27e618]:
+                - generic [ref=f27e619]: Vessels to track
+                - generic [ref=f27e620]: How many unique ships do you need live positions for?
+                - spinbutton "Vessels to track" [ref=f27e621]: "50"
+              - generic [ref=f27e622]:
+                - generic [ref=f27e623]: Update frequency
+                - generic [ref=f27e624]: How often you need a fresh position per vessel
+                - combobox "Update frequency" [ref=f27e625] [cursor=pointer]:
+                  - option "Every 1 minute (real-time)"
+                  - option "Every 5 minutes"
+                  - option "Every 15 minutes"
+                  - option "Every 30 minutes" [selected]
+                  - option "Every hour"
+                  - option "Every 6 hours"
+                  - option "Once daily"
+              - generic [ref=f27e626]:
+                - generic [ref=f27e627]: Tracking type
+                - generic [ref=f27e628]: Pro adds ETA, ATD, current draft and standardised port names
+                - generic [ref=f27e629]:
+                  - button "Basic (1 credit/call)" [ref=f27e630] [cursor=pointer]
+                  - button "Pro (3 credits/call)" [ref=f27e631] [cursor=pointer]
+              - generic [ref=f27e632]:
+                - generic [ref=f27e633]: I also need…
+                - generic [ref=f27e634]:
+                  - generic [ref=f27e635] [cursor=pointer]:
+                    - checkbox "Historical vessel data queries" [ref=f27e636]
+                    - text: Historical vessel data queries
+                  - generic [ref=f27e637] [cursor=pointer]:
+                    - checkbox "Add-On intelligence data (ownership, inspections, etc.)" [ref=f27e638]
+                    - text: Add-On intelligence data (ownership, inspections, etc.)
+            - generic [ref=f27e639]:
+              - generic [ref=f27e640]: Estimated usage
+              - generic [ref=f27e641]: 73,000
+              - generic [ref=f27e642]: credits / month
+              - generic [ref=f27e643]:
+                - generic [ref=f27e644]:
+                  - generic [ref=f27e645]: Vessel tracking calls / month
+                  - generic [ref=f27e646]: 73,000
+                - generic [ref=f27e647]:
+                  - generic [ref=f27e648]: Credits per call (basic)
+                  - generic [ref=f27e649]: "1"
+                - generic [ref=f27e650]:
+                  - generic [ref=f27e651]: Tracking credits
+                  - generic [ref=f27e652]: 73,000
+                - generic [ref=f27e653]:
+                  - generic [ref=f27e654]: Total credits / month
+                  - generic [ref=f27e655]: 73,000
+              - generic [ref=f27e656]: Recommended plan
+              - generic [ref=f27e657]:
+                - generic [ref=f27e658]: Growth
+                - generic [ref=f27e659]: €569/month · 80,000 credits
+                - link "Get started →" [ref=f27e660] [cursor=pointer]:
+                  - /url: https://datalastic.com/pricing/checkout-silver/
+          - generic [ref=f27e670]:
+            - heading "How it works" [level=2] [ref=f27e671]
+            - paragraph [ref=f27e672]: Self-service, no sales call. Key delivered to your inbox in under 5 minutes.
+          - generic [ref=f27e678]:
+            - generic [ref=f27e679]:
+              - generic [ref=f27e680]: "1"
+              - heading "Choose your plan" [level=3] [ref=f27e681]
+              - paragraph [ref=f27e682]: Pick the credit volume and data scope that fits your use case. Use the calculator above if you're unsure.
+            - generic [ref=f27e683]:
+              - generic [ref=f27e684]: "2"
+              - heading "Subscribe" [level=3] [ref=f27e685]
+              - paragraph [ref=f27e686]: Stripe-powered secure checkout. 14-day trial Money-Back guarantee. Upgrade, downgrade, or cancel anytime.
+            - generic [ref=f27e687]:
+              - generic [ref=f27e688]: "3"
+              - heading "Receive your API key" [level=3] [ref=f27e689]
+              - paragraph [ref=f27e690]:
+                - text: One key for all endpoints. Start making live calls immediately, with the full
+                - link "API reference" [ref=f27e691] [cursor=pointer]:
+                  - /url: https://docs.datalastic.com
+                - text: at your fingertips.
+          - heading "Frequently asked questions" [level=2] [ref=f27e702]
+          - generic [ref=f27e708]:
+            - generic [ref=f27e709]:
+              - button "What are credits?" [ref=f27e710] [cursor=pointer]:
+                - heading "What are credits?" [level=3] [ref=f27e711]
+              - generic [ref=f27e713]:
+                - paragraph [ref=f27e714]: Credits are the unit of consumption for API calls. Each successful request to a Datalastic endpoint deducts a number of credits from your monthly allocation.
+                - paragraph [ref=f27e715]: "The cost per call depends on the endpoint: a basic vessel position lookup costs 1 credit; a Pro vessel query (with ETA, ATD, and LOCODE) costs 3 credits; bulk and historical requests scale with the number of vessels or days requested. Failed or empty responses are never charged."
+                - paragraph [ref=f27e716]:
+                  - text: Credits reset at the start of every billing cycle. See the full breakdown in the
+                  - link "API reference" [ref=f27e717] [cursor=pointer]:
+                    - /url: https://docs.datalastic.com/#credit-system
+                  - text: .
+            - generic [ref=f27e718]:
+              - button "What is the difference between Data Feed and All Data?" [ref=f27e719] [cursor=pointer]:
+                - heading "What is the difference between Data Feed and All Data?" [level=3] [ref=f27e720]
+              - generic [ref=f27e722]:
+                - paragraph [ref=f27e723]:
+                  - strong [ref=f27e724]: Data Feed
+                  - text: covers live AIS tracking, historical vessel positions, vessel specs, and port information. These are the core endpoints available on every plan; the only difference between Starter, Growth, and Developer Pro is the monthly credit volume.
+                - paragraph [ref=f27e725]:
+                  - strong [ref=f27e726]: All Data
+                  - text: "adds the complete maritime intelligence bundle: SAT-E satellite estimator, sea routes, dry dock dates, casualties, inspections & detentions, sales & demolitions, vessel ownership, classification society, vessel engines, and maritime companies. These datasets are unlocked as a single bundle, and there is no per-add-on pricing."
+                - paragraph [ref=f27e727]: Both scopes use the same API key and the same endpoint structure.
+            - generic [ref=f27e728]:
+              - button "Can I connect Datalastic to Claude, ChatGPT, or other AI agents?" [ref=f27e729] [cursor=pointer]:
+                - heading "Can I connect Datalastic to Claude, ChatGPT, or other AI agents?" [level=3] [ref=f27e730]
+              - generic [ref=f27e732]:
+                - paragraph [ref=f27e733]: Every plan includes access to our hosted MCP (Model Context Protocol) server, making it easy to connect Datalastic to Claude, ChatGPT, or any other MCP-compatible AI agent.
+                - paragraph [ref=f27e734]: Authentication is handled automatically, so there's no need to copy and paste API keys or write any integration code. Once connected, your AI agent has access to all of the data available under your subscription plan.
+                - paragraph [ref=f27e735]:
+                  - text: For setup instructions and a list of supported clients, visit
+                  - link "datalastic.com/mcp" [ref=f27e736] [cursor=pointer]:
+                    - /url: https://datalastic.com/mcp
+                  - text: .
+            - generic [ref=f27e737]:
+              - button "What is the difference between Starter, Growth, and Developer Pro?" [ref=f27e738] [cursor=pointer]:
+                - heading "What is the difference between Starter, Growth, and Developer Pro?" [level=3] [ref=f27e739]
+              - generic [ref=f27e741]:
+                - paragraph [ref=f27e742]: "Only the monthly credit allocation differs: Starter gives you 20,000 credits, Growth gives you 80,000, and Developer Pro gives you unlimited credits. All three plans include exactly the same Data Feed endpoints and, if on an All Data plan, the same add-on datasets."
+                - paragraph [ref=f27e743]:
+                  - text: Use the
+                  - link "calculator" [ref=f27e744] [cursor=pointer]:
+                    - /url: https://datalastic.com/pricing/#calculator
+                  - text: above to estimate which tier fits your usage. You can switch between tiers at any time from your account dashboard.
+            - generic [ref=f27e745]:
+              - button "Can I switch plans or cancel at any time?" [ref=f27e746] [cursor=pointer]:
+                - heading "Can I switch plans or cancel at any time?" [level=3] [ref=f27e747]
+              - paragraph [ref=f27e750]:
+                - text: Yes. Upgrade, downgrade, or cancel at any time from your account dashboard. You can also email
+                - link "support@datalastic.com" [ref=f27e751] [cursor=pointer]:
+                  - /url: mailto:support@datalastic.com
+                - text: and we will handle it within 24 hours.
+            - generic [ref=f27e752]:
+              - button "What if my request returns an error? Are credits still deducted?" [ref=f27e753] [cursor=pointer]:
+                - heading "What if my request returns an error? Are credits still deducted?" [level=3] [ref=f27e754]
+              - paragraph [ref=f27e757]: No. Only successful calls that return data are charged. Errors, not-found responses, and rate-limit blocks do not deduct credits from your monthly allocation.
+            - generic [ref=f27e758]:
+              - button "What happens when I reach my credit limit?" [ref=f27e759] [cursor=pointer]:
+                - heading "What happens when I reach my credit limit?" [level=3] [ref=f27e760]
+              - generic [ref=f27e762]:
+                - paragraph [ref=f27e763]: "Your plan includes overuse protection: when your monthly credit allocation is exhausted, further requests are automatically blocked until the next billing cycle resets your balance. You will never be billed for overages; the cap is hard."
+                - paragraph [ref=f27e764]: If you find yourself hitting the limit regularly, upgrading to the next tier or Developer Pro (unlimited) is straightforward from your account dashboard.
+            - generic [ref=f27e765]:
+              - button "Do you offer enterprise plans?" [ref=f27e766] [cursor=pointer]:
+                - heading "Do you offer enterprise plans?" [level=3] [ref=f27e767]
+              - paragraph [ref=f27e770]:
+                - text: Yes. If your organization has requirements beyond our standard plans, such as higher rate limits or custom usage volumes,
+                - link "contact us" [ref=f27e771] [cursor=pointer]:
+                  - /url: https://datalastic.com/contact
+                - text: to discuss a tailored solution. Otherwise, all subscriptions can be purchased directly through our website.
+          - generic [ref=f27e777]:
+            - generic [ref=f27e778]: 💬
+            - generic [ref=f27e779]:
+              - strong [ref=f27e780]: Need help choosing a plan?
+              - text: Email us at
+              - link "support@datalastic.com" [ref=f27e781] [cursor=pointer]:
+                - /url: mailto:support@datalastic.com
+              - text: . We follow up within 24 hours. Invoice billing also available on request.
+      - contentinfo [ref=f27e785]:
+        - generic [ref=f27e787]:
+          - generic [ref=f27e788]:
+            - heading "About Datalastic" [level=4] [ref=f27e792]
+            - generic [ref=f27e796]:
+              - list [ref=f27e797]:
+                - listitem [ref=f27e798]:
+                  - link "in" [ref=f27e799] [cursor=pointer]:
+                    - /url: https://nl.linkedin.com/company/datalastic
+                - listitem [ref=f27e800]:
+                  - link "f" [ref=f27e801] [cursor=pointer]:
+                    - /url: https://www.facebook.com/Datalastic/
+                - listitem [ref=f27e802]:
+                  - link "ig" [ref=f27e803] [cursor=pointer]:
+                    - /url: https://www.instagram.com/datalastic
+                - listitem [ref=f27e804]:
+                  - link "gh" [ref=f27e805] [cursor=pointer]:
+                    - /url: https://github.com/datalastic
+              - link "Learn more" [ref=f27e806] [cursor=pointer]:
+                - /url: https://datalastic.com/contact/
+          - generic [ref=f27e807]:
+            - paragraph [ref=f27e811]: Datalastic exists on the maritime vessels API market since 2019. Thanks to that we have been learning and providing services to over 500+ happy companies all over the globe.
+            - paragraph [ref=f27e815]: Also, with the gained experience in vessels tracking, maritime API and vessels and ports databases we always improve and make our maritime API web services better each day.
+          - generic [ref=f27e819]:
+            - list [ref=f27e823]:
+              - listitem [ref=f27e824]:
+                - link "FAQ" [ref=f27e825] [cursor=pointer]:
+                  - /url: https://datalastic.com/faq/
+              - listitem [ref=f27e826]:
+                - link "Blog" [ref=f27e827] [cursor=pointer]:
+                  - /url: https://datalastic.com/blog/
+              - listitem [ref=f27e828]:
+                - link "About Us" [ref=f27e829] [cursor=pointer]:
+                  - /url: https://datalastic.com/about-us/
+              - listitem [ref=f27e830]:
+                - link "Privacy Policy" [ref=f27e831] [cursor=pointer]:
+                  - /url: https://datalastic.com/privacy-policy/
+              - listitem [ref=f27e832]:
+                - link "Site Disclaimer" [ref=f27e833] [cursor=pointer]:
+                  - /url: https://datalastic.com/site-disclaimer/
+              - listitem [ref=f27e834]:
+                - link "Terms of Services" [ref=f27e835] [cursor=pointer]:
+                  - /url: https://datalastic.com/terms-of-services/
+              - listitem [ref=f27e836]:
+                - link "API Status" [ref=f27e837] [cursor=pointer]:
+                  - /url: https://status.datalastic.com/status/all
+            - paragraph [ref=f27e841]: ©Datalastic 2026
+  - text:  2

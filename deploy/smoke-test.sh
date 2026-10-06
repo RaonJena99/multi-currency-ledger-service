@@ -38,8 +38,23 @@ echo "▶ 스택 기동: $IMAGE"
 # --wait: 헬스체크가 있는 서비스(app, postgres, redis)가 healthy 가 될 때까지 기다린다.
 compose up -d --no-build --wait --wait-timeout 240
 
-echo "▶ 헬스 확인"
-curl -fsS "http://localhost:$PORT/actuator/health" | grep -q '"status":"UP"'
+echo "▶ 헬스 확인: 관리 포트(9091)는 호스트에 노출되지 않으므로 컨테이너 안에서 확인한다"
+# 응답을 변수에 받은 뒤 검사한다. curl | grep -q 로 이으면 grep 이 먼저 끝날 때 curl 이 SIGPIPE 로 실패해
+# pipefail 때문에 지표처럼 응답이 큰 경로에서 간헐적으로 실패한다.
+health=$(compose exec -T app curl -fsS http://localhost:9091/actuator/health)
+grep -q '"status":"UP"' <<< "$health"
+metrics=$(compose exec -T app curl -fsS http://localhost:9091/actuator/prometheus)
+grep -q 'ledger_integrity_mismatches' <<< "$metrics"
+
+echo "▶ 노출 확인: 앱 포트에서는 관리용 엔드포인트가 응답하지 않아야 한다"
+# 응답하면 앱에 닿는 누구나 플랫폼 보유액 같은 사업 지표를 읽을 수 있다.
+for path in /actuator/prometheus /actuator/health; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT$path")
+  if [ "$code" != "404" ]; then
+    echo "앱 포트의 $path 가 404 가 아니라 $code 를 반환했습니다." >&2
+    exit 1
+  fi
+done
 
 echo "▶ API 확인: 존재하지 않는 계좌의 포트폴리오 조회는 404 여야 한다"
 # 인증 필터 → 보안 설정 → 컨트롤러 → JPA 조회 → 예외 매핑까지 한 번에 지나는 경로다.

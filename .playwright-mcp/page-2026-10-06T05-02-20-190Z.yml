@@ -1,0 +1,1204 @@
+- generic [active] [ref=f19e1]:
+  - generic:
+    - link "콘텐츠 바로가기" [ref=f19e2] [cursor=pointer]:
+      - /url: "#contents"
+    - link "푸터 바로가기" [ref=f19e3] [cursor=pointer]:
+      - /url: "#krds-footer"
+  - generic [ref=f19e4]:
+    - generic [ref=f19e5]: 이 누리집은 대한민국 공식 전자정부 누리집입니다.
+    - banner [ref=f19e10]:
+      - generic [ref=f19e11]:
+        - generic [ref=f19e14]:
+          - heading [level=2] [ref=f19e15]:
+            - link "DATA.GO.KR 공공데이터포털" [ref=f19e16] [cursor=pointer]:
+              - /url: /index.do
+          - generic [ref=f19e18]:
+            - list [ref=f19e20]:
+              - listitem [ref=f19e21]:
+                - link "English" [ref=f19e22] [cursor=pointer]:
+                  - /url: /en/index.do
+            - generic [ref=f19e24]:
+              - link "로그인" [ref=f19e25] [cursor=pointer]:
+                - /url: javascript:procLogin()
+              - link "회원가입" [ref=f19e26] [cursor=pointer]:
+                - /url: javascript:window.location.href='/uim/login/signupView.do'
+            - button "전체메뉴 열기" [ref=f19e27] [cursor=pointer]
+        - navigation [ref=f19e29]:
+          - list "메인 메뉴" [ref=f19e31]:
+            - listitem [ref=f19e32]:
+              - button "공공데이터" [ref=f19e33] [cursor=pointer]
+            - listitem [ref=f19e34]:
+              - button "데이터활용" [ref=f19e35] [cursor=pointer]
+            - listitem [ref=f19e36]:
+              - link "기업공공데이터 문제해결지원센터" [ref=f19e37] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=f19e38]:
+              - button "정보공유" [ref=f19e39] [cursor=pointer]
+            - listitem [ref=f19e40]:
+              - button "이용안내" [ref=f19e41] [cursor=pointer]
+    - generic [ref=f19e43]:
+      - generic [ref=f19e44]:
+        - navigation "현재 경로" [ref=f19e45]:
+          - list [ref=f19e46]:
+            - listitem [ref=f19e47]:
+              - link "홈" [ref=f19e48] [cursor=pointer]:
+                - /url: /index.do
+            - listitem [ref=f19e49]: 공공데이터
+            - listitem [ref=f19e50]: 데이터목록
+        - generic [ref=f19e52]:
+          - generic [ref=f19e53]:
+            - generic [ref=f19e54]:
+              - generic [ref=f19e55]:
+                - generic [ref=f19e56]: CSV
+                - generic [ref=f19e57]:
+                  - button "새창 열림 페이스북 공유하기" [ref=f19e58] [cursor=pointer]:
+                    - generic [ref=f19e60]: 새창 열림
+                  - button "새창 열림 엑스 공유하기" [ref=f19e61] [cursor=pointer]:
+                    - generic [ref=f19e63]: 새창 열림
+                  - button "새창 열림 URL 복사하기" [ref=f19e64] [cursor=pointer]:
+                    - generic [ref=f19e66]: 새창 열림
+              - heading "해양수산부_EEZ_중국어선한국EEZ협정기본정보" [level=1] [ref=f19e67]
+            - generic [ref=f19e68]:
+              - generic [ref=f19e69]:
+                - text: Quick
+                - generic [ref=f19e70]: AI
+                - text: Summary
+              - generic [ref=f19e71]:
+                - paragraph [ref=f19e72]: 데이터 기반 정책 모니터링해양수산부에서 제공하는 이 데이터는 중국 어선의 한국 EEZ 내 어업 활동을 연도별·종류별로 상세히 기록하고 있습니다. 이를 통해 정책 담당자는 어업 협정 이행 여부를 실시간으로 점검할 수 있으며, 미이행 사례에 대한 신속한 대응이 가능합니다. 또한, 확정여부와 확정일자를 활용해 정책 집행의 투명성을 높일 수 있습니다.
+                - paragraph [ref=f19e73]: 연간 할당량 관리와 조업수역 최적화총할당량(톤)과 합의척수 정보를 바탕으로 연간 어획량을 정확히 관리함으로써 과잉 어획을 방지할 수 있습니다. 조업수역코드와 사용어구코드를 연계하면 특정 수역·어구별 효율성을 분석하여 최적의 조업 전략을 수립할 수 있습니다. 이러한 관리 체계는 양국 간 협정 이행 신뢰도를 강화하는 데 기여합니다.
+                - paragraph [ref=f19e74]: 어업통계 연구 및 학술 활용업종코드와 업종명, 영문·한자명을 포함한 상세 분류는 학계와 연구기관이 어업 구조 변화를 정량적으로 분석하는 데 유용합니다. 최초생성시점·최종변경시점을 통해 데이터의 최신성을 확인하고, 장기 추세 분석에 활용할 수 있습니다. 이를 통해 어종별·수역별 자원 관리 방안을 과학적으로 제시할 수 있습니다.
+                - paragraph [ref=f19e75]: 국제 협력 및 분쟁 예방데이터의 객관적 근거는 한중 어업 협상 시 협정 내용의 정확한 이해를 돕고, 의견 차이를 최소화하는 데 활용됩니다. 조업수역·어구·할당량 정보를 투명하게 공유함으로써 양국 간 신뢰를 구축하고, 잠재적 분쟁을 사전에 예방할 수 있습니다. 또한, 데이터기준일자를 기준으로 정기적인 검토 회의를 진행하면 협정 이행 상황을 지속적으로 점검할 수 있습니다.
+            - generic [ref=f19e76]:
+              - generic [ref=f19e77]:
+                - checkbox "관심목록에 추가" [ref=f19e78]
+                - generic [ref=f19e79] [cursor=pointer]: 관심목록에 추가
+              - generic [ref=f19e80]:
+                - button "0 좋아요" [ref=f19e81] [cursor=pointer]: "0"
+                - button "0 싫어요" [ref=f19e82] [cursor=pointer]: "0"
+          - generic [ref=f19e83]:
+            - tablist [ref=f19e85]:
+              - tab [selected] [ref=f19e86]:
+                - button "파일데이터 선택됨" [ref=f19e87] [cursor=pointer]:
+                  - text: 파일데이터
+                  - generic [ref=f19e88]: 선택됨
+              - tab [ref=f19e89]:
+                - button "오픈 API" [ref=f19e90] [cursor=pointer]
+              - tab [ref=f19e91]:
+                - button "추천데이터" [ref=f19e92] [cursor=pointer]
+            - generic [ref=f19e93]:
+              - tabpanel "파일데이터 선택됨" [ref=f19e94]:
+                - generic [ref=f19e95]:
+                  - generic [ref=f19e96]:
+                    - paragraph [ref=f19e97]: 이 페이지의 구성
+                    - paragraph [ref=f19e98]: 데이터 상세
+                  - navigation [ref=f19e99]:
+                    - list [ref=f19e100]:
+                      - listitem [ref=f19e101]:
+                        - link "파일데이터 정보" [ref=f19e102] [cursor=pointer]:
+                          - /url: "#tab-layer-file-01"
+                      - listitem [ref=f19e103]:
+                        - link "표준 메타데이터" [ref=f19e104] [cursor=pointer]:
+                          - /url: "#tab-layer-file-02"
+                      - listitem [ref=f19e105]:
+                        - link "이용 조건 및 라이선스 정보" [ref=f19e106] [cursor=pointer]:
+                          - /url: "#tab-layer-file-03"
+                      - listitem [ref=f19e107]:
+                        - link "미리보기" [ref=f19e108] [cursor=pointer]:
+                          - /url: "#tab-layer-file-04"
+                - generic [ref=f19e109]:
+                  - generic [ref=f19e110]:
+                    - generic [ref=f19e111]:
+                      - generic [ref=f19e112]: 도움말
+                      - list [ref=f19e113]:
+                        - listitem [ref=f19e114]: 공공데이터활용지원센터는 공공데이터포털에 개방되는 3단계 이상의 오픈 포맷 파일데이터를 오픈 API(RestAPI 기반의 JSON/XML)로 자동변환하여 제공합니다.
+                        - listitem [ref=f19e115]: 오픈 API를 활용하기 위해서는 공공데이터포털 회원 가입 및 활용신청이 필요하며, 활용 관련 문의는 공공데이터활용지원센터로 연락주시기 바랍니다.
+                        - listitem [ref=f19e116]: 데이터 자체에 대한 문의는 아래 제공기관의 관리부서 전화번호로 연락주시기 바랍니다.
+                        - listitem [ref=f19e117]: 파일데이터는 로그인 없이 다운로드를 통해 이용하실 수 있습니다.
+                    - list [ref=f19e120]:
+                      - listitem [ref=f19e121]:
+                        - generic [ref=f19e122]:
+                          - generic [ref=f19e123]:
+                            - generic [ref=f19e124]: CSV
+                            - text: 해양수산부_EEZ_중국어선한국EEZ협정기본정보
+                          - button "다운로드" [ref=f19e126] [cursor=pointer]
+                  - generic [ref=f19e128]:
+                    - generic [ref=f19e129]:
+                      - heading "파일데이터 정보" [level=3] [ref=f19e130]
+                      - generic [ref=f19e131]:
+                        - strong [ref=f19e132]: 데이터 오류·개선 의견이 있으신가요?
+                        - button "데이터 개선요청" [ref=f19e133] [cursor=pointer]
+                        - button "오류신고 및 문의" [ref=f19e135] [cursor=pointer]
+                    - generic [ref=f19e137]:
+                      - generic [ref=f19e138]:
+                        - heading "기본 정보" [level=4] [ref=f19e139]
+                        - list [ref=f19e141]:
+                          - listitem [ref=f19e142]:
+                            - strong [ref=f19e143]: 파일데이터명
+                            - generic [ref=f19e144]: 해양수산부_EEZ_중국어선한국EEZ협정기본정보_20230821
+                          - listitem [ref=f19e145]:
+                            - strong [ref=f19e146]: 분류체계
+                            - generic [ref=f19e147]: 해양수산 - 해양수산·어촌
+                          - listitem [ref=f19e148]:
+                            - strong [ref=f19e149]: 제공기관
+                            - link "해양수산부" [ref=f19e151] [cursor=pointer]:
+                              - /url: /tcs/dss/selectDataSetList.do?dType=&keyword=&orgNm=해양수산부&conditionType=search
+                          - listitem [ref=f19e153]:
+                            - strong [ref=f19e154]: 관리부서명
+                            - generic [ref=f19e155]: 수산직불제팀
+                          - listitem [ref=f19e156]:
+                            - strong [ref=f19e157]: 관리부서 전화번호
+                            - generic [ref=f19e158]: 051-773-5456
+                          - listitem [ref=f19e159]:
+                            - strong [ref=f19e160]: 보유근거
+                          - listitem [ref=f19e161]:
+                            - strong [ref=f19e162]: 수집방법
+                          - listitem [ref=f19e163]:
+                            - strong [ref=f19e164]: 업데이트 주기
+                            - generic [ref=f19e165]: 수시 (1회성 데이터)
+                          - listitem [ref=f19e166]:
+                            - strong [ref=f19e167]: 차기 등록 예정일
+                      - generic [ref=f19e168]:
+                        - heading "상세 및 제공정보" [level=4] [ref=f19e169]
+                        - list [ref=f19e171]:
+                          - listitem [ref=f19e172]:
+                            - strong [ref=f19e173]: 설명
+                            - generic [ref=f19e174]: 이 데이터는 해양수산부에서 중국 어선의 한국 EEZ(배타적 경제수역) 내 협정 어업 활동과 관련된 협정 기본 정보 제공을 목적으로 수집된 데이터입니다. 본 데이터의 주요 내용은 기준년도, 어업종류코드, 업종명, 합의척수, 총할당량(톤), 정렬번호, 확정여부, 확정일자, 조업수역코드, 사용어구코드, 업종영문명, 업종한자명, 최초생성시점, 최종변경시점, 데이터기준일자로 구성되어 있습니다. 본 데이터는 한중 어업협정에서 중국어선의 조업관리, 정책 이행점검, 연간 할당량 관리, 어종별 및 조업수역별 합의내용 분석, 어업통계 연구, 협정 이행여부 모니터링 등에 활용될 수 있습니다.
+                          - listitem [ref=f19e175]:
+                            - strong [ref=f19e176]: 데이터 항목(컬럼) 정보
+                            - generic [ref=f19e178]:
+                              - button "데이터 항목(컬럼) 정보 펼쳐보기" [ref=f19e179] [cursor=pointer]
+                              - button "컬럼 정의서 다운로드" [ref=f19e181] [cursor=pointer]
+                            - table [ref=f19e184]:
+                              - caption [ref=f19e185]: 데이터 항목 표로 항목명, 항목명(영문명), 항목 설명, 도메인분류, 데이터타입, 최대길이, 표현방식, 단위, 생성출처(정보시스템명, DB명, Table명), 코드로 구성되어있습니다.
+                              - rowgroup [ref=f19e199]:
+                                - row [ref=f19e200]:
+                                  - columnheader "항목명" [ref=f19e201]
+                                  - columnheader "항목명(영문명)" [ref=f19e202]
+                                  - columnheader "항목 설명" [ref=f19e203]
+                                  - columnheader "도메인분류" [ref=f19e204]
+                                  - columnheader "데이터타입" [ref=f19e205]
+                                  - columnheader "최대길이" [ref=f19e206]
+                                  - columnheader "표현방식" [ref=f19e207]
+                                  - columnheader "단위" [ref=f19e208]
+                                  - columnheader "생성출처" [ref=f19e209]
+                                  - columnheader "코드" [ref=f19e210]
+                                - row [ref=f19e211]:
+                                  - columnheader "정보시스템명" [ref=f19e212]
+                                  - columnheader "DB명" [ref=f19e213]
+                                  - columnheader "Table명" [ref=f19e214]
+                              - rowgroup [ref=f19e215]:
+                                - row [ref=f19e216]:
+                                  - cell "기준년도" [ref=f19e217]
+                                  - cell "STDR_YEAR" [ref=f19e218]
+                                  - cell "기준년도" [ref=f19e219]
+                                  - cell "날짜/시간_연도" [ref=f19e221]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e222]
+                                  - cell "4" [ref=f19e223]
+                                  - cell [ref=f19e224]
+                                  - cell "-" [ref=f19e225]
+                                  - cell [ref=f19e226]
+                                  - cell [ref=f19e227]
+                                  - cell [ref=f19e228]
+                                  - cell "-" [ref=f19e229]
+                                - row [ref=f19e230]:
+                                  - cell "어업종류코드" [ref=f19e231]
+                                  - cell "FSHR_KND_CD" [ref=f19e232]
+                                  - cell "어업종류코드" [ref=f19e233]
+                                  - cell "코드_코드" [ref=f19e235]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e236]
+                                  - cell "10" [ref=f19e237]
+                                  - cell [ref=f19e238]
+                                  - cell "-" [ref=f19e239]
+                                  - cell [ref=f19e240]
+                                  - cell [ref=f19e241]
+                                  - cell [ref=f19e242]
+                                  - cell "-" [ref=f19e243]
+                                - row [ref=f19e244]:
+                                  - cell "업종명" [ref=f19e245]
+                                  - cell "INDUTY_NM" [ref=f19e246]
+                                  - cell "업종명" [ref=f19e247]
+                                  - cell "명칭_명" [ref=f19e249]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e250]
+                                  - cell "300" [ref=f19e251]
+                                  - cell [ref=f19e252]
+                                  - cell "-" [ref=f19e253]
+                                  - cell [ref=f19e254]
+                                  - cell [ref=f19e255]
+                                  - cell [ref=f19e256]
+                                  - cell "-" [ref=f19e257]
+                                - row [ref=f19e258]:
+                                  - cell "합의척수" [ref=f19e259]
+                                  - cell "CNCRRNC_ASHP_CO" [ref=f19e260]
+                                  - cell "합의척수" [ref=f19e261]
+                                  - cell "수량_수" [ref=f19e263]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e264]
+                                  - cell "22" [ref=f19e265]
+                                  - cell [ref=f19e266]
+                                  - cell "-" [ref=f19e267]
+                                  - cell [ref=f19e268]
+                                  - cell [ref=f19e269]
+                                  - cell [ref=f19e270]
+                                  - cell "-" [ref=f19e271]
+                                - row [ref=f19e272]:
+                                  - cell "총할당량(톤)" [ref=f19e273]
+                                  - cell "TOT_ASGN_QY" [ref=f19e274]
+                                  - cell "총할당량(톤)" [ref=f19e275]
+                                  - cell "수량_수" [ref=f19e277]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e278]
+                                  - cell "22" [ref=f19e279]
+                                  - cell [ref=f19e280]
+                                  - cell "-" [ref=f19e281]
+                                  - cell [ref=f19e282]
+                                  - cell [ref=f19e283]
+                                  - cell [ref=f19e284]
+                                  - cell "-" [ref=f19e285]
+                                - row [ref=f19e286]:
+                                  - cell "정렬번호" [ref=f19e287]
+                                  - cell "SORT_NO" [ref=f19e288]
+                                  - cell "정렬번호" [ref=f19e289]
+                                  - cell "번호_번호" [ref=f19e291]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e292]
+                                  - cell "22" [ref=f19e293]
+                                  - cell [ref=f19e294]
+                                  - cell "-" [ref=f19e295]
+                                  - cell [ref=f19e296]
+                                  - cell [ref=f19e297]
+                                  - cell [ref=f19e298]
+                                  - cell "-" [ref=f19e299]
+                                - row [ref=f19e300]:
+                                  - cell "확정여부" [ref=f19e301]
+                                  - cell "DCSN_AT" [ref=f19e302]
+                                  - cell "확정여부" [ref=f19e303]
+                                  - cell "코드_여부" [ref=f19e305]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e306]
+                                  - cell "1" [ref=f19e307]
+                                  - cell [ref=f19e308]
+                                  - cell "-" [ref=f19e309]
+                                  - cell [ref=f19e310]
+                                  - cell [ref=f19e311]
+                                  - cell [ref=f19e312]
+                                  - cell "-" [ref=f19e313]
+                                - row [ref=f19e314]:
+                                  - cell "확정일자" [ref=f19e315]
+                                  - cell "DCSN_DE" [ref=f19e316]
+                                  - cell "확정일자" [ref=f19e317]
+                                  - cell "날짜/시간_연월일" [ref=f19e319]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e320]
+                                  - cell "10" [ref=f19e321]
+                                  - cell [ref=f19e322]
+                                  - cell "-" [ref=f19e323]
+                                  - cell [ref=f19e324]
+                                  - cell [ref=f19e325]
+                                  - cell [ref=f19e326]
+                                  - cell "-" [ref=f19e327]
+                                - row [ref=f19e328]:
+                                  - cell "업종영문명" [ref=f19e329]
+                                  - cell "INDUTY_ENM" [ref=f19e330]
+                                  - cell "업종영문명" [ref=f19e331]
+                                  - cell "명칭_명" [ref=f19e333]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e334]
+                                  - cell "300" [ref=f19e335]
+                                  - cell [ref=f19e336]
+                                  - cell "-" [ref=f19e337]
+                                  - cell [ref=f19e338]
+                                  - cell [ref=f19e339]
+                                  - cell [ref=f19e340]
+                                  - cell "-" [ref=f19e341]
+                                - row [ref=f19e342]:
+                                  - cell "최초생성시점" [ref=f19e343]
+                                  - cell "FRST_CREAT_PNTTM" [ref=f19e344]
+                                  - cell "최초생성시점" [ref=f19e345]
+                                  - cell "날짜/시간_연월일" [ref=f19e347]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e348]
+                                  - cell "10" [ref=f19e349]
+                                  - cell [ref=f19e350]
+                                  - cell "-" [ref=f19e351]
+                                  - cell [ref=f19e352]
+                                  - cell [ref=f19e353]
+                                  - cell [ref=f19e354]
+                                  - cell "-" [ref=f19e355]
+                                - row [ref=f19e356]:
+                                  - cell "최종변경시점" [ref=f19e357]
+                                  - cell "LAST_CHANGE_PNTTM" [ref=f19e358]
+                                  - cell "최종변경시점" [ref=f19e359]
+                                  - cell "날짜/시간_연월일" [ref=f19e361]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e362]
+                                  - cell "10" [ref=f19e363]
+                                  - cell [ref=f19e364]
+                                  - cell "-" [ref=f19e365]
+                                  - cell [ref=f19e366]
+                                  - cell [ref=f19e367]
+                                  - cell [ref=f19e368]
+                                  - cell "-" [ref=f19e369]
+                                - row [ref=f19e370]:
+                                  - cell "데이터기준일자" [ref=f19e371]
+                                  - cell "BASE_DT" [ref=f19e372]
+                                  - cell "데이터기준일자" [ref=f19e373]
+                                  - cell "날짜/시간_연월일" [ref=f19e375]
+                                  - cell "가변문자형(VARCHAR)" [ref=f19e376]
+                                  - cell "10" [ref=f19e377]
+                                  - cell [ref=f19e378]
+                                  - cell "-" [ref=f19e379]
+                                  - cell [ref=f19e380]
+                                  - cell [ref=f19e381]
+                                  - cell [ref=f19e382]
+                                  - cell "-" [ref=f19e383]
+                          - listitem [ref=f19e384]:
+                            - strong [ref=f19e385]: 매체유형
+                            - generic [ref=f19e386]: 텍스트
+                          - listitem [ref=f19e387]:
+                            - strong [ref=f19e388]: 확장자
+                            - generic [ref=f19e389]: CSV
+                          - listitem [ref=f19e390]:
+                            - strong [ref=f19e391]: 전체 행
+                            - generic [ref=f19e392]: "180"
+                          - listitem [ref=f19e393]:
+                            - strong [ref=f19e394]: 키워드
+                            - generic [ref=f19e395]: 경제,수역,협정,배타적경제수역,한국수역,어업종류
+                          - listitem [ref=f19e396]:
+                            - strong [ref=f19e397]: 데이터 한계
+                          - listitem [ref=f19e398]:
+                            - strong [ref=f19e399]: 공간범위
+                          - listitem [ref=f19e400]:
+                            - strong [ref=f19e401]: 시간범위
+                          - listitem [ref=f19e402]:
+                            - strong [ref=f19e403]: 제공형태
+                            - generic [ref=f19e404]: 공공데이터포털에서 다운로드(원문파일등록)
+                          - listitem [ref=f19e405]:
+                            - strong [ref=f19e406]: 다운로드(바로가기)
+                            - generic [ref=f19e407]: "168"
+                          - listitem [ref=f19e408]:
+                            - strong [ref=f19e409]: 등록일
+                            - generic [ref=f19e410]: 2023-06-30
+                          - listitem [ref=f19e411]:
+                            - strong [ref=f19e412]: 수정일
+                            - generic [ref=f19e413]: 2025-08-14
+                          - listitem [ref=f19e414]:
+                            - strong [ref=f19e415]: 기타 유의사항
+                            - generic [ref=f19e416]: 데이터가 없을 경우 공란으로 표기 됩니다.
+                  - generic [ref=f19e417]:
+                    - heading "표준 메타데이터" [level=3] [ref=f19e419]
+                    - generic [ref=f19e420]:
+                      - paragraph [ref=f19e421]: ※ 데이터 연계 및 검색을 위한 표준 메타데이터입니다.
+                      - generic [ref=f19e422]:
+                        - link "Schema.org" [ref=f19e423] [cursor=pointer]:
+                          - /url: /catalog/15115866/fileData.json
+                        - link "DCAT" [ref=f19e425] [cursor=pointer]:
+                          - /url: /biz/dcat/metadata/15115866.do
+                  - generic [ref=f19e427]:
+                    - heading "이용 조건 및 라이선스 정보" [level=3] [ref=f19e429]
+                    - list [ref=f19e432]:
+                      - listitem [ref=f19e433]:
+                        - strong [ref=f19e434]: 비용부과유무
+                        - generic [ref=f19e435]: 무료
+                      - listitem [ref=f19e436]:
+                        - strong [ref=f19e437]: 비용부과기준 및 단위
+                        - generic [ref=f19e438]: 건
+                      - listitem [ref=f19e439]:
+                        - strong [ref=f19e440]: 이용허락범위
+                        - link "이용허락범위 제한 없음" [ref=f19e442] [cursor=pointer]:
+                          - /url: /ugs/selectPortalPolicyView.do
+                  - generic [ref=f19e444]:
+                    - generic [ref=f19e445]:
+                      - heading "미리보기" [level=3] [ref=f19e446]
+                      - paragraph [ref=f19e447]: ※ 파일 데이터의 일부 내용을 제공하고 있으며, 전체 내용이 필요한 경우 해당 파일을 다운로드 받으시기 바랍니다.
+                    - table [ref=f19e450]:
+                      - caption [ref=f19e451]: 파일 데이터의 일부 내용의 표로 센터명, 프로그램명, 강습요일, 시간, 장소로 구성되어있습니다.
+                      - rowgroup [ref=f19e452]:
+                        - row [ref=f19e453]:
+                          - columnheader "기준년도" [ref=f19e454]
+                          - columnheader "어업종류코드" [ref=f19e455]
+                          - columnheader "업종명" [ref=f19e456]
+                          - columnheader "합의척수" [ref=f19e457]
+                          - columnheader "총할당량(톤)" [ref=f19e458]
+                          - columnheader "정렬번호" [ref=f19e459]
+                          - columnheader "확정여부" [ref=f19e460]
+                          - columnheader "확정일자" [ref=f19e461]
+                          - columnheader "업종영문명" [ref=f19e462]
+                          - columnheader "최초생성시점" [ref=f19e463]
+                          - columnheader "최종변경시점" [ref=f19e464]
+                          - columnheader "데이터기준일자" [ref=f19e465]
+                      - rowgroup [ref=f19e466]:
+                        - row [ref=f19e467]:
+                          - cell "2003" [ref=f19e468]
+                          - cell "BT" [ref=f19e469]
+                          - cell "단선타망" [ref=f19e470]
+                          - cell "56" [ref=f19e471]
+                          - cell "2562" [ref=f19e472]
+                          - cell "2" [ref=f19e473]
+                          - cell "Y" [ref=f19e474]
+                          - cell "2017-12-03" [ref=f19e475]
+                          - cell "BEAM TRAWL" [ref=f19e476]
+                          - cell "2017-12-02" [ref=f19e477]
+                          - cell "2017-12-02" [ref=f19e478]
+                          - cell "2023-08-21" [ref=f19e479]
+                        - row [ref=f19e480]:
+                          - cell "2003" [ref=f19e481]
+                          - cell "FC" [ref=f19e482]
+                          - cell "일반어획운반선" [ref=f19e483]
+                          - cell "89" [ref=f19e484]
+                          - cell "0" [ref=f19e485]
+                          - cell "6" [ref=f19e486]
+                          - cell "Y" [ref=f19e487]
+                          - cell "2017-12-03" [ref=f19e488]
+                          - cell "FISH CARRIER" [ref=f19e489]
+                          - cell "2017-12-02" [ref=f19e490]
+                          - cell "2017-12-02" [ref=f19e491]
+                          - cell "2023-08-21" [ref=f19e492]
+                        - row [ref=f19e493]:
+                          - cell "2003" [ref=f19e494]
+                          - cell "GN" [ref=f19e495]
+                          - cell "유망어업" [ref=f19e496]
+                          - cell "882" [ref=f19e497]
+                          - cell "8400" [ref=f19e498]
+                          - cell "4" [ref=f19e499]
+                          - cell "Y" [ref=f19e500]
+                          - cell "2017-12-03" [ref=f19e501]
+                          - cell "GILL NET" [ref=f19e502]
+                          - cell "2017-12-02" [ref=f19e503]
+                          - cell "2017-12-02" [ref=f19e504]
+                          - cell "2023-08-21" [ref=f19e505]
+                        - row [ref=f19e506]:
+                          - cell "2003" [ref=f19e507]
+                          - cell "PS" [ref=f19e508]
+                          - cell "위망어업" [ref=f19e509]
+                          - cell "135" [ref=f19e510]
+                          - cell "13500" [ref=f19e511]
+                          - cell "3" [ref=f19e512]
+                          - cell "Y" [ref=f19e513]
+                          - cell "2017-12-03" [ref=f19e514]
+                          - cell "PURSE SEINE" [ref=f19e515]
+                          - cell "2017-12-02" [ref=f19e516]
+                          - cell "2017-12-02" [ref=f19e517]
+                          - cell "2023-08-21" [ref=f19e518]
+                        - row [ref=f19e519]:
+                          - cell "2003" [ref=f19e520]
+                          - cell "PT" [ref=f19e521]
+                          - cell "쌍선타망" [ref=f19e522]
+                          - cell "1376" [ref=f19e523]
+                          - cell "62960" [ref=f19e524]
+                          - cell "1" [ref=f19e525]
+                          - cell "Y" [ref=f19e526]
+                          - cell "2017-12-03" [ref=f19e527]
+                          - cell "PAIR TRAWL" [ref=f19e528]
+                          - cell "2017-12-02" [ref=f19e529]
+                          - cell "2017-12-02" [ref=f19e530]
+                          - cell "2023-08-21" [ref=f19e531]
+                        - row [ref=f19e532]:
+                          - cell "2003" [ref=f19e533]
+                          - cell "SJ" [ref=f19e534]
+                          - cell "오징어채낚기어업" [ref=f19e535]
+                          - cell "82" [ref=f19e536]
+                          - cell "5578" [ref=f19e537]
+                          - cell "5" [ref=f19e538]
+                          - cell "Y" [ref=f19e539]
+                          - cell "2017-12-03" [ref=f19e540]
+                          - cell "SQUID JOGGING" [ref=f19e541]
+                          - cell "2017-12-02" [ref=f19e542]
+                          - cell "2017-12-02" [ref=f19e543]
+                          - cell "2023-08-21" [ref=f19e544]
+                        - row [ref=f19e545]:
+                          - cell "2004" [ref=f19e546]
+                          - cell "BT" [ref=f19e547]
+                          - cell "단선타망" [ref=f19e548]
+                          - cell "51" [ref=f19e549]
+                          - cell "2278" [ref=f19e550]
+                          - cell "2" [ref=f19e551]
+                          - cell "Y" [ref=f19e552]
+                          - cell "2017-12-03" [ref=f19e553]
+                          - cell "BEAM TRAWL" [ref=f19e554]
+                          - cell "2017-12-02" [ref=f19e555]
+                          - cell "2017-12-02" [ref=f19e556]
+                          - cell "2023-08-21" [ref=f19e557]
+                        - row [ref=f19e558]:
+                          - cell "2004" [ref=f19e559]
+                          - cell "FC" [ref=f19e560]
+                          - cell "일반어획운반선" [ref=f19e561]
+                          - cell "79" [ref=f19e562]
+                          - cell "0" [ref=f19e563]
+                          - cell "6" [ref=f19e564]
+                          - cell "Y" [ref=f19e565]
+                          - cell "2017-12-03" [ref=f19e566]
+                          - cell "FISH CARRIER" [ref=f19e567]
+                          - cell "2017-12-02" [ref=f19e568]
+                          - cell "2017-12-02" [ref=f19e569]
+                          - cell "2023-08-21" [ref=f19e570]
+                        - row [ref=f19e571]:
+                          - cell "2004" [ref=f19e572]
+                          - cell "GN" [ref=f19e573]
+                          - cell "유망어업" [ref=f19e574]
+                          - cell "794" [ref=f19e575]
+                          - cell "7497" [ref=f19e576]
+                          - cell "4" [ref=f19e577]
+                          - cell "Y" [ref=f19e578]
+                          - cell "2017-12-03" [ref=f19e579]
+                          - cell "GILL NET" [ref=f19e580]
+                          - cell "2017-12-02" [ref=f19e581]
+                          - cell "2017-12-02" [ref=f19e582]
+                          - cell "2023-08-21" [ref=f19e583]
+                        - row [ref=f19e584]:
+                          - cell "2004" [ref=f19e585]
+                          - cell "PS" [ref=f19e586]
+                          - cell "위망어업" [ref=f19e587]
+                          - cell "110" [ref=f19e588]
+                          - cell "12048" [ref=f19e589]
+                          - cell "3" [ref=f19e590]
+                          - cell "Y" [ref=f19e591]
+                          - cell "2017-12-03" [ref=f19e592]
+                          - cell "PURSE SEINE" [ref=f19e593]
+                          - cell "2017-12-02" [ref=f19e594]
+                          - cell "2017-12-02" [ref=f19e595]
+                          - cell "2023-08-21" [ref=f19e596]
+                        - row [ref=f19e597]:
+                          - cell "2004" [ref=f19e598]
+                          - cell "PT" [ref=f19e599]
+                          - cell "쌍선타망" [ref=f19e600]
+                          - cell "1226" [ref=f19e601]
+                          - cell "55982" [ref=f19e602]
+                          - cell "1" [ref=f19e603]
+                          - cell "Y" [ref=f19e604]
+                          - cell "2017-12-03" [ref=f19e605]
+                          - cell "PAIR TRAWL" [ref=f19e606]
+                          - cell "2017-12-02" [ref=f19e607]
+                          - cell "2017-12-02" [ref=f19e608]
+                          - cell "2023-08-21" [ref=f19e609]
+                        - row [ref=f19e610]:
+                          - cell "2004" [ref=f19e611]
+                          - cell "SJ" [ref=f19e612]
+                          - cell "오징어채낚기어업" [ref=f19e613]
+                          - cell "69" [ref=f19e614]
+                          - cell "5195" [ref=f19e615]
+                          - cell "5" [ref=f19e616]
+                          - cell "Y" [ref=f19e617]
+                          - cell "2017-12-03" [ref=f19e618]
+                          - cell "SQUID JOGGING" [ref=f19e619]
+                          - cell "2017-12-02" [ref=f19e620]
+                          - cell "2017-12-02" [ref=f19e621]
+                          - cell "2023-08-21" [ref=f19e622]
+                        - row [ref=f19e623]:
+                          - cell "2005" [ref=f19e624]
+                          - cell "BT" [ref=f19e625]
+                          - cell "단선타망" [ref=f19e626]
+                          - cell "46" [ref=f19e627]
+                          - cell "2055" [ref=f19e628]
+                          - cell "2" [ref=f19e629]
+                          - cell "Y" [ref=f19e630]
+                          - cell "2017-12-03" [ref=f19e631]
+                          - cell "BEAM TRAWL" [ref=f19e632]
+                          - cell "2017-12-02" [ref=f19e633]
+                          - cell "2017-12-02" [ref=f19e634]
+                          - cell "2023-08-21" [ref=f19e635]
+                        - row [ref=f19e636]:
+                          - cell "2005" [ref=f19e637]
+                          - cell "FC" [ref=f19e638]
+                          - cell "일반어획운반선" [ref=f19e639]
+                          - cell "74" [ref=f19e640]
+                          - cell "0" [ref=f19e641]
+                          - cell "6" [ref=f19e642]
+                          - cell "Y" [ref=f19e643]
+                          - cell "2017-12-03" [ref=f19e644]
+                          - cell "FISH CARRIER" [ref=f19e645]
+                          - cell "2017-12-02" [ref=f19e646]
+                          - cell "2017-12-02" [ref=f19e647]
+                          - cell "2023-08-21" [ref=f19e648]
+                        - row [ref=f19e649]:
+                          - cell "2005" [ref=f19e650]
+                          - cell "GN" [ref=f19e651]
+                          - cell "유망어업" [ref=f19e652]
+                          - cell "785" [ref=f19e653]
+                          - cell "8128" [ref=f19e654]
+                          - cell "4" [ref=f19e655]
+                          - cell "Y" [ref=f19e656]
+                          - cell "2017-12-03" [ref=f19e657]
+                          - cell "GILL NET" [ref=f19e658]
+                          - cell "2017-12-02" [ref=f19e659]
+                          - cell "2017-12-02" [ref=f19e660]
+                          - cell "2023-08-21" [ref=f19e661]
+                        - row [ref=f19e662]:
+                          - cell "2005" [ref=f19e663]
+                          - cell "PS" [ref=f19e664]
+                          - cell "위망어업" [ref=f19e665]
+                          - cell "110" [ref=f19e666]
+                          - cell "12765" [ref=f19e667]
+                          - cell "3" [ref=f19e668]
+                          - cell "Y" [ref=f19e669]
+                          - cell "2017-12-03" [ref=f19e670]
+                          - cell "PURSE SEINE" [ref=f19e671]
+                          - cell "2017-12-02" [ref=f19e672]
+                          - cell "2017-12-02" [ref=f19e673]
+                          - cell "2023-08-21" [ref=f19e674]
+                        - row [ref=f19e675]:
+                          - cell "2005" [ref=f19e676]
+                          - cell "PT" [ref=f19e677]
+                          - cell "쌍선타망" [ref=f19e678]
+                          - cell "1104" [ref=f19e679]
+                          - cell "50411" [ref=f19e680]
+                          - cell "1" [ref=f19e681]
+                          - cell "Y" [ref=f19e682]
+                          - cell "2017-12-03" [ref=f19e683]
+                          - cell "PAIR TRAWL" [ref=f19e684]
+                          - cell "2017-12-02" [ref=f19e685]
+                          - cell "2017-12-02" [ref=f19e686]
+                          - cell "2023-08-21" [ref=f19e687]
+                        - row [ref=f19e688]:
+                          - cell "2005" [ref=f19e689]
+                          - cell "SJ" [ref=f19e690]
+                          - cell "오징어채낚기어업" [ref=f19e691]
+                          - cell "55" [ref=f19e692]
+                          - cell "4141" [ref=f19e693]
+                          - cell "5" [ref=f19e694]
+                          - cell "Y" [ref=f19e695]
+                          - cell "2017-12-03" [ref=f19e696]
+                          - cell "SQUID JOGGING" [ref=f19e697]
+                          - cell "2017-12-02" [ref=f19e698]
+                          - cell "2017-12-02" [ref=f19e699]
+                          - cell "2023-08-21" [ref=f19e700]
+                        - row [ref=f19e701]:
+                          - cell "2006" [ref=f19e702]
+                          - cell "BT" [ref=f19e703]
+                          - cell "단선타망" [ref=f19e704]
+                          - cell "42" [ref=f19e705]
+                          - cell "1892" [ref=f19e706]
+                          - cell "2" [ref=f19e707]
+                          - cell "Y" [ref=f19e708]
+                          - cell "2017-12-03" [ref=f19e709]
+                          - cell "BEAM TRAWL" [ref=f19e710]
+                          - cell "2017-12-02" [ref=f19e711]
+                          - cell "2017-12-02" [ref=f19e712]
+                          - cell "2023-08-21" [ref=f19e713]
+                        - row [ref=f19e714]:
+                          - cell "2006" [ref=f19e715]
+                          - cell "FC" [ref=f19e716]
+                          - cell "일반어획운반선" [ref=f19e717]
+                          - cell "71" [ref=f19e718]
+                          - cell "0" [ref=f19e719]
+                          - cell "6" [ref=f19e720]
+                          - cell "Y" [ref=f19e721]
+                          - cell "2017-12-03" [ref=f19e722]
+                          - cell "FISH CARRIER" [ref=f19e723]
+                          - cell "2017-12-02" [ref=f19e724]
+                          - cell "2017-12-02" [ref=f19e725]
+                          - cell "2023-08-21" [ref=f19e726]
+                        - row [ref=f19e727]:
+                          - cell "2006" [ref=f19e728]
+                          - cell "GN" [ref=f19e729]
+                          - cell "유망어업" [ref=f19e730]
+                          - cell "770" [ref=f19e731]
+                          - cell "8408" [ref=f19e732]
+                          - cell "4" [ref=f19e733]
+                          - cell "Y" [ref=f19e734]
+                          - cell "2017-12-03" [ref=f19e735]
+                          - cell "GILL NET" [ref=f19e736]
+                          - cell "2017-12-02" [ref=f19e737]
+                          - cell "2017-12-02" [ref=f19e738]
+                          - cell "2023-08-21" [ref=f19e739]
+                        - row [ref=f19e740]:
+                          - cell "2006" [ref=f19e741]
+                          - cell "PS" [ref=f19e742]
+                          - cell "위망어업" [ref=f19e743]
+                          - cell "100" [ref=f19e744]
+                          - cell "12041" [ref=f19e745]
+                          - cell "3" [ref=f19e746]
+                          - cell "Y" [ref=f19e747]
+                          - cell "2017-12-03" [ref=f19e748]
+                          - cell "PURSE SEINE" [ref=f19e749]
+                          - cell "2017-12-02" [ref=f19e750]
+                          - cell "2017-12-02" [ref=f19e751]
+                          - cell "2023-08-21" [ref=f19e752]
+                        - row [ref=f19e753]:
+                          - cell "2006" [ref=f19e754]
+                          - cell "PT" [ref=f19e755]
+                          - cell "쌍선타망" [ref=f19e756]
+                          - cell "1008" [ref=f19e757]
+                          - cell "46418" [ref=f19e758]
+                          - cell "1" [ref=f19e759]
+                          - cell "Y" [ref=f19e760]
+                          - cell "2017-12-03" [ref=f19e761]
+                          - cell "PAIR TRAWL" [ref=f19e762]
+                          - cell "2017-12-02" [ref=f19e763]
+                          - cell "2017-12-02" [ref=f19e764]
+                          - cell "2023-08-21" [ref=f19e765]
+                        - row [ref=f19e766]:
+                          - cell "2006" [ref=f19e767]
+                          - cell "SJ" [ref=f19e768]
+                          - cell "오징어채낚기어업" [ref=f19e769]
+                          - cell "55" [ref=f19e770]
+                          - cell "4141" [ref=f19e771]
+                          - cell "5" [ref=f19e772]
+                          - cell "Y" [ref=f19e773]
+                          - cell "2017-12-03" [ref=f19e774]
+                          - cell "SQUID JOGGING" [ref=f19e775]
+                          - cell "2017-12-02" [ref=f19e776]
+                          - cell "2017-12-02" [ref=f19e777]
+                          - cell "2023-08-21" [ref=f19e778]
+                        - row [ref=f19e779]:
+                          - cell "2007" [ref=f19e780]
+                          - cell "BT" [ref=f19e781]
+                          - cell "단선타망" [ref=f19e782]
+                          - cell "36" [ref=f19e783]
+                          - cell "1620" [ref=f19e784]
+                          - cell "2" [ref=f19e785]
+                          - cell "Y" [ref=f19e786]
+                          - cell "2017-12-03" [ref=f19e787]
+                          - cell "BEAM TRAWL" [ref=f19e788]
+                          - cell "2017-12-02" [ref=f19e789]
+                          - cell "2017-12-02" [ref=f19e790]
+                          - cell "2023-08-21" [ref=f19e791]
+                        - row [ref=f19e792]:
+                          - cell "2007" [ref=f19e793]
+                          - cell "FC" [ref=f19e794]
+                          - cell "일반어획운반선" [ref=f19e795]
+                          - cell "69" [ref=f19e796]
+                          - cell "0" [ref=f19e797]
+                          - cell "6" [ref=f19e798]
+                          - cell "Y" [ref=f19e799]
+                          - cell "2017-12-03" [ref=f19e800]
+                          - cell "FISH CARRIER" [ref=f19e801]
+                          - cell "2017-12-02" [ref=f19e802]
+                          - cell "2017-12-02" [ref=f19e803]
+                          - cell "2023-08-21" [ref=f19e804]
+                        - row [ref=f19e805]:
+                          - cell "2007" [ref=f19e806]
+                          - cell "GN" [ref=f19e807]
+                          - cell "유망어업" [ref=f19e808]
+                          - cell "770" [ref=f19e809]
+                          - cell "8408" [ref=f19e810]
+                          - cell "4" [ref=f19e811]
+                          - cell "Y" [ref=f19e812]
+                          - cell "2017-12-03" [ref=f19e813]
+                          - cell "GILL NET" [ref=f19e814]
+                          - cell "2017-12-02" [ref=f19e815]
+                          - cell "2017-12-02" [ref=f19e816]
+                          - cell "2023-08-21" [ref=f19e817]
+                        - row [ref=f19e818]:
+                          - cell "2007" [ref=f19e819]
+                          - cell "PS" [ref=f19e820]
+                          - cell "위망어업" [ref=f19e821]
+                          - cell "100" [ref=f19e822]
+                          - cell "12041" [ref=f19e823]
+                          - cell "3" [ref=f19e824]
+                          - cell "Y" [ref=f19e825]
+                          - cell "2017-12-03" [ref=f19e826]
+                          - cell "PURSE SEINE" [ref=f19e827]
+                          - cell "2017-12-02" [ref=f19e828]
+                          - cell "2017-12-02" [ref=f19e829]
+                          - cell "2023-08-21" [ref=f19e830]
+                        - row [ref=f19e831]:
+                          - cell "2007" [ref=f19e832]
+                          - cell "PT" [ref=f19e833]
+                          - cell "쌍선타망" [ref=f19e834]
+                          - cell "956" [ref=f19e835]
+                          - cell "45720" [ref=f19e836]
+                          - cell "1" [ref=f19e837]
+                          - cell "Y" [ref=f19e838]
+                          - cell "2017-12-03" [ref=f19e839]
+                          - cell "PAIR TRAWL" [ref=f19e840]
+                          - cell "2017-12-02" [ref=f19e841]
+                          - cell "2017-12-02" [ref=f19e842]
+                          - cell "2023-08-21" [ref=f19e843]
+                        - row [ref=f19e844]:
+                          - cell "2007" [ref=f19e845]
+                          - cell "SJ" [ref=f19e846]
+                          - cell "오징어채낚기어업" [ref=f19e847]
+                          - cell "55" [ref=f19e848]
+                          - cell "4141" [ref=f19e849]
+                          - cell "5" [ref=f19e850]
+                          - cell "Y" [ref=f19e851]
+                          - cell "2017-12-03" [ref=f19e852]
+                          - cell "SQUID JOGGING" [ref=f19e853]
+                          - cell "2017-12-02" [ref=f19e854]
+                          - cell "2017-12-02" [ref=f19e855]
+                          - cell "2023-08-21" [ref=f19e856]
+                        - row [ref=f19e857]:
+                          - cell "2008" [ref=f19e858]
+                          - cell "BT" [ref=f19e859]
+                          - cell "단선타망" [ref=f19e860]
+                          - cell "32" [ref=f19e861]
+                          - cell "1490" [ref=f19e862]
+                          - cell "2" [ref=f19e863]
+                          - cell "Y" [ref=f19e864]
+                          - cell "2017-12-03" [ref=f19e865]
+                          - cell "BEAM TRAWL" [ref=f19e866]
+                          - cell "2017-12-02" [ref=f19e867]
+                          - cell "2017-12-02" [ref=f19e868]
+                          - cell "2023-08-21" [ref=f19e869]
+                        - row [ref=f19e870]:
+                          - cell "2008" [ref=f19e871]
+                          - cell "FC" [ref=f19e872]
+                          - cell "일반어획운반선" [ref=f19e873]
+                          - cell "68" [ref=f19e874]
+                          - cell "0" [ref=f19e875]
+                          - cell "6" [ref=f19e876]
+                          - cell "Y" [ref=f19e877]
+                          - cell "2017-12-03" [ref=f19e878]
+                          - cell "FISH CARRIER" [ref=f19e879]
+                          - cell "2017-12-02" [ref=f19e880]
+                          - cell "2017-12-02" [ref=f19e881]
+                          - cell "2023-08-21" [ref=f19e882]
+                        - row [ref=f19e883]:
+                          - cell "2008" [ref=f19e884]
+                          - cell "GN" [ref=f19e885]
+                          - cell "유망어업" [ref=f19e886]
+                          - cell "760" [ref=f19e887]
+                          - cell "8599" [ref=f19e888]
+                          - cell "4" [ref=f19e889]
+                          - cell "Y" [ref=f19e890]
+                          - cell "2017-12-03" [ref=f19e891]
+                          - cell "GILL NET" [ref=f19e892]
+                          - cell "2017-12-02" [ref=f19e893]
+                          - cell "2017-12-02" [ref=f19e894]
+                          - cell "2023-08-21" [ref=f19e895]
+                        - row [ref=f19e896]:
+                          - cell "2008" [ref=f19e897]
+                          - cell "PS" [ref=f19e898]
+                          - cell "위망어업" [ref=f19e899]
+                          - cell "96" [ref=f19e900]
+                          - cell "11559" [ref=f19e901]
+                          - cell "3" [ref=f19e902]
+                          - cell "Y" [ref=f19e903]
+                          - cell "2017-12-03" [ref=f19e904]
+                          - cell "PURSE SEINE" [ref=f19e905]
+                          - cell "2017-12-02" [ref=f19e906]
+                          - cell "2017-12-02" [ref=f19e907]
+                          - cell "2023-08-21" [ref=f19e908]
+                        - row [ref=f19e909]:
+                          - cell "2008" [ref=f19e910]
+                          - cell "PT" [ref=f19e911]
+                          - cell "쌍선타망" [ref=f19e912]
+                          - cell "916" [ref=f19e913]
+                          - cell "45211" [ref=f19e914]
+                          - cell "1" [ref=f19e915]
+                          - cell "Y" [ref=f19e916]
+                          - cell "2017-12-03" [ref=f19e917]
+                          - cell "PAIR TRAWL" [ref=f19e918]
+                          - cell "2017-12-02" [ref=f19e919]
+                          - cell "2017-12-02" [ref=f19e920]
+                          - cell "2023-08-21" [ref=f19e921]
+                        - row [ref=f19e922]:
+                          - cell "2008" [ref=f19e923]
+                          - cell "SJ" [ref=f19e924]
+                          - cell "오징어채낚기어업" [ref=f19e925]
+                          - cell "55" [ref=f19e926]
+                          - cell "4141" [ref=f19e927]
+                          - cell "5" [ref=f19e928]
+                          - cell "Y" [ref=f19e929]
+                          - cell "2017-12-03" [ref=f19e930]
+                          - cell "SQUID JOGGING" [ref=f19e931]
+                          - cell "2017-12-02" [ref=f19e932]
+                          - cell "2017-12-02" [ref=f19e933]
+                          - cell "2023-08-21" [ref=f19e934]
+                        - row [ref=f19e935]:
+                          - cell "2009" [ref=f19e936]
+                          - cell "BT" [ref=f19e937]
+                          - cell "1척식저인망어업" [ref=f19e938]
+                          - cell [ref=f19e939]
+                          - cell [ref=f19e940]
+                          - cell "2" [ref=f19e941]
+                          - cell "Y" [ref=f19e942]
+                          - cell "2017-12-03" [ref=f19e943]
+                          - cell "BEAM TRAWL" [ref=f19e944]
+                          - cell "2017-12-02" [ref=f19e945]
+                          - cell "2017-12-02" [ref=f19e946]
+                          - cell "2023-08-21" [ref=f19e947]
+                        - row [ref=f19e948]:
+                          - cell "2009" [ref=f19e949]
+                          - cell "FC" [ref=f19e950]
+                          - cell "일반어획운반선" [ref=f19e951]
+                          - cell "66" [ref=f19e952]
+                          - cell "0" [ref=f19e953]
+                          - cell "6" [ref=f19e954]
+                          - cell "Y" [ref=f19e955]
+                          - cell "2017-12-03" [ref=f19e956]
+                          - cell "FISH CARRIER" [ref=f19e957]
+                          - cell "2017-12-02" [ref=f19e958]
+                          - cell "2017-12-02" [ref=f19e959]
+                          - cell "2023-08-21" [ref=f19e960]
+                        - row [ref=f19e961]:
+                          - cell "2009" [ref=f19e962]
+                          - cell "GN" [ref=f19e963]
+                          - cell "유망어업" [ref=f19e964]
+                          - cell "749" [ref=f19e965]
+                          - cell "8674" [ref=f19e966]
+                          - cell "4" [ref=f19e967]
+                          - cell "Y" [ref=f19e968]
+                          - cell "2017-12-03" [ref=f19e969]
+                          - cell "GILL NET" [ref=f19e970]
+                          - cell "2017-12-02" [ref=f19e971]
+                          - cell "2017-12-02" [ref=f19e972]
+                          - cell "2023-08-21" [ref=f19e973]
+                        - row [ref=f19e974]:
+                          - cell "2009" [ref=f19e975]
+                          - cell "OT" [ref=f19e976]
+                          - cell "1척식저인망어업" [ref=f19e977]
+                          - cell "26" [ref=f19e978]
+                          - cell "1220" [ref=f19e979]
+                          - cell "7" [ref=f19e980]
+                          - cell "Y" [ref=f19e981]
+                          - cell "2017-12-03" [ref=f19e982]
+                          - cell "OTTER TRAWL" [ref=f19e983]
+                          - cell "2017-12-02" [ref=f19e984]
+                          - cell "2017-12-02" [ref=f19e985]
+                          - cell "2023-08-21" [ref=f19e986]
+                        - row [ref=f19e987]:
+                          - cell "2009" [ref=f19e988]
+                          - cell "PS" [ref=f19e989]
+                          - cell "위망어업" [ref=f19e990]
+                          - cell "92" [ref=f19e991]
+                          - cell "11826" [ref=f19e992]
+                          - cell "3" [ref=f19e993]
+                          - cell "Y" [ref=f19e994]
+                          - cell "2017-12-03" [ref=f19e995]
+                          - cell "PURSE SEINE" [ref=f19e996]
+                          - cell "2017-12-02" [ref=f19e997]
+                          - cell "2017-12-02" [ref=f19e998]
+                          - cell "2023-08-21" [ref=f19e999]
+                        - row [ref=f19e1000]:
+                          - cell "2009" [ref=f19e1001]
+                          - cell "PS-C" [ref=f19e1002]
+                          - cell "위망의 운반선" [ref=f19e1003]
+                          - cell [ref=f19e1004]
+                          - cell [ref=f19e1005]
+                          - cell [ref=f19e1006]
+                          - cell "Y" [ref=f19e1007]
+                          - cell "2017-12-03" [ref=f19e1008]
+                          - 'cell "PURSE SEINE`S FISH CARRIER VESSEL" [ref=f19e1009]'
+                          - cell "2017-12-02" [ref=f19e1010]
+                          - cell "2017-12-02" [ref=f19e1011]
+                          - cell "2023-08-21" [ref=f19e1012]
+                        - row [ref=f19e1013]:
+                          - cell "2009" [ref=f19e1014]
+                          - cell "PS-L" [ref=f19e1015]
+                          - cell "위망의 등선" [ref=f19e1016]
+                          - cell [ref=f19e1017]
+                          - cell [ref=f19e1018]
+                          - cell [ref=f19e1019]
+                          - cell "Y" [ref=f19e1020]
+                          - cell "2017-12-03" [ref=f19e1021]
+                          - 'cell "PURSE SEINE`S LIGHT VESSEL" [ref=f19e1022]'
+                          - cell "2017-12-02" [ref=f19e1023]
+                          - cell "2017-12-02" [ref=f19e1024]
+                          - cell "2023-08-21" [ref=f19e1025]
+                        - row [ref=f19e1026]:
+                          - cell "2009" [ref=f19e1027]
+                          - cell "PT" [ref=f19e1028]
+                          - cell "2척식저인망어업" [ref=f19e1029]
+                          - cell "878" [ref=f19e1030]
+                          - cell "44139" [ref=f19e1031]
+                          - cell "1" [ref=f19e1032]
+                          - cell "Y" [ref=f19e1033]
+                          - cell "2017-12-03" [ref=f19e1034]
+                          - cell "PAIR TRAWL" [ref=f19e1035]
+                          - cell "2017-12-02" [ref=f19e1036]
+                          - cell "2017-12-02" [ref=f19e1037]
+                          - cell "2023-08-21" [ref=f19e1038]
+                        - row [ref=f19e1039]:
+                          - cell "2009" [ref=f19e1040]
+                          - cell "PT-S" [ref=f19e1041]
+                          - cell "2척식저인망어업(부속선)" [ref=f19e1042]
+                          - cell [ref=f19e1043]
+                          - cell [ref=f19e1044]
+                          - cell [ref=f19e1045]
+                          - cell "Y" [ref=f19e1046]
+                          - cell "2017-12-03" [ref=f19e1047]
+                          - 'cell "PAIR TRAWL`S SUPPORT VESSEL" [ref=f19e1048]'
+                          - cell "2017-12-02" [ref=f19e1049]
+                          - cell "2017-12-02" [ref=f19e1050]
+                          - cell "2023-08-21" [ref=f19e1051]
+                        - row [ref=f19e1052]:
+                          - cell "2009" [ref=f19e1053]
+                          - cell "SJ" [ref=f19e1054]
+                          - cell "오징어채낚기어업" [ref=f19e1055]
+                          - cell "55" [ref=f19e1056]
+                          - cell "4141" [ref=f19e1057]
+                          - cell "5" [ref=f19e1058]
+                          - cell "Y" [ref=f19e1059]
+                          - cell "2017-12-03" [ref=f19e1060]
+                          - cell "SQUID JOGGING" [ref=f19e1061]
+                          - cell "2017-12-02" [ref=f19e1062]
+                          - cell "2017-12-02" [ref=f19e1063]
+                          - cell "2023-08-21" [ref=f19e1064]
+                        - row [ref=f19e1065]:
+                          - cell "2010" [ref=f19e1066]
+                          - cell "BT" [ref=f19e1067]
+                          - cell "1척식저인망어업" [ref=f19e1068]
+                          - cell [ref=f19e1069]
+                          - cell [ref=f19e1070]
+                          - cell "2" [ref=f19e1071]
+                          - cell "Y" [ref=f19e1072]
+                          - cell "2017-12-03" [ref=f19e1073]
+                          - cell "BEAM TRAWL" [ref=f19e1074]
+                          - cell "2017-12-02" [ref=f19e1075]
+                          - cell "2017-12-02" [ref=f19e1076]
+                          - cell "2023-08-21" [ref=f19e1077]
+                        - row [ref=f19e1078]:
+                          - cell "2010" [ref=f19e1079]
+                          - cell "FC" [ref=f19e1080]
+                          - cell "일반어획운반선" [ref=f19e1081]
+                          - cell "64" [ref=f19e1082]
+                          - cell "0" [ref=f19e1083]
+                          - cell "6" [ref=f19e1084]
+                          - cell "Y" [ref=f19e1085]
+                          - cell "2017-12-03" [ref=f19e1086]
+                          - cell "FISH CARRIER" [ref=f19e1087]
+                          - cell "2017-12-02" [ref=f19e1088]
+                          - cell "2017-12-02" [ref=f19e1089]
+                          - cell "2023-08-21" [ref=f19e1090]
+                        - row [ref=f19e1091]:
+                          - cell "2010" [ref=f19e1092]
+                          - cell "GN" [ref=f19e1093]
+                          - cell "유망어업" [ref=f19e1094]
+                          - cell "733" [ref=f19e1095]
+                          - cell "8356" [ref=f19e1096]
+                          - cell "4" [ref=f19e1097]
+                          - cell "Y" [ref=f19e1098]
+                          - cell "2017-12-03" [ref=f19e1099]
+                          - cell "GILL NET" [ref=f19e1100]
+                          - cell "2017-12-02" [ref=f19e1101]
+                          - cell "2017-12-02" [ref=f19e1102]
+                          - cell "2023-08-21" [ref=f19e1103]
+                        - row [ref=f19e1104]:
+                          - cell "2010" [ref=f19e1105]
+                          - cell "OT" [ref=f19e1106]
+                          - cell "1척식저인망어업" [ref=f19e1107]
+                          - cell "20" [ref=f19e1108]
+                          - cell "860" [ref=f19e1109]
+                          - cell "7" [ref=f19e1110]
+                          - cell "Y" [ref=f19e1111]
+                          - cell "2017-12-03" [ref=f19e1112]
+                          - cell "OTTER TRAWL" [ref=f19e1113]
+                          - cell "2017-12-02" [ref=f19e1114]
+                          - cell "2017-12-02" [ref=f19e1115]
+                          - cell "2023-08-21" [ref=f19e1116]
+              - text: loading
+          - button "목록으로 돌아가기" [ref=f19e1119] [cursor=pointer]
+      - button "페이지 상단으로 이동" [ref=f19e1120] [cursor=pointer]
+    - contentinfo [ref=f19e1122]:
+      - generic [ref=f19e1124]:
+        - generic [ref=f19e1125]:
+          - button "관련기관" [ref=f19e1126] [cursor=pointer]
+          - list:
+            - listitem [ref=f19e1127]:
+              - link "행정안전부" [ref=f19e1128] [cursor=pointer]:
+                - /url: https://www.mois.go.kr/
+            - listitem [ref=f19e1129]:
+              - link "한국지능정보사회진흥원" [ref=f19e1130] [cursor=pointer]:
+                - /url: https://www.nia.or.kr/
+            - listitem [ref=f19e1131]:
+              - link "오픈데이터포럼" [ref=f19e1132] [cursor=pointer]:
+                - /url: https://www.odf.or.kr/
+            - listitem [ref=f19e1133]:
+              - link "국가정보자원관리원" [ref=f19e1134] [cursor=pointer]:
+                - /url: https://www.nirs.go.kr/
+            - listitem [ref=f19e1135]:
+              - link "한국지역정보개발원" [ref=f19e1136] [cursor=pointer]:
+                - /url: https://www.klid.or.kr/
+        - generic [ref=f19e1137]:
+          - button "지역별 데이터포털" [ref=f19e1138] [cursor=pointer]
+          - list:
+            - listitem [ref=f19e1139]:
+              - link "서울 열린데이터광장" [ref=f19e1140] [cursor=pointer]:
+                - /url: https://data.seoul.go.kr/
+            - listitem [ref=f19e1141]:
+              - link "경기데이터드림" [ref=f19e1142] [cursor=pointer]:
+                - /url: https://data.gg.go.kr/
+            - listitem [ref=f19e1143]:
+              - link "부산데이터웨이브" [ref=f19e1144] [cursor=pointer]:
+                - /url: https://data.busan.go.kr/
+            - listitem [ref=f19e1145]:
+              - link "D-데이터허브" [ref=f19e1146] [cursor=pointer]:
+                - /url: https://data.daegu.go.kr/
+            - listitem [ref=f19e1147]:
+              - link "인천데이터포털" [ref=f19e1148] [cursor=pointer]:
+                - /url: https://data.incheon.go.kr/
+            - listitem [ref=f19e1149]:
+              - link "울산광역시 데이터포털" [ref=f19e1150] [cursor=pointer]:
+                - /url: https://data.ulsan.go.kr/
+            - listitem [ref=f19e1151]:
+              - link "전남광주통합특별시 빅데이터 플랫폼" [ref=f19e1152] [cursor=pointer]:
+                - /url: https://bigdata.gwangju.go.kr/
+            - listitem [ref=f19e1153]:
+              - link "대전광역시 데이터포털" [ref=f19e1154] [cursor=pointer]:
+                - /url: https://openlab.daejeon.go.kr/
+            - listitem [ref=f19e1155]:
+              - link "세종특별자치시 데이터포털" [ref=f19e1156] [cursor=pointer]:
+                - /url: https://www.sejong.go.kr/
+            - listitem [ref=f19e1157]:
+              - link "충청북도 데이터허브" [ref=f19e1158] [cursor=pointer]:
+                - /url: https://data.chungbuk.go.kr/
+        - generic [ref=f19e1159]:
+          - button "분야별 데이터포털" [ref=f19e1160] [cursor=pointer]
+          - list:
+            - listitem [ref=f19e1161]:
+              - link "기상자료개방포털" [ref=f19e1162] [cursor=pointer]:
+                - /url: https://data.kma.go.kr/
+            - listitem [ref=f19e1163]:
+              - link "국토교통부 공간정보오픈플랫폼" [ref=f19e1164] [cursor=pointer]:
+                - /url: https://www.vworld.kr/
+            - listitem [ref=f19e1165]:
+              - link "환경부 환경데이터포털" [ref=f19e1166] [cursor=pointer]:
+                - /url: https://www.bigdata-environment.kr/
+            - listitem [ref=f19e1167]:
+              - link "문화데이터광장" [ref=f19e1168] [cursor=pointer]:
+                - /url: https://www.culture.go.kr/
+            - listitem [ref=f19e1169]:
+              - link "농림축산식품 공공데이터포털" [ref=f19e1170] [cursor=pointer]:
+                - /url: https://data.mafra.go.kr/
+            - listitem [ref=f19e1171]:
+              - link "보건의료빅데이터개방시스템" [ref=f19e1172] [cursor=pointer]:
+                - /url: https://opendata.hira.or.kr/
+            - listitem [ref=f19e1173]:
+              - link "식품의약품안전처 데이터포털" [ref=f19e1174] [cursor=pointer]:
+                - /url: https://www.foodsafetykorea.go.kr/
+            - listitem [ref=f19e1175]:
+              - link "교육통계서비스" [ref=f19e1176] [cursor=pointer]:
+                - /url: https://kess.kedi.re.kr/
+      - generic [ref=f19e1177]:
+        - link "공공데이터포털 바로가기" [ref=f19e1178] [cursor=pointer]:
+          - /url: /index.do
+        - generic [ref=f19e1181]:
+          - generic [ref=f19e1182]:
+            - paragraph [ref=f19e1183]: (30112) 세종특별자치시 도움6로 42
+            - list [ref=f19e1184]:
+              - listitem [ref=f19e1185]:
+                - strong [ref=f19e1186]:
+                  - text: 대표전화
+                  - generic [ref=f19e1187]:
+                    - link "1566-0025" [ref=f19e1188] [cursor=pointer]:
+                      - /url: tel:1566-0025
+                    - text: "| (유료, 평일 09시-18시)"
+              - listitem [ref=f19e1189]:
+                - link "운영자 메일 상담 opendata_help@nia.or.kr" [ref=f19e1190] [cursor=pointer]:
+                  - /url: mailto:opendata_help@nia.or.kr
+                  - strong [ref=f19e1191]:
+                    - text: 운영자 메일 상담
+                    - generic [ref=f19e1192]: opendata_help@nia.or.kr
+          - generic [ref=f19e1193]:
+            - generic [ref=f19e1194]:
+              - link "이용가이드" [ref=f19e1195] [cursor=pointer]:
+                - /url: /ugs/selectPublicDataUseGuideView.do
+              - link "분쟁조정 신청" [ref=f19e1197] [cursor=pointer]:
+                - /url: /tcs/dor/insertTrublMdatReqstProcssView.do
+              - link "문의하기" [ref=f19e1199] [cursor=pointer]:
+                - /url: /bbs/faq/selectFaqList.do
+            - generic [ref=f19e1201]:
+              - link "유튜브" [ref=f19e1202] [cursor=pointer]:
+                - /url: https://www.youtube.com/@koropendata
+              - link "X" [ref=f19e1205] [cursor=pointer]:
+                - /url: https://twitter.com/koreadataportal
+              - link "페이스북" [ref=f19e1208] [cursor=pointer]:
+                - /url: http://www.facebook.com/koreadataportal
+              - link "블로그" [ref=f19e1211] [cursor=pointer]:
+                - /url: http://blog.naver.com/nia_korea
+        - generic [ref=f19e1214]:
+          - generic [ref=f19e1215]:
+            - generic [ref=f19e1216]:
+              - link "이용약관" [ref=f19e1217] [cursor=pointer]:
+                - /url: /ugs/selectPortalPolicyView.do#use_stplat
+              - link "개인정보처리방침" [ref=f19e1218] [cursor=pointer]:
+                - /url: /ugs/selectPortalPolicyView.do#indvdlinfo_process
+              - link "공공데이터포털 소개" [ref=f19e1219] [cursor=pointer]:
+                - /url: /ugs/selectPortalInfoView.do#portal_info
+            - paragraph [ref=f19e1220]: © Ministry of the Interior and Safety. All rights reserved.
+          - generic [ref=f19e1221]:
+            - generic [ref=f19e1222]: 행정안전부
+            - generic [ref=f19e1224]: 이 누리집은 행정안전부 누리집입니다.

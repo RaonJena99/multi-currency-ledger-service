@@ -89,6 +89,7 @@ docker compose pull && docker compose up -d
 - 버전을 올릴 때는 `.env`의 `APP_VERSION`을 바꾸고 위 명령을 다시 실행합니다.
 - GHCR 패키지가 비공개라면 서버에서 먼저 `docker login ghcr.io`로 로그인해야 합니다.
 - 운영용 스택은 애플리케이션 포트만 호스트에 노출하고, 모든 서비스에 재시작 정책(`unless-stopped`)을 둡니다.
+- 헬스 확인과 지표 수집(`/actuator/*`)은 관리 포트(`MANAGEMENT_PORT`, 기본 9091)에서만 응답합니다. 이 포트는 호스트에 노출하지 않으므로 같은 네트워크 안에서 접근합니다.
 
 ---
 
@@ -109,7 +110,7 @@ docker compose pull && docker compose up -d
 | `POST` | `/api/v1/admin/reconciliations/dead-letters/{deadLetterId}/resolve` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/admin/ledger/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/ledger/dead-letters/{deadLetterId}/replay`, `/resolve` | `ROLE_ADMIN` |
-| `GET` | `/actuator/health`, `/info`, `/prometheus` | 공개 (나머지 `/actuator/**`는 `ROLE_ADMIN`) |
+| `GET` | `/actuator/health`, `/info`, `/prometheus` | **관리 포트(기본 9091)에서만** 응답, 인증 없음 |
 
 관리자는 계좌 소유권 검사를 건너뜁니다.
 
