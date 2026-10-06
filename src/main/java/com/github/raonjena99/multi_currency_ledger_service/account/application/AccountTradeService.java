@@ -317,7 +317,9 @@ public class AccountTradeService {
     }
 
     private void requireActiveAccount(UUID accountId) {
-        Account account = accountRepository.findById(accountId)
+        // 공유 잠금으로 읽어 커밋 때까지 쥔다. 해지·정지(배타 잠금)와 순서가 정해져, 해지가 잔고 0 을 확인한
+        // 뒤에 이 거래가 잔고를 바꾸는 일(잔고가 남은 해지 계좌)이 생기지 않는다. 거래끼리는 서로 막지 않는다.
+        Account account = accountRepository.findByIdForShare(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
         if (!account.isActive()) {
             throw new InvalidAccountStateException("Account is not active for trading: " + accountId);

@@ -49,7 +49,8 @@ class AccountTradeServiceTest {
     private void stubActiveAccount(UUID accountId) {
         var account = com.github.raonjena99.multi_currency_ledger_service.account.domain.Account
                 .open(accountId, "TEST", "KRW");
-        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        // 거래는 계좌 상태를 공유 잠금으로 확정한다(해지·정지와의 경쟁 방지).
+        when(accountRepository.findByIdForShare(accountId)).thenReturn(Optional.of(account));
     }
 
     /** 멱등성 키 신규 등록 경로를 스텁한다. 거래 완료 시 레코드에 tradeId 가 기록된다. */

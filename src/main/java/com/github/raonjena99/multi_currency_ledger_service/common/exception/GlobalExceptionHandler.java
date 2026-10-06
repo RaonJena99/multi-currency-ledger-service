@@ -135,6 +135,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 잔고가 남은 계좌를 해지하려 함 (HTTP 409)
+     */
+    @ExceptionHandler(AccountNotEmptyException.class)
+    public ResponseEntity<ErrorResponse> handleAccountNotEmpty(AccountNotEmptyException e) {
+        log.warn("Account close rejected: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("ACCOUNT_HAS_BALANCE", "The account still has balance. Withdraw all assets before closing."));
+    }
+
+    /**
      * 같은 ID 의 계좌가 이미 있음 (HTTP 409)
      */
     @ExceptionHandler(AccountAlreadyExistsException.class)

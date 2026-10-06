@@ -1,10 +1,15 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.presentation;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,7 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.application.AccountOpeningService;
+import com.github.raonjena99.multi_currency_ledger_service.account.application.AccountStatusService;
 import com.github.raonjena99.multi_currency_ledger_service.account.application.AccountTradeFacade;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.AccountStatus;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.AccountStatusHistory;
+import com.github.raonjena99.multi_currency_ledger_service.common.security.LedgerPrincipal;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Digits;
@@ -23,7 +32,7 @@ import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 계좌 개설과 법정화폐 입출금을 위한 관리자·내부 시스템용 REST API 컨트롤러입니다.
+ * 계좌 개설·상태 관리와 법정화폐 입출금을 위한 관리자·내부 시스템용 REST API 컨트롤러입니다.
  *
  * <p>고객이 직접 호출하면 안 되는 API 라서 {@code /api/v1/admin} 아래에 둡니다.
  * <ul>
@@ -40,6 +49,7 @@ public class AccountAdminController {
 
     private final AccountOpeningService openingService;
     private final AccountTradeFacade tradeFacade;
+    private final AccountStatusService statusService;
 
     /**
      * 계좌 개설 요청 본문입니다.
@@ -78,6 +88,20 @@ public class AccountAdminController {
 
     public record CashTransferResponse(UUID transactionId) {}
 
+    /** 정지 요청 본문. 나중에 해제할 근거가 되므로 사유가 필수입니다. */
+    public record SuspendRequest(@NotBlank @Size(max = 500) String reason) {}
+
+    /** 해제·해지 요청 본문. 사유는 선택입니다. */
+    public record StatusChangeRequest(@Size(max = 500) String reason) {}
+
+    public record StatusChangeResponse(AccountStatus fromStatus, AccountStatus toStatus, String reason,
+                                       String changedBy, OffsetDateTime changedAt) {
+        static StatusChangeResponse from(AccountStatusHistory history) {
+            return new StatusChangeResponse(history.getFromStatus(), history.getToStatus(), history.getReason(),
+                    history.getChangedBy(), history.getChangedAt());
+        }
+    }
+
     @PostMapping
     public ResponseEntity<OpenAccountResponse> openAccount(@Valid @RequestBody OpenAccountRequest request) {
         openingService.open(request.accountId(), request.ownerName(), request.baseCurrency());
@@ -91,6 +115,43 @@ public class AccountAdminController {
         UUID transactionId = tradeFacade.deposit(
                 request.idempotencyKey(), accountId, request.currency(), request.amount());
         return ResponseEntity.ok(new CashTransferResponse(transactionId));
+    }
+
+    /**
+     * 계좌를 정지합니다. 정지된 계좌는 매수·매도·입출금이 422 로 거부됩니다.
+     */
+    @PostMapping("/{accountId}/suspend")
+    public ResponseEntity<Void> suspend(@PathVariable UUID accountId, @Valid @RequestBody SuspendRequest request) {
+        statusService.suspend(accountId, request.reason(), currentSubject());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{accountId}/activate")
+    public ResponseEntity<Void> activate(@PathVariable UUID accountId, @Valid @RequestBody StatusChangeRequest request) {
+        statusService.activate(accountId, request.reason(), currentSubject());
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 계좌를 해지합니다. 모든 자산 잔고가 0 이어야 하며, 해지된 계좌는 되살리지 않습니다.
+     */
+    @PostMapping("/{accountId}/close")
+    public ResponseEntity<Void> close(@PathVariable UUID accountId, @Valid @RequestBody StatusChangeRequest request) {
+        statusService.close(accountId, request.reason(), currentSubject());
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{accountId}/status-history")
+    public ResponseEntity<List<StatusChangeResponse>> statusHistory(@PathVariable UUID accountId) {
+        return ResponseEntity.ok(statusService.history(accountId).stream().map(StatusChangeResponse::from).toList());
+    }
+
+    /** 이력에 남길 처리자. 게이트웨이가 넣어 준 주체 식별자(X-Auth-Subject)입니다. */
+    private static String currentSubject() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getPrincipal() instanceof LedgerPrincipal principal
+                ? principal.subject()
+                : "unknown";
     }
 
     @PostMapping("/{accountId}/withdrawals")
