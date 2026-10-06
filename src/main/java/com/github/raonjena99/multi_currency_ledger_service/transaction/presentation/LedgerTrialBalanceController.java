@@ -9,6 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerQueryService;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerQueryService.TrialBalance;
 
@@ -17,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 관리자가 월별 시산표를 조회하는 REST API 컨트롤러입니다.
  */
+@Tag(name = "원장 운영 (관리자)", description = "시산표·정합성 점검·원장 데드레터")
 @RestController
 @RequestMapping("/api/v1/admin/ledger/trial-balance")
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class LedgerTrialBalanceController {
      *
      * @param month 조회할 월 (yyyy-MM, UTC 기준)
      */
+    @Operation(summary = "월 시산표 (기준 통화별 차변 = 대변 + 실현 손익)")
     @GetMapping
     public ResponseEntity<TrialBalance> trialBalance(@RequestParam("month") String month) {
         YearMonth parsed;

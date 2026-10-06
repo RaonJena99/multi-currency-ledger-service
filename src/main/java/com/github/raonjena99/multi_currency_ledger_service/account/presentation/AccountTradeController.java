@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.github.raonjena99.multi_currency_ledger_service.account.application.AccountTradeFacade;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
@@ -23,6 +27,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "거래", description = "매수·매도. 계좌 소유자")
 @RestController
 @RequestMapping("/api/v1/accounts/{accountId}/trades")
 @RequiredArgsConstructor
@@ -73,6 +78,12 @@ public class AccountTradeController {
     public record TradeResponseDto(UUID tradeId) {
     }
 
+    @Operation(summary = "자산 매수")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
+    @ApiResponse(responseCode = "409", description = "잔고 부족, 같은 멱등성 키로 처리 중인 요청, 동시 수정 충돌")
+    @ApiResponse(responseCode = "422", description = "최소 거래 단위 미만, 정지·해지된 계좌, 지원하지 않는 자산")
+    @ApiResponse(responseCode = "503", description = "시세를 구할 수 없거나 5분 넘게 낡음")
     @PostMapping("/buy")
     public ResponseEntity<TradeResponseDto> buyAsset(
             @PathVariable UUID accountId,
@@ -92,6 +103,12 @@ public class AccountTradeController {
         return ResponseEntity.ok(new TradeResponseDto(tradeId));
     }
 
+    @Operation(summary = "보유 자산 매도")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
+    @ApiResponse(responseCode = "409", description = "잔고 부족, 같은 멱등성 키로 처리 중인 요청, 동시 수정 충돌")
+    @ApiResponse(responseCode = "422", description = "최소 거래 단위 미만, 정지·해지된 계좌, 지원하지 않는 자산")
+    @ApiResponse(responseCode = "503", description = "시세를 구할 수 없거나 5분 넘게 낡음")
     @PostMapping("/sell")
     public ResponseEntity<TradeResponseDto> sellAsset(
             @PathVariable UUID accountId,

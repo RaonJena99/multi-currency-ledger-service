@@ -171,7 +171,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus
+        # openapi, swagger-ui 는 springdoc 이 관리 포트에 올리는 API 문서다(springdoc.use-management-port).
+        include: health, info, prometheus, openapi, swagger-ui
   endpoint:
     health:
       # 상세 정보에는 DB/Redis/서킷브레이커 내부 상태가 담긴다. 권한 있는 호출자에게만 노출한다.
@@ -309,6 +310,12 @@ resilience4j:
         ignoreExceptions:
           - org.springframework.web.client.HttpClientErrorException
 
+springdoc:
+  # API 문서와 Swagger UI 를 앱 포트가 아니라 관리 포트(/actuator/openapi, /actuator/swagger-ui)에만 둔다.
+  # 앱 포트에 열면 API 전체 구조와 관리자 경로 목록이 외부에 드러난다. 운영 스택은 관리 포트를 외부에 노출하지 않는다.
+  use-management-port: true
+  paths-to-match: /api/**
+
 ---
 spring:
   config:
@@ -319,3 +326,4 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
+

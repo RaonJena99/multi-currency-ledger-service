@@ -16,6 +16,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.github.raonjena99.multi_currency_ledger_service.account.application.AccountOpeningService;
 import com.github.raonjena99.multi_currency_ledger_service.account.application.AccountStatusService;
 import com.github.raonjena99.multi_currency_ledger_service.account.application.AccountTradeFacade;
@@ -42,6 +46,7 @@ import lombok.RequiredArgsConstructor;
  *       결제·송금 확인을 마친 쪽이 호출해야 합니다.</li>
  * </ul>
  */
+@Tag(name = "계좌 관리 (관리자)", description = "계좌 개설·상태 관리·법정화폐 입출금. 관리자·내부 시스템 전용")
 @RestController
 @RequestMapping("/api/v1/admin/accounts")
 @RequiredArgsConstructor
@@ -102,12 +107,22 @@ public class AccountAdminController {
         }
     }
 
+    @Operation(summary = "계좌 개설")
+    @ApiResponse(responseCode = "201", description = "개설됨")
+    @ApiResponse(responseCode = "409", description = "이미 있는 계좌 ID (ACCOUNT_ALREADY_EXISTS)")
+    @ApiResponse(responseCode = "422", description = "기준 통화가 법정화폐(ISO 4217) 코드가 아님")
     @PostMapping
     public ResponseEntity<OpenAccountResponse> openAccount(@Valid @RequestBody OpenAccountRequest request) {
         openingService.open(request.accountId(), request.ownerName(), request.baseCurrency());
         return ResponseEntity.status(HttpStatus.CREATED).body(new OpenAccountResponse(request.accountId()));
     }
 
+    @Operation(summary = "법정화폐 입금")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
+    @ApiResponse(responseCode = "409", description = "같은 멱등성 키로 처리 중인 요청, 동시 수정 충돌")
+    @ApiResponse(responseCode = "422", description = "정지·해지된 계좌, 법정화폐가 아닌 통화")
+    @ApiResponse(responseCode = "503", description = "기준 통화가 아닌 통화의 환율을 구할 수 없음")
     @PostMapping("/{accountId}/deposits")
     public ResponseEntity<CashTransferResponse> deposit(
             @PathVariable UUID accountId,
@@ -120,12 +135,20 @@ public class AccountAdminController {
     /**
      * 계좌를 정지합니다. 정지된 계좌는 매수·매도·입출금이 422 로 거부됩니다.
      */
+    @Operation(summary = "계좌 정지 (사유 필수)")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
+    @ApiResponse(responseCode = "422", description = "이미 정지되었거나 해지된 계좌")
     @PostMapping("/{accountId}/suspend")
     public ResponseEntity<Void> suspend(@PathVariable UUID accountId, @Valid @RequestBody SuspendRequest request) {
         statusService.suspend(accountId, request.reason(), currentSubject());
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "계좌 정지 해제")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
+    @ApiResponse(responseCode = "422", description = "이미 정상이거나 해지된 계좌")
     @PostMapping("/{accountId}/activate")
     public ResponseEntity<Void> activate(@PathVariable UUID accountId, @Valid @RequestBody StatusChangeRequest request) {
         statusService.activate(accountId, request.reason(), currentSubject());
@@ -135,12 +158,20 @@ public class AccountAdminController {
     /**
      * 계좌를 해지합니다. 모든 자산 잔고가 0 이어야 하며, 해지된 계좌는 되살리지 않습니다.
      */
+    @Operation(summary = "계좌 해지")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
+    @ApiResponse(responseCode = "409", description = "잔고가 남아 있음 (ACCOUNT_HAS_BALANCE)")
+    @ApiResponse(responseCode = "422", description = "이미 해지된 계좌")
     @PostMapping("/{accountId}/close")
     public ResponseEntity<Void> close(@PathVariable UUID accountId, @Valid @RequestBody StatusChangeRequest request) {
         statusService.close(accountId, request.reason(), currentSubject());
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "계좌 상태 변경 이력")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
     @GetMapping("/{accountId}/status-history")
     public ResponseEntity<List<StatusChangeResponse>> statusHistory(@PathVariable UUID accountId) {
         return ResponseEntity.ok(statusService.history(accountId).stream().map(StatusChangeResponse::from).toList());
@@ -154,6 +185,12 @@ public class AccountAdminController {
                 : "unknown";
     }
 
+    @Operation(summary = "법정화폐 출금")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "계좌 없음 (ACCOUNT_NOT_FOUND)")
+    @ApiResponse(responseCode = "409", description = "잔고 부족, 같은 멱등성 키로 처리 중인 요청, 동시 수정 충돌")
+    @ApiResponse(responseCode = "422", description = "정지·해지된 계좌, 법정화폐가 아닌 통화")
+    @ApiResponse(responseCode = "503", description = "기준 통화가 아닌 통화의 환율을 구할 수 없음")
     @PostMapping("/{accountId}/withdrawals")
     public ResponseEntity<CashTransferResponse> withdraw(
             @PathVariable UUID accountId,

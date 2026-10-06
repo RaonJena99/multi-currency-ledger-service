@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.reconciliation.application.service.ManualReconciliationService;
@@ -22,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 백오피스 관리자(Admin)가 대사 실패 건(Dead Letter)을 수동으로 처리하기 위한 REST API 컨트롤러(Controller)입니다.
  */
+@Tag(name = "대사 (관리자)", description = "PG 정산 대사 실패 건 수동 처리")
 @RestController
 @RequestMapping("/api/v1/admin/reconciliations")
 @RequiredArgsConstructor
@@ -77,6 +82,9 @@ public class ReconciliationAdminController {
      * @param request 수동 매칭 및 수수료 보정 정보가 담긴 요청 객체
      * @return 처리 성공 상태 (ResponseEntity<Void>)
      */
+    @Operation(summary = "대사 데드레터 수동 매칭")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "422", description = "정산 상태가 매칭할 수 없는 상태")
     @PostMapping("/dead-letters/{deadLetterId}/resolve")
     public ResponseEntity<Void> resolveDeadLetter(
             @PathVariable Long deadLetterId,

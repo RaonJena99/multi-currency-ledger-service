@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerDeadLetterRecoveryService;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.LedgerDeadLetter;
 
@@ -24,6 +28,7 @@ import lombok.RequiredArgsConstructor;
  * <p>원장 데드레터는 잔고와 분개가 어긋난 상태를 뜻합니다. 이 경로가 없으면 운영자가 DB 에 직접
  * 접속하지 않는 한 어긋난 원장을 되돌릴 방법이 없습니다.
  */
+@Tag(name = "원장 운영 (관리자)", description = "시산표·정합성 점검·원장 데드레터")
 @RestController
 @RequestMapping("/api/v1/admin/ledger/dead-letters")
 @RequiredArgsConstructor
@@ -57,6 +62,7 @@ public class LedgerDeadLetterAdminController {
     /**
      * 미해결 데드레터를 최신순으로 조회합니다.
      */
+    @Operation(summary = "미해결 원장 데드레터 목록")
     @GetMapping
     public ResponseEntity<DeadLetterListResponse> listDeadLetters(
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -69,6 +75,11 @@ public class LedgerDeadLetterAdminController {
     /**
      * 저장된 페이로드로 원장 기록을 다시 실행하고, 성공하면 해결 처리합니다.
      */
+    @Operation(summary = "원장 데드레터 재처리")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "데드레터 없음 (LEDGER_DEAD_LETTER_NOT_FOUND)")
+    @ApiResponse(responseCode = "409", description = "다른 운영자와 동시 처리")
+    @ApiResponse(responseCode = "422", description = "이미 해결됨, 재처리 실패 (LEDGER_REPLAY_FAILED)")
     @PostMapping("/{deadLetterId}/replay")
     public ResponseEntity<ReplayResponse> replayDeadLetter(@PathVariable Long deadLetterId) {
         return ResponseEntity.ok(new ReplayResponse(recoveryService.replay(deadLetterId)));
@@ -77,6 +88,11 @@ public class LedgerDeadLetterAdminController {
     /**
      * 재처리 없이 해결 처리만 합니다. 운영자가 원장을 직접 보상한 경우에 사용합니다.
      */
+    @Operation(summary = "원장 데드레터 해결 처리 (재처리 없이)")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "데드레터 없음 (LEDGER_DEAD_LETTER_NOT_FOUND)")
+    @ApiResponse(responseCode = "409", description = "다른 운영자와 동시 처리")
+    @ApiResponse(responseCode = "422", description = "이미 해결됨")
     @PostMapping("/{deadLetterId}/resolve")
     public ResponseEntity<Void> resolveDeadLetter(@PathVariable Long deadLetterId) {
         recoveryService.resolve(deadLetterId);

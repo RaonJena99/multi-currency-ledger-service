@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -20,6 +24,7 @@ import lombok.RequiredArgsConstructor;
  * <p>데드레터는 릴레이 폴링 대상에서 영구 제외되므로, 이 복구 경로가 없으면 브로커 장애 등으로
  * 격리된 원장 이벤트를 되살릴 방법이 없어 at-least-once 전달 보장이 깨집니다.
  */
+@Tag(name = "아웃박스 (관리자)", description = "발행되지 못한 원장 기록 이벤트 복구")
 @RestController
 @RequestMapping("/api/v1/admin/outbox")
 @RequiredArgsConstructor
@@ -56,6 +61,7 @@ public class OutboxAdminController {
     /**
      * 데드레터로 격리된 아웃박스 이벤트를 오래된 순으로 조회합니다.
      */
+    @Operation(summary = "아웃박스 데드레터 목록")
     @GetMapping("/dead-letters")
     public ResponseEntity<DeadLetterListResponse> listDeadLetters(
             @RequestParam(name = "limit", defaultValue = "100") int limit) {
@@ -70,6 +76,10 @@ public class OutboxAdminController {
     /**
      * 데드레터 하나를 재발행 대상으로 되돌립니다. 다음 릴레이 주기에 다시 발행됩니다.
      */
+    @Operation(summary = "데드레터 재발행")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @ApiResponse(responseCode = "404", description = "이벤트 없음 (OUTBOX_EVENT_NOT_FOUND)")
+    @ApiResponse(responseCode = "422", description = "데드레터 상태가 아님")
     @PostMapping("/dead-letters/{eventId}/requeue")
     public ResponseEntity<Void> requeueDeadLetter(@PathVariable Long eventId) {
         outboxManager.requeueDeadLetter(eventId);
@@ -80,6 +90,7 @@ public class OutboxAdminController {
      * 데드레터 전체(최대 {@code limit} 건)를 재발행 대상으로 되돌립니다.
      * 브로커 장애가 복구된 뒤 일괄 재발행하는 용도입니다.
      */
+    @Operation(summary = "데드레터 일괄 재발행")
     @PostMapping("/dead-letters/requeue-all")
     public ResponseEntity<RequeueAllResponse> requeueAllDeadLetters(
             @RequestParam(name = "limit", defaultValue = "1000") int limit) {
