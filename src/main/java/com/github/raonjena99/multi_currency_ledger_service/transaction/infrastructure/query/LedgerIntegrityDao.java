@@ -136,6 +136,20 @@ public class LedgerIntegrityDao {
                 """, rows);
     }
 
+    /**
+     * 지정한 시각 이전에 점검한 회차를 불일치 기록과 함께 지웁니다.
+     *
+     * @return 지운 회차 수
+     */
+    public int deleteRunsCheckedBefore(OffsetDateTime threshold) {
+        MapSqlParameterSource params = new MapSqlParameterSource("threshold", threshold);
+        jdbcTemplate.update("""
+                DELETE FROM ledger_integrity_mismatches
+                WHERE run_id IN (SELECT id FROM ledger_integrity_runs WHERE checked_at < :threshold)
+                """, params);
+        return jdbcTemplate.update("DELETE FROM ledger_integrity_runs WHERE checked_at < :threshold", params);
+    }
+
     public Optional<RunView> findLatestRun() {
         return jdbcTemplate.query("""
                 SELECT id, checked_at, checked_count, skipped_count, mismatch_count, trial_balance_balanced

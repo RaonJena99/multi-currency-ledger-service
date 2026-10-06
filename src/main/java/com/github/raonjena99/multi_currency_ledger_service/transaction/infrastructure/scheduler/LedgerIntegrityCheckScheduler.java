@@ -28,5 +28,10 @@ public class LedgerIntegrityCheckScheduler {
             // 점검 실패는 결과가 남지 않으므로 Gauge 가 직전 값에 머문다. 로그로 남겨 알 수 있게 한다.
             log.error("원장 정합성 점검 실행에 실패했습니다.", e);
         }
+        try {
+            checkService.purgeOldRuns();
+        } catch (Exception e) {
+            log.error("원장 정합성 점검 결과 정리에 실패했습니다.", e);
+        }
     }
 }
