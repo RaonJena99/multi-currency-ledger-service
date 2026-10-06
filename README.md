@@ -24,6 +24,7 @@
 | **계좌 개설·입출금** | 관리자·내부 시스템이 계좌를 열고 법정화폐를 입출금. 입출금도 매수·매도와 같이 멱등성 키를 쓰고 원장에 분개 |
 | **복식부기 분개** | 거래 이벤트를 Kafka로 받아 차변·대변 분개 기록. 매도 시 실현 손익 포함, 대차 불일치 시 저장 거부 |
 | **포트폴리오 조회** | 보유 자산을 실시간 시세로 평가해 미실현 손익 계산. Redis 캐시, 시세 장애 시 지연 데이터로 표시 |
+| **원장 조회** | 계좌별 거래 내역과 거래별 분개(시스템 계정 분개 제외), 기준 통화별 월 시산표(차변 = 대변 + 실현 손익) |
 | **정산 대사** | 월 1회 배치로 PG 정산과 내부 거래를 시간·금액·텍스트 규칙으로 매칭. 불일치 건은 DLQ로 격리 |
 
 ## 핵심 설계
@@ -96,6 +97,8 @@ docker compose pull && docker compose up -d
 | `POST` | `/api/v1/admin/accounts` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/accounts/{accountId}/deposits`, `/withdrawals` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/portfolios/{accountId}` | 인증 + 계좌 소유자 |
+| `GET` | `/api/v1/accounts/{accountId}/transactions`, `/{transactionId}` | 인증 + 계좌 소유자 |
+| `GET` | `/api/v1/admin/ledger/trial-balance?month=yyyy-MM` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/admin/outbox/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/outbox/dead-letters/{eventId}/requeue`, `/requeue-all` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/reconciliations/dead-letters/{deadLetterId}/resolve` | `ROLE_ADMIN` |

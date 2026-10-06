@@ -124,6 +124,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 계좌에서 거래를 찾을 수 없음 (HTTP 404)
+     */
+    @ExceptionHandler(TransactionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTransactionNotFound(TransactionNotFoundException e) {
+        log.warn("Transaction not found: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("TRANSACTION_NOT_FOUND", "The requested transaction does not exist for this account."));
+    }
+
+    /**
      * 같은 ID 의 계좌가 이미 있음 (HTTP 409)
      */
     @ExceptionHandler(AccountAlreadyExistsException.class)
