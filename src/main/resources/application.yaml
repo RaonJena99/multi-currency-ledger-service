@@ -82,6 +82,13 @@ ledger:
     cron: "0 30 3 * * *"
     # 잔고가 바뀐 뒤 이 시간이 지나지 않은 (계좌, 자산) 은 분개가 아직 기록 중일 수 있어 건너뛴다.
     settle-minutes: 10
+    # 점검 결과(회차·불일치 기록) 보존 기간. 매일 점검 직후 지난 결과를 지운다.
+    retention-days: 90
+  outbox:
+    # 발행이 끝난 아웃박스 이벤트를 발행 후 이 기간 동안 남긴다(장애 조사용). 미처리·데드레터 행은 지우지 않는다.
+    retention-days: 7
+    retention-batch-size: 1000
+    retention-cron: "0 15 3 * * *"
   security:
     # 게이트웨이 공유 시크릿. 설정하면 X-Gateway-Secret 헤더가 이 값과 일치하는 요청만
     # X-Auth-* 인증 헤더를 신뢰한다. 미설정(기본)이면 게이트웨이가 클라이언트의 X-Auth-* 헤더를

@@ -72,6 +72,10 @@ public class OutboxEvent extends BaseEntity{
     @Column(name = "next_attempt_at")
     private OffsetDateTime nextAttemptAt;
 
+    /** 발행 시각. 보존 기간 정리(OutboxRetentionWorker)의 기준입니다. 미처리·데드레터면 null 입니다. */
+    @Column(name = "processed_at")
+    private OffsetDateTime processedAt;
+
     /**
      * OutboxEvent 객체를 생성합니다.
      *
@@ -94,6 +98,7 @@ public class OutboxEvent extends BaseEntity{
      */
     public void markAsProcessed() {
         this.processed = true;
+        this.processedAt = OffsetDateTime.now();
     }
 
     /** 데드레터 전환 전 허용되는 최대 재시도 횟수. */
@@ -145,6 +150,7 @@ public class OutboxEvent extends BaseEntity{
         }
         this.deadLetter = false;
         this.processed = false;
+        this.processedAt = null;
         this.retryCount = 0;
         this.nextAttemptAt = null;
         this.lockedAt = null;

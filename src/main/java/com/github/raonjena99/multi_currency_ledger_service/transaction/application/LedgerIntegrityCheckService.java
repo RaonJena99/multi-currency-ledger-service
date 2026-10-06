@@ -44,6 +44,7 @@ public class LedgerIntegrityCheckService {
     private final LedgerIntegrityDao integrityDao;
     private final LedgerQueryDao queryDao;
     private final Duration settleTime;
+    private final Duration resultRetention;
     private final AtomicLong lastMismatchCount = new AtomicLong();
 
     public record Mismatch(UUID accountId, String assetCode, BigDecimal ledgerBalance, BigDecimal journalBalance,
@@ -54,10 +55,12 @@ public class LedgerIntegrityCheckService {
 
     public LedgerIntegrityCheckService(LedgerIntegrityDao integrityDao, LedgerQueryDao queryDao,
                                        MeterRegistry meterRegistry,
-                                       @Value("${ledger.integrity.settle-minutes:10}") long settleMinutes) {
+                                       @Value("${ledger.integrity.settle-minutes:10}") long settleMinutes,
+                                       @Value("${ledger.integrity.retention-days:90}") long retentionDays) {
         this.integrityDao = integrityDao;
         this.queryDao = queryDao;
         this.settleTime = Duration.ofMinutes(settleMinutes);
+        this.resultRetention = Duration.ofDays(retentionDays);
         // Counter 는 해소돼도 줄지 않아 알림 조건으로 쓸 수 없다. 직전 회차의 건수를 그대로 보여준다.
         Gauge.builder("ledger.integrity.mismatches", lastMismatchCount, AtomicLong::get)
                 .description("직전 정합성 점검에서 잔고와 분개 누계가 어긋난 (계좌, 자산) 수. 0 이 아니면 복구가 필요합니다.")
@@ -116,6 +119,20 @@ public class LedgerIntegrityCheckService {
             log.info("원장 정합성 점검 완료. runId={}, checked={}, skipped={}", runId, checkedCount, skippedCount);
         }
         return new IntegrityCheckResult(runId, checkedAt, checkedCount, skippedCount, trialBalanceBalanced, mismatches);
+    }
+
+    /**
+     * 보존 기간이 지난 점검 결과를 불일치 기록과 함께 지웁니다.
+     *
+     * @return 지운 회차 수
+     */
+    @Transactional
+    public int purgeOldRuns() {
+        int purged = integrityDao.deleteRunsCheckedBefore(OffsetDateTime.now().minus(resultRetention));
+        if (purged > 0) {
+            log.info("보존 기간({})이 지난 원장 정합성 점검 결과 {}회차를 삭제했습니다.", resultRetention, purged);
+        }
+        return purged;
     }
 
     /**
