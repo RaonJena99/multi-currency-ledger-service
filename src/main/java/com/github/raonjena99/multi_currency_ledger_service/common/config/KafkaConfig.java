@@ -2,11 +2,17 @@ package com.github.raonjena99.multi_currency_ledger_service.common.config;
 
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
+import java.time.Duration;
+
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.config.TopicConfig;
+import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.TransientDataAccessException;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaOperations;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -19,6 +25,36 @@ import org.springframework.util.backoff.FixedBackOff;
  */
 @Configuration
 public class KafkaConfig {
+
+    /**
+     * 원장 커맨드 토픽을 선언합니다. 브로커의 토픽 자동 생성에 맡기지 않습니다.
+     *
+     * <p>자동 생성은 브로커 기본값(파티션 1)으로 만들어 컨슈머를 늘려도 원장 기록이 병렬화되지 않고,
+     * 운영 클러스터에서 흔히 끄는 설정이라 꺼진 브로커에서는 첫 발행이 실패합니다.
+     *
+     * <p>파티션을 늘리면 계좌 ID 키의 파티션 배정이 바뀝니다. 원장 기록은 거래 ID 로 멱등하고 페이로드가
+     * 거래 시점 값을 모두 싣고 있어 처리 순서에 영향을 받지 않으므로, 기존 토픽의 파티션을 늘려도 안전합니다
+     * (KafkaAdmin 은 선언보다 적은 파티션만 늘리고, 줄이지는 않습니다).
+     */
+    @Bean
+    public NewTopic ledgerRecordingTopic(
+            @Value("${ledger.kafka.ledger-recording.partitions:3}") int partitions,
+            @Value("${ledger.kafka.ledger-recording.replicas:1}") short replicas) {
+        return TopicBuilder.name(KafkaTopics.LEDGER_RECORDING).partitions(partitions).replicas(replicas).build();
+    }
+
+    /**
+     * 원장 기록 DLT 토픽을 선언합니다. DLT 메시지는 DB(ledger_dead_letters)에도 격리되므로 오래 둘 필요가 없습니다.
+     */
+    @Bean
+    public NewTopic ledgerRecordingDltTopic(
+            @Value("${ledger.kafka.ledger-recording.partitions:3}") int partitions,
+            @Value("${ledger.kafka.ledger-recording.replicas:1}") short replicas,
+            @Value("${ledger.kafka.dlt-retention-days:7}") long retentionDays) {
+        return TopicBuilder.name(KafkaTopics.LEDGER_RECORDING_DLT).partitions(partitions).replicas(replicas)
+                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(Duration.ofDays(retentionDays).toMillis()))
+                .build();
+    }
 
     /** DB 일시 장애 재시도의 최대 대기 간격. 커넥션 대기(30초)와 합쳐도 max.poll.interval(5분)보다 짧아야 한다. */
     private static final long DB_OUTAGE_MAX_INTERVAL_MS = 30_000L;

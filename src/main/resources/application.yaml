@@ -77,6 +77,15 @@ spring:
       enabled: false
 
 ledger:
+  kafka:
+    ledger-recording:
+      # 원장 커맨드 토픽의 파티션 수. 컨슈머 동시성을 같은 값으로 둔다(남거나 모자라면 스레드가 놀거나 병렬화가 안 된다).
+      partitions: 3
+      concurrency: 3
+      # 브로커 수에 맞춘다. 운영 스택은 단일 브로커다.
+      replicas: 1
+    # DLT 메시지는 ledger_dead_letters 에도 격리되므로 짧게 둔다.
+    dlt-retention-days: 7
   integrity:
     # 원장 정합성 점검 주기(UTC). 아웃박스 릴레이·Kafka 가 한가한 새벽에 돈다.
     cron: "0 30 3 * * *"

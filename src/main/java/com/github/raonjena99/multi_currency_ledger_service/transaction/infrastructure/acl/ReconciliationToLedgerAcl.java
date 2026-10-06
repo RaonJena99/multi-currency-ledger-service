@@ -8,6 +8,7 @@ import org.slf4j.MDC;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.config.KafkaTopics;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxEvent;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository;
@@ -76,7 +77,7 @@ public class ReconciliationToLedgerAcl {
             );
 
             OutboxEvent outboxEvent = new OutboxEvent(
-                "Ledger", event.accountId().toString(), "LedgerRecordingCommand",
+                "Ledger", event.accountId().toString(), KafkaTopics.LEDGER_RECORDING,
                 jsonMapper.writeValueAsString(payload), correlationId
             );
 

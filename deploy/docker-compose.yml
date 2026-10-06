@@ -80,8 +80,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      # 원장 커맨드 토픽은 애플리케이션이 선언하지 않고 브로커 자동 생성에 맡긴다.
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # 토픽은 애플리케이션이 선언한다(KafkaConfig 의 NewTopic). 자동 생성을 켜 두면 토픽 이름 오타가
+      # 조용히 새 토픽을 만들어, 아무도 구독하지 않는 곳으로 원장 커맨드가 흘러갈 수 있다.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       CLUSTER_ID: ledger-prod-cluster-01
     volumes:
       # 재시작해도 발행된 원장 커맨드가 사라지지 않도록 로그를 볼륨에 둔다.

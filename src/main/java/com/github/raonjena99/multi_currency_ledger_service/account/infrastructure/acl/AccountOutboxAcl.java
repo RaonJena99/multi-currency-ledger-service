@@ -9,6 +9,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
+import com.github.raonjena99.multi_currency_ledger_service.common.config.KafkaTopics;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxEvent;
@@ -83,7 +84,7 @@ public class AccountOutboxAcl {
 
             // Outbox 테이블에 저장
             OutboxEvent outboxEvent = new OutboxEvent("Ledger", externalEvent.accountId().toString(),
-                    "LedgerRecordingCommand", jsonMapper.writeValueAsString(payload), correlationId);
+                    KafkaTopics.LEDGER_RECORDING, jsonMapper.writeValueAsString(payload), correlationId);
             outboxRepository.save(outboxEvent);
         } catch (Exception e) {
             log.error("Failed to translate/serialize TradeExecutedEvent to Outbox", e);

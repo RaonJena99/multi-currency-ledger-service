@@ -51,6 +51,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # 운영과 같이 토픽 자동 생성을 끈다. 토픽은 애플리케이션이 선언한다(KafkaConfig 의 NewTopic).
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       CLUSTER_ID: ledger-local-cluster
     restart: unless-stopped
 
