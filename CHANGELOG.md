@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.9.0...v1.10.0) (2026-10-06)
+
+
+### Features
+
+* PG 정산 내역 CSV 업로드와 대사 배치 즉시 실행 API 추가 ([#107](https://github.com/RaonJena99/multi-currency-ledger-service/issues/107)) ([319c371](https://github.com/RaonJena99/multi-currency-ledger-service/commit/319c371ff4924faa5b698ae3964373ab26bfd1dc)), closes [#85](https://github.com/RaonJena99/multi-currency-ledger-service/issues/85)
+
 ## [1.9.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.8.0...v1.9.0) (2026-10-06)
 
 
