@@ -35,7 +35,11 @@ public abstract class IntegrationTestSupport {
                 .withDatabaseName("ledger_test_db")
                 .withUsername("test_admin")
                 .withPassword("test_password")
-                .withEnv("TZ", "UTC");
+                .withEnv("TZ", "UTC")
+                // 테스트 컨텍스트 캐시는 설정이 다른 컨텍스트(@MockitoBean 등)를 테스트가 끝날 때까지 살려 두고,
+                // 컨텍스트마다 커넥션 풀(최대 20)을 쥔다. 기본 한도(100)면 컨텍스트가 몇 개만 늘어도 뒤에 뜨는
+                // 컨텍스트가 "too many clients" 로 기동하지 못한다. 풀을 줄이면 동시성 테스트가 막히므로 한도를 올린다.
+                .withCommand("postgres", "-c", "max_connections=300");
         
         REDIS_CONTAINER = new GenericContainer<>("redis:7-alpine")
                 .withExposedPorts(6379);
