@@ -1,4 +1,9 @@
 spring:
+  servlet:
+    multipart:
+      # 정산 CSV 업로드(1만 행 ≈ 1MB 안팎)에 여유를 둔다.
+      max-file-size: 5MB
+      max-request-size: 5MB
   application:
     name: multi-currency-ledger-service
   task:
@@ -104,6 +109,9 @@ ledger:
     # 반드시 제거(strip)하는 네트워크 격리 환경을 전제로 한다.
     gateway-secret: ${GATEWAY_SHARED_SECRET:}
   reconciliation:
+    csv:
+      # 정산 CSV 한 파일의 최대 행 수. 넘으면 파일 전체를 거부한다(나눠서 올린다).
+      max-rows: 10000
     # 정산은 수수료를 차감한 실수령액으로 적재되므로(SettlementRecorder), 내부 거래액과의
     # 기대 오차는 PG 수수료 전액이다. 국내 PG 수수료율(1.5~3%대)을 흡수할 수 있어야
     # 수수료 보정(FEE_ADJUSTMENT) 파이프라인에 도달한다. 0.5% 로 두면 수수료가 붙은

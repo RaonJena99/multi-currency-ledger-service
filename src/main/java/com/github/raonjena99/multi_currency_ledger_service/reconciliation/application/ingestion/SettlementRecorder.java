@@ -55,6 +55,28 @@ public class SettlementRecorder {
             log.warn("PG 정산 응답이 비어 있습니다. transactionId={}", externalTransactionId);
             return false;
         }
+        return persist(dto);
+    }
+
+    /**
+     * 이미 받은 정산 내역 한 건(예: PG 가 내려준 CSV 의 한 행)을 적재합니다. 이미 적재된 건은 건너뜁니다.
+     *
+     * @return 신규 적재 여부
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean recordSettlement(ExternalSettlementDto dto) {
+        if (settlementRepository.findByInstitutionCodeAndExternalReferenceId(
+                INSTITUTION_CODE, dto.transactionId()).isPresent()) {
+            return false;
+        }
+        return persist(dto);
+    }
+
+    /**
+     * PG API 와 CSV 가 같은 규칙으로 적재하도록 한 곳에 둔다. 호출자의 트랜잭션 안에서 실행된다.
+     */
+    private boolean persist(ExternalSettlementDto dto) {
+        String externalTransactionId = dto.transactionId();
 
         // 정산 금액은 수수료를 차감한 실수령액으로 계산한다.
         var netAmount = dto.fee() != null ? dto.amount().subtract(dto.fee()) : dto.amount();

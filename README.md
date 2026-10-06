@@ -177,6 +177,9 @@ PowerShell 에서는 `export` 대신 `$env:DB_PASSWORD="local"` 처럼 변수마
 | `POST` | `/api/v1/admin/ledger/integrity-checks` (즉시 실행), `GET` `.../latest` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/admin/outbox/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/outbox/dead-letters/{eventId}/requeue`, `/requeue-all` | `ROLE_ADMIN` |
+| `POST` | `/api/v1/admin/reconciliations/settlements/upload` (PG 정산 CSV) | `ROLE_ADMIN` |
+| `POST` | `/api/v1/admin/reconciliations/jobs?month=yyyy-MM` (대사 배치 즉시 실행) | `ROLE_ADMIN` |
+| `GET` | `/api/v1/admin/reconciliations/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/reconciliations/dead-letters/{deadLetterId}/resolve` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/admin/ledger/dead-letters` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/ledger/dead-letters/{deadLetterId}/replay`, `/resolve` | `ROLE_ADMIN` |
@@ -231,8 +234,10 @@ X-Gateway-Secret   ledger.security.gateway-secret 을 설정한 경우 필수
 | `GATEWAY_SHARED_SECRET` | 없음 |
 
 > [!NOTE]
-> **PG 정산 연동은 실제로 동작하지 않습니다.** 개인이 접속할 수 있는 PG 정산 API가 없어 `PG_API_URL` 기본값이 없고,
-> 정산 적재 서비스(`SettlementIngestionService`)를 호출하는 스케줄러나 API도 아직 없습니다. 따라서 대사 배치는 실행돼도 처리할 데이터가 없습니다.
+> **PG 정산 API 연동은 동작하지 않습니다.** 개인이 접속할 수 있는 PG 정산 API가 없어 `PG_API_URL` 기본값이 없습니다.
+> 대신 PG가 내려주는 정산 내역 **CSV를 업로드**(`/api/v1/admin/reconciliations/settlements/upload`)해 적재하고,
+> 대사 배치를 바로 실행(`/jobs?month=yyyy-MM`)해 결과와 데드레터를 확인할 수 있습니다.
+> 머리글은 `transactionId,currency,amount,fee,status,settledAt`이고, `settledAt`은 시간대를 포함한 ISO-8601(예: `2026-06-15T10:00:00Z`)입니다.
 
 ---
 

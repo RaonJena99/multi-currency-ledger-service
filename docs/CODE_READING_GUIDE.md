@@ -537,6 +537,7 @@ PG사 API 호출. 세션 6과 같은 서킷 브레이커 패턴입니다.
 적재. 두 클래스로 나뉜 이유는 세션 2-5에서 본 것과 같습니다(`REQUIRES_NEW`와 프록시).
 
 - **실패율 임계값(10%)**이 있는 이유가 주석에 있습니다: 건별 격리는 산발적 실패용이지, PG 전면 장애까지 "성공"으로 보고하기 위한 것이 아닙니다.
+- 실제로 쓸 수 있는 PG API 가 없어, 정산 내역은 [SettlementCsvIngestionService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/reconciliation/application/ingestion/SettlementCsvIngestionService.java)로 **CSV 를 올려** 적재합니다. 행마다 `SettlementRecorder.recordSettlement()` 를 거치므로 PG API 경로와 같은 규칙(실수령액 = 금액 − 수수료, 같은 거래 ID 는 한 번만)을 따릅니다. 잘못된 행은 행 번호와 사유를 돌려주고 나머지는 적재하지만, 머리글이 다르거나 행 수가 상한을 넘으면 한 건도 적재하지 않습니다.
 
 **7-4. [reconciliation/infrastructure/query/InternalTransactionCandidate.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/reconciliation/infrastructure/query/InternalTransactionCandidate.java)** + **[InternalTransactionQueryDao.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/reconciliation/infrastructure/query/InternalTransactionQueryDao.java)**
 

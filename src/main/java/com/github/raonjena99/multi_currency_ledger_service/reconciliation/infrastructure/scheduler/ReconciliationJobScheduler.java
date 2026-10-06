@@ -5,6 +5,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobOperator;
@@ -56,19 +57,30 @@ public class ReconciliationJobScheduler {
      * @param startOfMonth 대상 월의 1일 00:00 (UTC)
      */
     public void launch(OffsetDateTime startOfMonth) {
+        try {
+            run(startOfMonth);
+        } catch (Exception e) {
+            log.error("월간 대사 배치 실행에 실패했습니다. 대상 월 = {}", startOfMonth, e);
+        }
+    }
+
+    /**
+     * 지정한 월을 대상으로 대사 배치를 실행하고, 끝날 때까지 기다려 결과를 돌려줍니다.
+     * 관리자 API 의 수동 실행이 씁니다. 실행 자체가 실패하면 예외를 그대로 던집니다.
+     *
+     * @param startOfMonth 대상 월의 1일 00:00 (UTC)
+     */
+    public JobExecution run(OffsetDateTime startOfMonth) throws Exception {
         JobParameters parameters = new JobParametersBuilder()
                 .addString("startOfMonth", startOfMonth.toString())
                 // 같은 월을 재실행할 수 있도록 실행 식별자를 분리한다.
                 .addString("launchedAt", OffsetDateTime.now(ZoneOffset.UTC).toString())
                 .toJobParameters();
 
-        try {
-            log.info("월간 대사 배치를 시작합니다. 대상 월 = {}", startOfMonth);
-            var execution = jobOperator.start(monthlyReconciliationJob, parameters);
-            log.info("월간 대사 배치 종료. status={}, exitStatus={}",
-                    execution.getStatus(), execution.getExitStatus().getExitCode());
-        } catch (Exception e) {
-            log.error("월간 대사 배치 실행에 실패했습니다. 대상 월 = {}", startOfMonth, e);
-        }
+        log.info("월간 대사 배치를 시작합니다. 대상 월 = {}", startOfMonth);
+        JobExecution execution = jobOperator.start(monthlyReconciliationJob, parameters);
+        log.info("월간 대사 배치 종료. status={}, exitStatus={}",
+                execution.getStatus(), execution.getExitStatus().getExitCode());
+        return execution;
     }
 }
