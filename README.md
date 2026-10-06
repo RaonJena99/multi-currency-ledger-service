@@ -59,6 +59,33 @@ docker compose up -d
 
 DB 스키마는 기동 시 Flyway가 자동으로 적용합니다.
 
+### 직접 호출해 보기
+
+앱을 띄운 뒤 계좌 개설 → 입금 → 매수 → 조회까지 해 볼 수 있습니다. 로컬에서는 `GATEWAY_SHARED_SECRET`이 비어 있어 `X-Auth-*` 헤더를 그대로 믿으므로, 헤더만으로 관리자나 계좌 소유자가 됩니다.
+
+```bash
+ACC=11111111-1111-1111-1111-111111111111
+
+# 1) 계좌 개설과 입금 (관리자)
+curl -X POST localhost:8080/api/v1/admin/accounts \
+  -H 'X-Auth-Subject: admin' -H 'X-Auth-Roles: ADMIN' -H 'Content-Type: application/json' \
+  -d "{\"accountId\":\"$ACC\",\"ownerName\":\"demo\",\"baseCurrency\":\"KRW\"}"
+curl -X POST localhost:8080/api/v1/admin/accounts/$ACC/deposits \
+  -H 'X-Auth-Subject: admin' -H 'X-Auth-Roles: ADMIN' -H 'Content-Type: application/json' \
+  -d '{"idempotencyKey":"dep-1","currency":"KRW","amount":1000000}'
+
+# 2) 매수 (계좌 소유자). local 프로파일의 더미 시세는 1 BTC = 100,000,000 KRW 다.
+curl -X POST localhost:8080/api/v1/accounts/$ACC/trades/buy \
+  -H 'X-Auth-Subject: demo' -H "X-Auth-Account-Id: $ACC" -H 'Content-Type: application/json' \
+  -d '{"idempotencyKey":"buy-1","targetAssetCode":"BTC","targetAssetType":"CRYPTO","paymentCurrency":"KRW","quantity":0.001,"unitPrice":100000000}'
+
+# 3) 포트폴리오와 거래 내역. 분개는 아웃박스와 Kafka 를 거쳐 몇 초 뒤에 기록된다.
+curl localhost:8080/api/v1/portfolios/$ACC -H 'X-Auth-Subject: demo' -H "X-Auth-Account-Id: $ACC"
+curl localhost:8080/api/v1/accounts/$ACC/transactions -H 'X-Auth-Subject: demo' -H "X-Auth-Account-Id: $ACC"
+```
+
+포트폴리오에는 BTC 0.001개와 KRW 900,000원이, 거래 내역에는 `BUY`와 `DEPOSIT`이 나옵니다. 헬스 확인과 지표는 관리 포트에서 봅니다(`curl localhost:9091/actuator/health`).
+
 ---
 
 ## 배포
