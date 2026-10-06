@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.2.0...v1.3.0) (2026-10-06)
+
+
+### Features
+
+* 거래 내역·분개 조회 및 시산표 API 추가 ([#73](https://github.com/RaonJena99/multi-currency-ledger-service/issues/73)) ([52c2c2b](https://github.com/RaonJena99/multi-currency-ledger-service/commit/52c2c2bb37118acea9660d246c6e7fd4120d64e5)), closes [#62](https://github.com/RaonJena99/multi-currency-ledger-service/issues/62)
+
 ## [1.2.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.1.0...v1.2.0) (2026-10-06)
 
 
