@@ -147,12 +147,13 @@ public class PortfolioQueryService {
                 return recheck.get();
             }
 
+            // 세대는 DB 를 읽기 "전에" 받아 둔다. 읽은 뒤 쓰기 전에 거래가 커밋되어 캐시를 지웠다면
+            // 쓰지 않아야 거래 이전 잔고가 캐시에 다시 들어가지 않는다(PortfolioViewRefresher 와 같은 규칙).
+            Long generation = currentGenerationQuietly(accountId);
             PortfolioCacheDto rebuilt = readFromDatabase(accountId, baseCurrency);
-            try {
+            if (generation != null) {
                 // 깡통 계좌도 캐싱하여 Cache Penetration 을 방어한다.
-                portfolioCachePort.savePortfolioCache(accountId, rebuilt);
-            } catch (Exception e) {
-                log.warn("포트폴리오 캐시 저장 실패. 조회는 계속 진행합니다: {}", e.getMessage());
+                saveIfGenerationQuietly(accountId, rebuilt, generation);
             }
             return rebuilt;
         } finally {
@@ -179,6 +180,26 @@ public class PortfolioQueryService {
             // Redis 장애를 캐시 미스로 강등한다. 그러지 않으면 조회 API 가 Redis 와 함께 죽는다.
             log.warn("포트폴리오 캐시 조회 실패. 캐시 미스로 처리합니다: {}", e.getMessage());
             return Optional.empty();
+        }
+    }
+
+    private Long currentGenerationQuietly(UUID accountId) {
+        try {
+            return portfolioCachePort.currentGeneration(accountId);
+        } catch (Exception e) {
+            // 세대를 모르면 쓰기가 안전한지 판단할 수 없으므로 캐시에 쓰지 않는다. 조회는 계속 진행한다.
+            log.warn("포트폴리오 캐시 세대 조회 실패. 캐시에 저장하지 않습니다: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private void saveIfGenerationQuietly(UUID accountId, PortfolioCacheDto snapshot, long generation) {
+        try {
+            if (!portfolioCachePort.savePortfolioCacheIfGeneration(accountId, snapshot, generation)) {
+                log.debug("조회 중 더 최근 커밋이 캐시를 지웠습니다. 거래 이전 잔고를 캐시에 쓰지 않습니다. account={}", accountId);
+            }
+        } catch (Exception e) {
+            log.warn("포트폴리오 캐시 저장 실패. 조회는 계속 진행합니다: {}", e.getMessage());
         }
     }
 

@@ -20,16 +20,32 @@ public interface PortfolioCachePort {
     Optional<PortfolioCacheDto> getPortfolioCache(UUID accountId);
 
     /**
-     * 포트폴리오 정보를 캐시에 저장합니다.
-     * 
+     * 계좌의 현재 캐시 세대를 반환합니다. 커밋 후 캐시를 지울 때마다 1 씩 오릅니다.
+     *
+     * <p>캐시를 다시 채우는 쪽은 <b>DB 를 읽기 전에</b> 세대를 받아 두고, 쓸 때
+     * {@link #savePortfolioCacheIfGeneration} 에 넘겨야 합니다.
+     *
      * @param accountId 계좌 ID
-     * @param dto 캐시할 포트폴리오 정보
+     * @return 현재 세대. 한 번도 지운 적이 없으면 0
      */
-    void savePortfolioCache(UUID accountId, PortfolioCacheDto dto);
+    long currentGeneration(UUID accountId);
 
     /**
-     * 캐시된 포트폴리오 정보를 삭제합니다.
-     * 
+     * 세대가 그대로일 때만 포트폴리오 정보를 캐시에 저장합니다.
+     *
+     * <p>DB 를 읽은 뒤 쓰기 전에 다른 거래가 커밋되어 캐시를 지웠다면 세대가 올라가 있으므로 쓰지 않습니다.
+     * 조건 없이 쓰면 지워진 자리에 거래 이전 잔고가 다시 들어갑니다.
+     *
+     * @param accountId          계좌 ID
+     * @param dto                캐시할 포트폴리오 정보
+     * @param expectedGeneration DB 를 읽기 전에 받아 둔 세대
+     * @return 저장했으면 true, 그사이 세대가 바뀌어 저장하지 않았으면 false
+     */
+    boolean savePortfolioCacheIfGeneration(UUID accountId, PortfolioCacheDto dto, long expectedGeneration);
+
+    /**
+     * 캐시된 포트폴리오 정보를 삭제하고 세대를 1 올립니다. 두 동작은 원자적으로 수행됩니다.
+     *
      * @param accountId 계좌 ID
      */
     void evictPortfolioCache(UUID accountId);
