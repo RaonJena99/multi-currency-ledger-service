@@ -3,8 +3,9 @@
 #   cp .env.example .env   # 비밀값을 채운다
 #   docker compose up -d
 #
-# 로컬 개발용 인프라(호스트 포트 노출, Prometheus/Grafana)는 저장소 루트의 docker-compose.yml 을 쓴다.
-# 이 파일은 애플리케이션 포트만 호스트에 노출하고, 나머지는 내부 네트워크에만 둔다.
+# 로컬 개발용 인프라(호스트 포트 노출)는 저장소 루트의 docker-compose.yml 을 쓴다.
+# 이 파일은 애플리케이션 포트만 외부에 노출한다. Prometheus·Grafana 는 서버 자신(127.0.0.1)에서만 열리고,
+# 나머지는 내부 네트워크에만 둔다.
 name: ledger
 
 services:
@@ -89,6 +90,43 @@ services:
       # 재시작을 반복한다. 모든 사용자가 쓸 수 있는 /tmp 에 붙이면 볼륨이 그 권한을 물려받는다.
       - kafka_data:/tmp
 
+  # ── 모니터링 ──────────────────────────────────────────────
+  # 지표 수집과 알림 규칙 평가. 앱의 관리 포트(9091)는 호스트에 없으므로 같은 네트워크에서 수집한다.
+  # 호스트에는 127.0.0.1 로만 연다. 외부에서 볼 때는 SSH 터널을 쓴다(ssh -L 9090:localhost:9090 서버).
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - app
+
+  # 데이터소스와 대시보드는 deploy/monitoring/grafana 의 파일로 프로비저닝한다(화면에서 고친 내용은 저장되지 않음).
+  grafana:
+    image: grafana/grafana:10.0.3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?.env 에 GRAFANA_ADMIN_PASSWORD 를 설정하세요}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   kafka_data:
+  prometheus_data:
+  grafana_data:

@@ -65,6 +65,7 @@ DB 스키마는 기동 시 Flyway가 자동으로 적용합니다.
 
 ```text
 PR / main 푸시   ─▶ CI: 전체 테스트 + 이미지 빌드 후 운영 스택으로 기동 확인(스모크 테스트) + 취약점 스캔
+PR / main 푸시   ─▶ CI: Prometheus 설정·알림 규칙 단위 테스트(promtool), 대시보드 JSON 검사
 main 머지        ─▶ release-please 가 릴리스 PR(다음 버전, CHANGELOG)을 갱신
 릴리스 PR 머지   ─▶ 테스트 → 이미지 빌드 → 스모크 테스트 → 취약점 스캔 → GHCR 발행
 매주 월요일      ─▶ Dependabot 의존성 업데이트 PR, main 재검증(새로 공개된 취약점 감지)
@@ -82,7 +83,7 @@ main 머지        ─▶ release-please 가 릴리스 PR(다음 버전, CHANGEL
 
 ```bash
 cd deploy
-cp .env.example .env        # DB_PASSWORD, GATEWAY_SHARED_SECRET 은 필수
+cp .env.example .env        # DB_PASSWORD, GATEWAY_SHARED_SECRET, GRAFANA_ADMIN_PASSWORD 는 필수
 docker compose pull && docker compose up -d
 ```
 
@@ -90,6 +91,44 @@ docker compose pull && docker compose up -d
 - GHCR 패키지가 비공개라면 서버에서 먼저 `docker login ghcr.io`로 로그인해야 합니다.
 - 운영용 스택은 애플리케이션 포트만 호스트에 노출하고, 모든 서비스에 재시작 정책(`unless-stopped`)을 둡니다.
 - 헬스 확인과 지표 수집(`/actuator/*`)은 관리 포트(`MANAGEMENT_PORT`, 기본 9091)에서만 응답합니다. 이 포트는 호스트에 노출하지 않으므로 같은 네트워크 안에서 접근합니다.
+
+### 모니터링
+
+운영 스택에는 Prometheus와 Grafana가 함께 뜹니다. 둘 다 서버 자신(`127.0.0.1`)에서만 열리므로 SSH 터널로 접속합니다.
+
+```bash
+ssh -L 9090:localhost:9090 -L 3000:localhost:3000 <서버>   # Prometheus :9090, Grafana :3000 (admin / GRAFANA_ADMIN_PASSWORD)
+```
+
+- Prometheus는 같은 네트워크에서 앱의 관리 포트(`app:9091`)를 수집하고, `deploy/monitoring/alerts.yml`의 규칙을 평가합니다.
+- Grafana의 데이터소스와 `Ledger Overview` 대시보드는 `deploy/monitoring/grafana`의 파일로 자동 구성됩니다.
+- 알림 전달(Alertmanager → 메일·슬랙)은 아직 설정하지 않았습니다. 지금은 Prometheus의 Alerts 화면과 대시보드에서 확인합니다.
+
+| 알림 | 등급 | 조건 |
+| :--- | :--- | :--- |
+| `LedgerIntegrityMismatch` | critical | 직전 정합성 점검의 불일치가 0보다 큼 |
+| `LedgerDeadLetterUnresolved` | critical | 미해결 원장 데드레터가 2분 넘게 남음 |
+| `OutboxDeadLetters` | critical | 아웃박스 데드레터가 2분 넘게 남음 |
+| `LedgerServiceDown` | critical | 앱 지표를 2분 넘게 수집하지 못함 |
+| `HighServerErrorRate` | warning | 5xx 비율이 5분 넘게 5%를 넘음 |
+| `CircuitBreakerOpen` | warning | 외부 API 서킷 브레이커가 5분 넘게 열림 |
+
+규칙을 바꾸면 `deploy/monitoring/alerts.test.yml`도 함께 고칩니다. CI가 `promtool`로 규칙 단위 테스트를 실행합니다.
+
+**서버 없이 로컬에서 확인하기.** 로컬에서 띄우면 `127.0.0.1` 포트에 바로 접속할 수 있어 SSH 터널이 필요 없습니다.
+
+```bash
+docker build -t ledger:local .
+cd deploy
+# up 과 down 모두 compose 파일 전체를 해석하므로 필수 값을 먼저 정해 둔다(값이 없으면 down 도 실패한다).
+export APP_IMAGE=ledger:local DB_PASSWORD=local GATEWAY_SHARED_SECRET=local GRAFANA_ADMIN_PASSWORD=local
+docker compose -p ledger-local up -d --wait
+# Prometheus  http://localhost:9090/alerts
+# Grafana     http://localhost:3000/d/ledger-overview  (admin / local)
+docker compose -p ledger-local down -v   # 정리
+```
+
+PowerShell 에서는 `export` 대신 `$env:DB_PASSWORD="local"` 처럼 변수마다 지정합니다.
 
 ---
 
