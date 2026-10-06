@@ -124,6 +124,30 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 원장 데드레터를 찾을 수 없음 (HTTP 404)
+     */
+    @ExceptionHandler(LedgerDeadLetterNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleLedgerDeadLetterNotFound(LedgerDeadLetterNotFoundException e) {
+        log.warn("Ledger dead letter not found: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("LEDGER_DEAD_LETTER_NOT_FOUND", "The requested ledger dead letter does not exist."));
+    }
+
+    /**
+     * 원장 데드레터 재처리 실패 (HTTP 422)
+     *
+     * <p>관리자 전용 API 이고, 운영자가 원인을 보고 직접 보상할지 판단해야 하므로 실패 원인을 응답에 담습니다.
+     */
+    @ExceptionHandler(LedgerReplayFailedException.class)
+    public ResponseEntity<ErrorResponse> handleLedgerReplayFailed(LedgerReplayFailedException e) {
+        log.warn("Ledger dead letter replay failed: {}", e.getMessage(), e);
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .body(new ErrorResponse("LEDGER_REPLAY_FAILED", e.getMessage()));
+    }
+
+    /**
      * 동시성 제어 실패 시 발생 (HTTP 409)
      */
     @ExceptionHandler(OptimisticLockingFailureException.class)
