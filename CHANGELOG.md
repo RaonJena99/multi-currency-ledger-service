@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.9...v1.1.0) (2026-10-06)
+
+
+### Features
+
+* 원장 DLT 조회·재처리 관리자 API 추가 ([#64](https://github.com/RaonJena99/multi-currency-ledger-service/issues/64)) ([9e9c83d](https://github.com/RaonJena99/multi-currency-ledger-service/commit/9e9c83de1c4bff7871bf0ba844554c6d898c165e)), closes [#60](https://github.com/RaonJena99/multi-currency-ledger-service/issues/60)
+
 ## [1.0.9](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.0.8...v1.0.9) (2026-10-06)
 
 
