@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.8.0...v1.9.0) (2026-10-06)
+
+
+### Features
+
+* Kafka 토픽을 코드에서 선언하고 원장 기록 컨슈머를 파티션 수만큼 병렬화 ([#104](https://github.com/RaonJena99/multi-currency-ledger-service/issues/104)) ([2afdbeb](https://github.com/RaonJena99/multi-currency-ledger-service/commit/2afdbebcf1a0a3c8095d3437653c81c87b990ebc)), closes [#84](https://github.com/RaonJena99/multi-currency-ledger-service/issues/84)
+
 ## [1.8.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.7.0...v1.8.0) (2026-10-06)
 
 
