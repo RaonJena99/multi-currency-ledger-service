@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.3.0...v1.4.0) (2026-10-06)
+
+
+### Features
+
+* 월차 원장 잔고와 분개 누계 정합성 점검 배치 추가 ([#75](https://github.com/RaonJena99/multi-currency-ledger-service/issues/75)) ([a1ee5ee](https://github.com/RaonJena99/multi-currency-ledger-service/commit/a1ee5ee7105ebffc122f3b7661bf547a5eed0375)), closes [#63](https://github.com/RaonJena99/multi-currency-ledger-service/issues/63)
+
 ## [1.3.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.2.0...v1.3.0) (2026-10-06)
 
 
