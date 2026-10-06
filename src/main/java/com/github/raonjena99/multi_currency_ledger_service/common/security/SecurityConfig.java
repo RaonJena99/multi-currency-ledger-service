@@ -39,6 +39,9 @@ public class SecurityConfig {
                 // actuator 는 관리 포트(management.server.port)에서만 응답한다. 관리 포트는 내부 네트워크 전용이므로
                 // 수집·헬스 확인 경로는 인증 없이 연다. 앱 포트에서는 이 경로들이 매핑되지 않아 404 가 된다.
                 .requestMatchers(actuatorBase + "/health", actuatorBase + "/health/**", actuatorBase + "/info", actuatorBase + "/prometheus").permitAll()
+                // API 문서(springdoc)도 관리 포트에만 있으므로 같은 전제로 연다.
+                .requestMatchers(actuatorBase + "/openapi", actuatorBase + "/openapi/**",
+                        actuatorBase + "/swagger-ui", actuatorBase + "/swagger-ui/**").permitAll()
                 .requestMatchers(actuatorBase + "/**").hasAuthority(LedgerPrincipal.ROLE_ADMIN)
                 .requestMatchers("/api/v1/admin/**").hasAuthority(LedgerPrincipal.ROLE_ADMIN)
                 .requestMatchers("/api/v1/accounts/**", "/api/v1/portfolios/**").authenticated()

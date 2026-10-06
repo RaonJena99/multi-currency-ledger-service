@@ -182,6 +182,12 @@ PowerShell 에서는 `export` 대신 `$env:DB_PASSWORD="local"` 처럼 변수마
 | `POST` | `/api/v1/admin/ledger/dead-letters/{deadLetterId}/replay`, `/resolve` | `ROLE_ADMIN` |
 | `GET` | `/actuator/health`, `/info`, `/prometheus` | **관리 포트(기본 9091)에서만** 응답, 인증 없음 |
 
+요청·응답 형식과 에러 코드는 **API 문서**(OpenAPI)에 있습니다. 문서는 앱 포트가 아니라 관리 포트에서만 제공합니다.
+
+- Swagger UI: `http://localhost:9091/actuator/swagger-ui` (Authorize 에서 `X-Auth-*` 헤더를 채워 바로 호출해 볼 수 있습니다)
+- OpenAPI JSON: `http://localhost:9091/actuator/openapi`
+- 운영에서는 관리 포트가 외부에 노출되지 않으므로 서버 안에서 봅니다.
+
 관리자는 계좌 소유권 검사를 건너뜁니다.
 
 계좌 개설과 입출금은 고객이 직접 호출하지 않습니다. 소유권은 게이트웨이가 `X-Auth-Account-Id`로 정하므로 계좌 ID와 고객의 연결을 관리하는 쪽이 개설해야 하고, 입금은 실제 결제가 확인된 뒤에만 반영해야 하기 때문입니다.
