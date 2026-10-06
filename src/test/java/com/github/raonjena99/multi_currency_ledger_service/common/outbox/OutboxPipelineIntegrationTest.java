@@ -29,8 +29,17 @@ class OutboxPipelineIntegrationTest extends IntegrationTestSupport {
 
     @Test
     @DisplayName("아웃박스 이벤트가 발행되면 워커가 이를 읽어 Kafka로 전송하고 완료 처리한다")
-    void shouldRelayOutboxEventToKafkaAndMarkAsProcessed() {
+    void shouldRelayOutboxEventToKafkaAndMarkAsProcessed() throws Exception {
         // 1. Given
+        // 이 테스트 전용 토픽이다. 테스트 브로커는 토픽 자동 생성을 꺼 두므로(운영과 같음) 먼저 만든다.
+        try (var admin = org.apache.kafka.clients.admin.AdminClient.create(java.util.Map.of(
+                org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_CONTAINER.getBootstrapServers()))) {
+            if (!admin.listTopics().names().get().contains("ACCOUNT_CREATED")) {
+                admin.createTopics(java.util.List.of(new org.apache.kafka.clients.admin.NewTopic("ACCOUNT_CREATED", 1, (short) 1)))
+                        .all().get();
+            }
+        }
+
         OutboxEvent event = new OutboxEvent("Account", "ACC-1234", "ACCOUNT_CREATED", "{\"status\":\"ACTIVE\"}", "test-corr-id");
         outboxRepository.save(event);
 

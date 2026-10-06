@@ -6,6 +6,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.config.KafkaTopics;
 import com.github.raonjena99.multi_currency_ledger_service.common.telemetry.CorrelationIdFilter;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.LedgerDeadLetter;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.LedgerDeadLetterRepository;
@@ -45,7 +46,7 @@ public class LedgerDltConsumer {
      * @param originalTopic 원본 토픽 이름
      * @param correlationId 분산 추적 식별자
      */
-    @KafkaListener(topics = "LedgerRecordingCommand.DLT", groupId = "ledger-dlt-alert-group")
+    @KafkaListener(topics = KafkaTopics.LEDGER_RECORDING_DLT, groupId = "ledger-dlt-alert-group")
     @Transactional
     public void consumeDlt(
             String payload,

@@ -5,6 +5,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
+import com.github.raonjena99.multi_currency_ledger_service.common.config.KafkaTopics;
 import com.github.raonjena99.multi_currency_ledger_service.common.telemetry.CorrelationIdFilter;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
@@ -32,7 +33,9 @@ public class OrderToLedgerAcl {
      * @param payload       원장 기록 커맨드 JSON
      * @param correlationId 발행 측에서 전달된 분산 추적 식별자
      */
-    @KafkaListener(topics = "LedgerRecordingCommand", groupId = "ledger-recording-group")
+    // 동시성은 파티션 수에 맞춘다. 파티션보다 많으면 남는 스레드는 놀고, 적으면 파티션이 병렬로 처리되지 않는다.
+    @KafkaListener(topics = KafkaTopics.LEDGER_RECORDING, groupId = "ledger-recording-group",
+            concurrency = "${ledger.kafka.ledger-recording.concurrency:3}")
     public void consumeLedgerCommand(
             String payload,
             @Header(name = CorrelationIdFilter.MDC_KEY, required = false) String correlationId) {

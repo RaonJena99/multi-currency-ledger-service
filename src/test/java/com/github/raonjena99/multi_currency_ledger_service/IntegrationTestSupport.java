@@ -40,7 +40,10 @@ public abstract class IntegrationTestSupport {
         REDIS_CONTAINER = new GenericContainer<>("redis:7-alpine")
                 .withExposedPorts(6379);
 
-        KAFKA_CONTAINER = new KafkaContainer(DockerImageName.parse("apache/kafka-native:3.8.0"));
+        // 토픽 자동 생성을 끈다. 운영 클러스터에서 흔한 설정이며, 애플리케이션이 쓰는 토픽을 모두 직접
+        // 선언해야만(KafkaConfig 의 NewTopic) 원장 기록 테스트가 통과한다.
+        KAFKA_CONTAINER = new KafkaContainer(DockerImageName.parse("apache/kafka-native:3.8.0"))
+                .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
 
         POSTGRES_CONTAINER.start();
         REDIS_CONTAINER.start();
