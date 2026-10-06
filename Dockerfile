@@ -46,12 +46,13 @@ COPY --from=builder --chown=spring:spring /app/build/libs/*.jar app.jar
 
 USER spring:spring
 
-EXPOSE 8080
+# 8080: API, 9091: 관리용 엔드포인트(health, prometheus). 9091 은 운영에서 호스트에 노출하지 않는다.
+EXPOSE 8080 9091
 
 # 컨테이너 메모리 한도를 인식하게 하고(MaxRAMPercentage), 세대별 ZGC 를 사용한다.
 ENV JAVA_OPTS="-XX:+UseZGC -XX:+ZGenerational -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD ["sh", "-c", "curl -fsS http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+    CMD ["sh", "-c", "curl -fsS http://localhost:9091/actuator/health | grep -q '\"status\":\"UP\"'"]
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
