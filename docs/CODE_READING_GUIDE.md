@@ -3,7 +3,7 @@
 > 이 문서는 이 저장소의 **전체 코드를 순서대로 해석하기 위한 학습 경로**입니다.
 > 위에서부터 아래로 따라가면, 각 파일이 "왜 그 자리에 있는지"를 알 수 있는 상태에서 코드를 만나게 됩니다.
 >
-> 총 9개 세션이며, 세션 하나당 30분~1시간 정도를 예상하면 됩니다.
+> 총 10개 세션이며, 세션 하나당 30분~1시간 정도를 예상하면 됩니다.
 > 세션은 **반드시 순서대로** 읽으십시오. 뒤 세션은 앞 세션의 개념을 이미 안다고 가정합니다.
 
 ---
@@ -35,15 +35,24 @@ HTTP POST /trades/buy
   → LedgerService                 (복식부기 분개 생성 + 대차평균 검증)
   → transactions / transaction_entries 테이블
 
+[계좌 개설·입출금·상태 관리 — 관리자·내부 시스템 전용]
+POST /admin/accounts, /deposits, /withdrawals, /suspend, /activate, /close
+  → 입출금은 매수·매도와 같은 쓰기 경로(멱등성 → 잔고 → 아웃박스)를 그대로 탄다
+
 [읽기 경로 — CQRS]
 GET /portfolios/{id}
   → PortfolioQueryService  → Redis 캐시(없으면 DB) + 시세 API → 평가액 계산
+GET /accounts/{id}/transactions, /admin/ledger/trial-balance
+  → LedgerQueryService     → 분개 테이블 직접 조회 (거래 내역, 시산표)
 
 [대사 경로 — 월 1회 배치]
   PG 정산 데이터 적재 → 룰 기반 매칭 → 차액 발견 → 다시 원장 경로로 되돌아옴
+
+[운영 경로 — 매일 배치 + 관리자 API]
+  정합성 점검(잔고 vs 분개 누계) → 불일치 지표 → 알림 → 원장 DLT 재처리·아웃박스 재발행으로 복구
 ```
 
-**용어 5개** (이것만 알면 나머지는 코드가 설명해 줍니다):
+**용어 7개** (이것만 알면 나머지는 코드가 설명해 줍니다):
 
 | 용어 | 뜻 |
 | :--- | :--- |
@@ -52,6 +61,8 @@ GET /portfolios/{id}
 | **아웃박스 (Outbox)** | 메시지를 브로커에 바로 보내지 않고, 비즈니스 데이터와 **같은 트랜잭션**으로 DB 테이블에 먼저 저장하는 패턴. |
 | **ACL (Anti-Corruption Layer)** | 모듈 경계에서 남의 도메인 타입을 내 타입으로 번역하는 계층. 이 프로젝트에서는 `*Acl` 클래스들. |
 | **대사 (Reconciliation)** | 외부(PG사) 정산 내역과 내부 거래 기록을 대조해 짝을 맞추는 작업. |
+| **시산표 (Trial Balance)** | 기간 안의 모든 분개를 통화별로 합산해 차변과 대변이 맞는지 보는 표. |
+| **정합성 점검** | 고객 잔고(월차 원장)와 분개 누계가 같은지 매일 비교하는 작업. 잔고와 분개가 비동기로 갈라지는 이 구조의 안전망. |
 
 ### 읽는 방법에 대한 조언
 
@@ -159,9 +170,10 @@ GET /portfolios/{id}
   1. `validateAssetTypeConsistency()` — 클라이언트가 보낸 `AssetType`을 믿지 않습니다.
   2. `transactedAt` 고정 — 이후 모든 단계가 이 시각을 공유합니다.
   3. `periodResolver.resolveLedgerMonth()` — 월 결정은 **계좌 단위로 딱 한 번**.
-  4. 원장 2개(대상 자산 + 결제 통화) 미리 생성 — 트랜잭션 안에서 하면 커넥션 데드락 위험.
+  4. 계좌 조회와 상태 확인 — 빠른 실패용. 확정 검증은 트랜잭션 안에서 다시 합니다(2-7).
   5. 환율 조회 (외부 HTTP) — **트랜잭션 밖에서** 해야 커넥션 풀이 안 마릅니다.
-  6. `validatePriceAgainstMarket()` — 클라이언트가 제시한 단가가 시세에서 10% 이상 벗어나면 거부.
+  6. `validatePriceAgainstMarket()` — 클라이언트가 제시한 단가가 시세에서 허용 범위(기본 2%, `ledger.trade.max-price-deviation-ratio`)를 넘으면 거부.
+  7. 원장 2개(대상 자산 + 결제 통화) 미리 생성 — **모든 검증을 통과한 뒤에** 합니다. `REQUIRES_NEW`로 즉시 커밋되므로, 검증 전에 만들면 거절된 요청도 원장 행을 남깁니다(주석 참고).
 - 왜 재시도(`@Retryable`)가 여기 없고 Service에 있는지, 클래스 주석에서 확인하십시오.
 
 **2-7. [account/application/AccountTradeService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeService.java)** ← **이 프로젝트에서 가장 중요한 파일**
@@ -172,7 +184,7 @@ GET /portfolios/{id}
 - `registerIdempotencyKey()` — 멱등성 처리. 반드시 읽으십시오:
   - 키를 `accountId:BUY:clientKey`로 **스코프**합니다. 전역 키를 쓰면 남의 키와 충돌하거나, 키 선점 공격이 가능합니다.
   - 이미 있는 키가 **완료된 거래**(`tradeId != null`)를 가리키면 그 거래 ID를 그대로 돌려줍니다(재생/replay). 아직 처리 중이면 409.
-- `requireActiveAccount()` — Facade에서 이미 확인했는데 또 합니다. 주석의 **TOCTOU**가 이유입니다.
+- `requireActiveAccount()` — Facade에서 이미 확인했는데 또 합니다. 주석의 **TOCTOU**가 이유입니다. 계좌를 **공유 잠금**(`findByIdForShare`)으로 읽는다는 점도 기억해 두십시오. 2-11에서 이유가 나옵니다.
 - `resolveEffectiveMonth()` — 월 경계 경합 대응. 2-4에서 본 로직을 트랜잭션 안에서 한 번 더 확인합니다.
 - `requireAboveMinimumNotional()` — KRW 0.4원짜리 거래를 막습니다. 세션 1의 `minimumUnit()`이 여기서 쓰입니다.
 - 잔고 변경 두 줄:
@@ -187,7 +199,31 @@ GET /portfolios/{id}
 
 발행되는 이벤트의 형태. 특히 `fiatToBaseRate` 주석 — **거래 시점에 실제 적용된 환율을 실어 보내야** 나중에 원장이 잔고와 같은 환율로 기록됩니다.
 
-**2-9. 확인용 테스트**: [AccountTradeServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeServiceTest.java), [AccountTradeConcurrencyTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeConcurrencyTest.java), [regression/LedgerPeriodIntegrityTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/LedgerPeriodIntegrityTest.java)
+**2-9. 입출금 — [AccountTradeFacade.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeFacade.java)의 `deposit()`/`withdraw()` → [AccountTradeService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeService.java)의 `executeCashTransfer()`**
+
+입출금은 매수·매도와 **같은 길**을 갑니다. 새로 배울 것은 세 가지뿐입니다.
+
+- **같은 이벤트 재사용**: 입출금도 `TradeExecutedEvent`(`TradeType.DEPOSIT`/`WITHDRAWAL`)로 발행합니다. 덕분에 아웃박스 적재(세션 3), 포트폴리오 캐시 갱신(세션 5), 원장 DLT 재처리(세션 10)가 코드 추가 없이 그대로 동작합니다. 자산 코드와 결제 통화가 모두 입출금 통화이고, 단가·환율은 1입니다.
+- **반올림하지 않는 금액**: `prepareCashTransfer()`는 통화 최소 단위보다 정밀한 금액(예: `1000.5 KRW`)을 **거부**합니다. 매수·매도 대금은 서버가 정한 방향으로 반올림하지만, 입출금액은 실제로 오간 돈이라 반올림하면 고객이 보낸 금액과 잔고가 달라집니다.
+- **관리자 전용**: [AccountAdminController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/presentation/AccountAdminController.java)는 `/api/v1/admin` 아래에 있습니다. 클래스 주석의 두 가지 이유(소유권은 게이트웨이가 정한다, 입금은 결제 확인 뒤에만 반영해야 한다)를 읽으십시오. 계좌 개설은 [AccountOpeningService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountOpeningService.java)가 합니다.
+
+**2-10. 계좌 상태 — [AccountStatusService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountStatusService.java)** + **[AccountStatusHistory.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/domain/AccountStatusHistory.java)**
+
+정지·해제·해지와 변경 이력.
+
+- `Account`의 `suspend()`/`activate()`/`close()`는 **같은 상태로의 전환을 거부**합니다. 받아 주면 의미 없는 이력이 쌓이고, 정지가 실제로 적용됐는지 구분할 수 없습니다.
+- 해지는 모든 자산 잔고가 0이어야 합니다. 음수 잔고(수수료 보정으로 생긴 고객 채권)도 정산 전이므로 거부합니다.
+- 이력은 상태 변경과 **같은 트랜잭션**에서 남깁니다.
+
+**2-11. 해지와 입금의 경쟁 — [AccountRepository.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/infrastructure/AccountRepository.java)의 `findByIdForShare`/`findByIdForUpdate`**
+
+잠금이 없으면 이런 순서가 가능합니다: 입금이 계좌를 "정상"으로 확인 → 해지가 잔고 0을 보고 해지 → 입금이 잔고를 늘리고 커밋. **잔고가 남은 해지 계좌**가 생깁니다.
+
+- 거래·입출금(`requireActiveAccount`)은 계좌를 **공유 잠금**(`FOR SHARE`)으로 읽습니다. 공유 잠금끼리는 서로 막지 않으므로 같은 계좌의 거래는 동시에 진행됩니다.
+- 상태 변경은 **배타 잠금**(`FOR UPDATE`)으로 읽습니다. 해지는 진행 중인 거래가 커밋될 때까지 기다린 뒤 잔고를 읽습니다.
+- 낙관적 락(`@Version`, 월차 원장)과 비관적 잠금(계좌 행)이 **서로 다른 문제**를 푼다는 점을 구분하십시오. 앞의 것은 같은 원장 행의 동시 수정을, 뒤의 것은 "상태 확인 → 잔고 변경" 사이의 끼어들기를 막습니다.
+
+**2-12. 확인용 테스트**: [AccountTradeServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeServiceTest.java), [AccountTradeConcurrencyTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeConcurrencyTest.java), [regression/LedgerPeriodIntegrityTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/LedgerPeriodIntegrityTest.java)
 
 ### 스스로에게 던질 질문
 
@@ -195,6 +231,8 @@ GET /portfolios/{id}
 2. 낙관적 락 충돌로 재시도될 때, 멱등성 키 INSERT는 어떻게 되는가? (힌트: 어드바이스 순서)
 3. 클라이언트가 타임아웃 후 같은 `idempotencyKey`로 재요청하면 응답이 어떻게 다른가 — 거래가 이미 완료된 경우와 처리 중인 경우 각각?
 4. 12월 31일 23:59 UTC+9 노드와 UTC 노드가 동시에 거래를 처리하면 어떤 월에 기장되는가?
+5. 입금액 `1000.5 KRW`는 왜 반올림하지 않고 거부하는가? 매수 대금은 왜 반올림해도 되는가?
+6. 해지와 입금이 동시에 들어오면 어떤 순서로 처리되고, 각각의 결과는 무엇인가? ([AccountCloseConcurrencyTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountCloseConcurrencyTest.java))
 
 ---
 
@@ -216,7 +254,7 @@ GET /portfolios/{id}
 
 메시지 한 건의 상태 머신입니다.
 
-- 필드: `processed`, `retryCount`, `deadLetter`, `lockedAt`, `nextAttemptAt`.
+- 필드: `processed`, `processedAt`(발행 시각, 3-7), `retryCount`, `deadLetter`, `lockedAt`, `nextAttemptAt`.
 - `recordFailure()` — **지수 백오프**: 30초 → 60초 → … → 최대 10분, 10회 후 데드레터. 주석의 이유가 중요합니다(백오프가 없으면 브로커 몇 분 다운에 전체 이벤트가 데드레터로 빠짐).
 - `requeue()` — 데드레터를 되살리는 유일한 경로.
 
@@ -238,15 +276,23 @@ GET /portfolios/{id}
 
 실제 Kafka 전송. **토픽 이름 = `eventType`, 메시지 키 = `aggregateId`(계좌 ID)** 입니다. 계좌 ID를 키로 쓰므로 같은 계좌의 메시지는 같은 파티션 = 순서 보장.
 
-**3-7. [common/config/KafkaConfig.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/config/KafkaConfig.java)**
+**3-7. [common/outbox/OutboxRetentionWorker.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxRetentionWorker.java)**
+
+발행이 끝난 행을 보존 기간(기본 7일)이 지나면 매일 지웁니다. 거래마다 페이로드 1행이 생기므로 지우지 않으면 계속 쌓입니다.
+
+- **지우지 않는 행**: 미처리 행(세션 10의 정합성 점검이 "발행 대기"를 판단하는 근거)과 데드레터 행(재발행 대상).
+- 기준은 만든 시각이 아니라 **발행 시각**(`processed_at`)입니다. 재시도·재발행 끝에 늦게 발행된 행도 보존 기간 동안 남아 장애를 조사할 수 있습니다.
+- 한 번에 지우는 양을 제한하고 묶음마다 커밋합니다. 쌓인 양이 많아도 긴 트랜잭션을 만들지 않습니다.
+
+**3-8. [common/config/KafkaConfig.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/config/KafkaConfig.java)**
 
 컨슈머 에러 핸들러와 DLT(Dead Letter Topic) 정책이 여기 있습니다.
 
-**3-8. [application.yaml](../src/main/resources/application.yaml)의 `spring.kafka` 블록**
+**3-9. [application.yaml](../src/main/resources/application.yaml)의 `spring.kafka` 블록**
 
 주석이 상세합니다. `enable.idempotence: true`, `auto-offset-reset: earliest`(주석의 이유 확인), `ack-mode: record`.
 
-**3-9. 확인용 테스트**: [OutboxPipelineIntegrationTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxPipelineIntegrationTest.java), [regression/OutboxRelayResilienceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/OutboxRelayResilienceTest.java)
+**3-10. 확인용 테스트**: [OutboxPipelineIntegrationTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxPipelineIntegrationTest.java), [regression/OutboxRelayResilienceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/OutboxRelayResilienceTest.java), [OutboxRetentionTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxRetentionTest.java)
 
 ### 스스로에게 던질 질문
 
@@ -308,6 +354,7 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
   - `SELL`: 차변=법정화폐 증가, 대변=자산 감소(+실현손익)
   - `FEE_DEDUCTION`: 고객 → 시스템 수수료 계정
   - `FEE_ADJUSTMENT`: 대사에서 발견된 차액 보정. **여기서 `accountApi.applyFiatBalanceAdjustment()`를 호출해 잔고에도 반영합니다.** 세션 7과 이어지는 지점입니다.
+  - `DEPOSIT`/`WITHDRAWAL`: 입금은 고객 현금 차변 / **외부 입출금 청산 계정**(`SYSTEM_CASH_CLEARING`) 대변, 출금은 그 반대입니다. 청산 계정은 고객 돈이 플랫폼 밖에서 들어오고 나가는 통로를 나타냅니다.
 - 반올림 방향이 `AccountTradeService`와 **반드시 같아야** 한다는 주석(BUY=UP, SELL=DOWN)을 확인하십시오.
 - `plugRoundingResidual()` — 이 프로젝트에서 가장 섬세한 부분입니다:
   - 차변−대변 차액이 0이 아니면, `allowedRoundingResidual()`이 계산한 **반올림으로 설명 가능한 한도** 안인지 봅니다.
@@ -317,9 +364,17 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
 
 **4-7. [transaction/infrastructure/acl/LedgerDltConsumer.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/infrastructure/acl/LedgerDltConsumer.java)** + **[transaction/domain/LedgerDeadLetter.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/domain/LedgerDeadLetter.java)**
 
-원장 기록이 완전히 실패한 메시지의 종착지. 주석의 "잔고는 변경되었는데 대응하는 분개가 없다"가 이 컴포넌트의 존재 이유입니다.
+원장 기록이 완전히 실패한 메시지의 종착지. 주석의 "잔고는 변경되었는데 대응하는 분개가 없다"가 이 컴포넌트의 존재 이유입니다. 여기 쌓인 건을 되살리는 길은 세션 10에서 봅니다.
 
-**4-8. 확인용 테스트**: [LedgerServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerServiceTest.java), [e2e/TradeToLedgerE2ETest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/e2e/TradeToLedgerE2ETest.java) ← **이 E2E 테스트를 꼭 읽으십시오.** 세션 2~4를 한 줄기로 꿰어 줍니다.
+**4-8. 원장 조회 — [LedgerQueryDao.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/infrastructure/query/LedgerQueryDao.java) → [LedgerQueryService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerQueryService.java)**
+
+기록만 하던 분개를 읽는 쪽입니다. 컨트롤러는 [AccountTransactionController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/presentation/AccountTransactionController.java)(거래 내역·상세)와 [LedgerTrialBalanceController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/presentation/LedgerTrialBalanceController.java)(시산표)입니다.
+
+- **계좌 거래 내역** 쿼리는 계좌 분개(`transaction_entries.account_id` 인덱스)에서 **출발**해 거래를 찾습니다. 거래 테이블을 시간순으로 훑으며 거래마다 계좌 분개가 있는지 보면, 거래가 드문 계좌일수록 전체를 읽게 됩니다.
+- **거래 상세**는 그 계좌의 분개만 보여줍니다. 시스템 계정(반올림 잔차·수수료·청산) 분개는 숨깁니다. 다른 계좌의 거래와 **아직 기록되지 않은 거래**를 같은 404로 응답하는 이유를 `LedgerQueryService` 주석에서 확인하십시오.
+- **시산표**는 `amount_currency`(기준 통화)별로 `차변 = 대변 + 실현 손익`을 확인합니다. `quantity`는 자산마다 단위가 달라 합산하지 않습니다. 월은 `transacted_at`을 UTC로 바꿔 나눕니다(2-4와 같은 기준).
+
+**4-9. 확인용 테스트**: [LedgerServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerServiceTest.java), [e2e/TradeToLedgerE2ETest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/e2e/TradeToLedgerE2ETest.java) ← **이 E2E 테스트를 꼭 읽으십시오.** 세션 2~4를 한 줄기로 꿰어 줍니다. 계좌 개설부터 출금까지 API 만으로 도는 [CashFlowE2ETest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/e2e/CashFlowE2ETest.java)도 함께 보십시오.
 
 ### 스스로에게 던질 질문
 
@@ -327,6 +382,7 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
 2. `verifyDoubleEntry()`가 통화별로 나눠서 검증하는 이유는?
 3. 실현손익을 잘못 계산해도 대차가 맞을 수 있다. 그럼 그 버그는 무엇으로 잡는가?
 4. 같은 Kafka 메시지가 3번 소비되면 `transactions` 테이블에 몇 행이 생기는가?
+5. 입금 1,000,000원 분개 두 줄은 각각 어느 계정의 어느 쪽에 기록되는가? 시산표에서 이 두 줄은 어떻게 상쇄되는가? ([LedgerQueryApiTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/presentation/LedgerQueryApiTest.java))
 
 ---
 
@@ -375,16 +431,18 @@ Account 모듈이 **외부에 공개하는 유일한 인터페이스**입니다.
 
 - `@Async @TransactionalEventListener(AFTER_COMMIT)` — 세션 3의 `@EventListener`와 **대조**하십시오. 여기는 커밋 후여야 합니다(아직 커밋 안 된 잔고를 캐시에 넣으면 안 되므로).
 - 클래스 주석의 **실패 시 불변식**이 핵심입니다: 갱신에 실패하면 **반드시 캐시를 삭제**해야 합니다. 그대로 두면 TTL 1시간 동안 옛날 잔고가 서빙됩니다.
+- **캐시 세대 번호**: 커밋 직후 캐시를 지우는 것만으로는 부족했습니다. 갱신 작업이 DB를 읽은 뒤 캐시에 쓰기 전에 다른 거래가 커밋해 캐시를 지우면, 지워진 자리에 **거래 이전 잔고**가 다시 들어갑니다. 그래서 캐시를 지울 때 세대를 올리고(`evictPortfolioCache`), 쓰는 쪽은 **DB를 읽기 전에** 세대를 받아 두었다가 그대로일 때만 씁니다(`savePortfolioCacheIfGeneration`). 비교와 쓰기는 `RedisPortfolioCacheAdapter`의 Lua 스크립트로 원자적으로 처리합니다. 조회 경로(`PortfolioQueryService.loadSnapshot`)도 같은 규칙을 따릅니다.
 
 **5-9. [portfolio/presentation/PortfolioController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/portfolio/presentation/PortfolioController.java)**
 
-**5-10. 확인용 테스트**: [PortfolioQueryServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/portfolio/application/PortfolioQueryServiceTest.java), [PortfolioViewRefresherTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/portfolio/application/PortfolioViewRefresherTest.java)
+**5-10. 확인용 테스트**: [PortfolioQueryServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/portfolio/application/PortfolioQueryServiceTest.java), [PortfolioViewRefresherTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/portfolio/application/PortfolioViewRefresherTest.java), [PortfolioCacheStaleWriteTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/portfolio/application/PortfolioCacheStaleWriteTest.java) ← 실제 Redis로 순서 역전을 재현합니다
 
 ### 스스로에게 던질 질문
 
 1. 조회 서비스가 트랜잭션을 열면 왜 장애가 나는가? 실제 DB 접근은 누가 하는가?
 2. 캐시 갱신 실패 시 "캐시를 그대로 두기"와 "삭제하기" 중 왜 후자가 안전한가?
 3. `PortfolioViewRefresher`는 `AFTER_COMMIT`인데 `AccountOutboxAcl`은 아니다. 둘의 요구사항 차이는?
+4. 캐시 세대를 "DB를 읽은 뒤"에 받아 두면 어떤 순서에서 다시 옛 잔고가 들어가는가?
 
 ---
 
@@ -482,7 +540,7 @@ PG사 API 호출. 세션 6과 같은 서킷 브레이커 패턴입니다.
 
 **7-4. [reconciliation/infrastructure/query/InternalTransactionCandidate.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/reconciliation/infrastructure/query/InternalTransactionCandidate.java)** + **[InternalTransactionQueryDao.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/reconciliation/infrastructure/query/InternalTransactionQueryDao.java)**
 
-"내부 거래 후보"를 뽑는 조회 전용 DAO. 세션 4에서 만든 `transactions`/`transaction_entries`를 읽습니다.
+"내부 거래 후보"를 뽑는 조회 전용 DAO. 세션 4에서 만든 `transactions`/`transaction_entries`를 읽습니다. 수수료(`FEE_*`), 입출금(`DEPOSIT`/`WITHDRAWAL`), 기초 잔고(`OPENING_BALANCE`)는 PG 결제가 아니므로 후보에서 뺍니다. 넣으면 금액·시각이 비슷한 정산이 엉뚱한 거래에 매칭됩니다.
 
 **7-5. 룰 엔진 — 4개 파일을 이 순서로**
 
@@ -564,6 +622,8 @@ PG사 API 호출. 세션 6과 같은 서킷 브레이커 패턴입니다.
 
 `SecurityConfig`는 **URL 단위 권한**만 정합니다. **소유권은 URL로 표현할 수 없어서** `AccountOwnershipGuard`가 컨트롤러 진입 시점에 따로 확인합니다(2-1에서 봤던 그 호출).
 
+관리용 엔드포인트(`/actuator/health`, `/prometheus`)는 **앱 포트가 아니라 관리 포트**(`management.server.port`, 기본 9091)에서만 응답합니다. 앱 포트에 열려 있던 시절에는 앱에 닿는 누구나 플랫폼 보유액 같은 지표를 읽을 수 있었습니다. 게이트웨이 시크릿은 `X-Auth-*` 헤더에만 적용되므로 이 경로를 막지 못합니다. `application.yaml`의 `management.server` 주석과 회귀 테스트 `ManagementPortSeparationTest`를 보십시오.
+
 **8-2. 분산 추적 2파일**
 
 1. [common/telemetry/CorrelationIdFilter.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/telemetry/CorrelationIdFilter.java) — HTTP 진입점에서 MDC에 심습니다. `sanitize()`가 로그 위조(log forging)를 막는 부분을 보십시오.
@@ -584,7 +644,11 @@ PG사 API 호출. 세션 6과 같은 서킷 브레이커 패턴입니다.
 | `ArbitrageRiskException` | 시세가 너무 낡음 (503) |
 | `UnsupportedAssetCodeException` | 시세 공급자 없음 (422) |
 | `AccountNotFoundException` | 404 |
-| `InvalidAccountStateException` | 정지/해지 계좌 |
+| `InvalidAccountStateException` | 정지/해지 계좌, 같은 상태로의 전환 (422) |
+| `AccountAlreadyExistsException` | 이미 있는 계좌 ID로 개설 (409) |
+| `AccountNotEmptyException` | 잔고가 남은 계좌 해지 (409) |
+| `TransactionNotFoundException` | 계좌에 없는(또는 아직 기록 안 된) 거래 (404) |
+| `LedgerDeadLetterNotFoundException` / `LedgerReplayFailedException` | 원장 DLT 재처리 (404 / 422) |
 
 [ErrorResponse.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/exception/ErrorResponse.java)도 함께.
 
@@ -596,7 +660,8 @@ PG사 API 호출. 세션 6과 같은 서킷 브레이커 패턴입니다.
 
 - `ledger.period.backdated_write_redirected` (2-4) — 노드 간 시계 편차
 - `ledger.rounding_residual.plugged` (4-6) — 반올림으로 위장한 계산 버그
-- `ledger.dead_letter.count` (4-7) — 잔고와 원장의 불일치
+- `ledger.dead_letter.count` (4-7) — 잔고와 원장의 불일치 (늘기만 하는 Counter)
+- `ledger.dead_letter.unresolved`, `outbox.dead_letters`, `ledger.integrity.mismatches` (세션 10) — **0이 아니면 복구가 필요한** Gauge. Counter는 해결해도 줄지 않아 알림 조건으로 쓸 수 없습니다.
 
 **8-6. [application.yaml](../src/main/resources/application.yaml) 전체를 한 번 정독**
 
@@ -628,10 +693,11 @@ Spring Modulith의 모듈 선언이 여기 있습니다. `package-info.java`가 
 2. `V202607101205__create_external_settlement_partitions.sql` — 파티셔닝(7-1과 연결).
 3. `V202607130001__create_idempotency_records.sql` — 2-7과 연결.
 4. `V202607141020__add_correlation_id_to_outbox_events.sql`, `V202607151648__add_locked_at_to_outbox_events.sql` — 세션 3과 연결.
-5. `V202608240001__fix_transaction_entry_amount_constraint.sql` — **`chk_amount_calculation` 제약.** 4-2의 `amount = unitPrice × quantity × exchangeRate`를 DB가 직접 강제합니다. 자바 계산과 DB 스케일을 맞추는 `toDbScale()`이 왜 필요했는지 여기서 확인됩니다.
+5. `V202608240001__fix_transaction_entry_amount_constraint.sql` — 기준선의 `chk_amount_calculation`(정확히 같아야 함)을 지우고 **`chk_amount_rounding_bounded`**(`|amount − quantity × unit_price × exchange_rate| < 1`)로 바꿉니다. `amount`는 기준 통화 자릿수로 반올림되어 저장되므로 정확한 등식은 정상 거래도 막았습니다. 자바 계산과 DB 스케일을 맞추는 `toDbScale()`도 같은 맥락입니다.
 6. `V202608240002__create_ledger_dead_letter_and_settlement_match.sql` — 4-7, 7-8과 연결. `uk_settlement_match_settlement` 유니크 제약을 꼭 확인하십시오.
 7. `V202608240003__seed_system_accounts.sql` — `LedgerService`의 `SYSTEM_FEE_ACCOUNT_ID`, `SYSTEM_ACCOUNT_ID`가 여기서 만들어집니다.
 8. `V202608240004__outbox_backoff_missing_indexes_currency_backfill.sql`, `V202608250001__migrate_idempotency_keys.sql`
+9. `V202610060001` ~ `V202610060006` — 원장 데드레터 낙관적 락(`version`), 외부 입출금 청산 계정 시딩, 정합성 점검 결과 테이블, **기초 잔고 분개**(세션 10), 계좌 상태 이력, 아웃박스 발행 시각(`processed_at`, 3-7).
 
 **9-2. [test/.../IntegrationTestSupport.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/IntegrationTestSupport.java)**
 
@@ -661,6 +727,8 @@ Testcontainers로 PostgreSQL + Redis + Kafka를 실제로 띄웁니다. 통합 �
 | `SchemaGuardTest` | 엔티티와 스키마가 어긋나지 않는다 | 9 |
 | `ApiErrorContractTest` | 에러 응답 계약 | 8 |
 | `TradeMatrixTest` / `LedgerMatrixTest` | 자산×통화 조합 전수 검증 | 2, 4 |
+| `ManagementPortSeparationTest` | 관리용 엔드포인트가 앱 포트에서 응답하지 않는다 | 8 |
+| `OpeningBalanceMigrationTest` | 기초 잔고가 장애로 빠진 분개를 덮지 않는다 | 10 |
 
 **9-5. 마지막 — [e2e/TradeToLedgerE2ETest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/e2e/TradeToLedgerE2ETest.java)를 다시 한 번**
 
@@ -668,7 +736,75 @@ Testcontainers로 PostgreSQL + Redis + Kafka를 실제로 띄웁니다. 통합 �
 
 ---
 
-## 마지막 점검 — 이 8개에 답할 수 있으면 완주입니다
+## 세션 10 — 운영과 복구: 어긋난 원장을 찾고 되돌리기
+
+**목표**: 잔고와 분개가 비동기로 갈라지는 구조에서, 어긋남을 **먼저 찾아내고 되돌리는** 장치를 이해한다. 세션 3~4에서 본 실패 경로(아웃박스 데드레터, 원장 DLT)의 출구입니다.
+
+> **먼저 큰 그림**:
+> ```
+> 잔고 변경 ─(아웃박스)─▶ Kafka ─▶ 분개 기록
+>     │            │                  │
+>     │      발행 실패 10회         기록 실패
+>     │            ▼                  ▼
+>     │   outbox 데드레터       ledger_dead_letters
+>     │            │                  │
+>     ▼            ▼                  ▼
+> 매일 정합성 점검: 최신 월 잔고 vs 분개 누계 ──▶ ledger.integrity.mismatches
+>                                                    │
+>                                     Prometheus 알림(deploy/monitoring/alerts.yml)
+>                                                    │
+>                     관리자 API: 아웃박스 재발행 / 원장 DLT 재처리 → 정합성 점검 즉시 실행
+> ```
+
+### 읽는 순서
+
+**10-1. [LedgerIntegrityCheckService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerIntegrityCheckService.java)** + **[LedgerIntegrityDao.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/infrastructure/query/LedgerIntegrityDao.java)**
+
+정합성 점검. 클래스 주석의 **오탐 방지** 단락이 핵심입니다.
+
+- 비교 대상: (계좌, 자산)마다 **최신 월** 원장 잔고와 분개 수량 누계(차변 − 대변). 이전 월 행은 이월 사본이라 더하면 안 됩니다.
+- 처리 중인 거래가 있으면 잔고와 분개가 잠시 다릅니다. 잔고는 최근 거래까지 반영된 값이라 거래 단위로 빼낼 수 없으므로, **정리되지 않은 쌍은 이번 회차에서 건너뛰고 다음 회차에 다시 봅니다**(최근 10분 안에 바뀐 잔고, 발행 대기 아웃박스).
+- 아웃박스가 **데드레터**면 건너뛰지 않습니다. 분개가 오지 않으므로 복구가 필요합니다.
+- 시스템 계정은 **이름이 아니라 ID로** 제외합니다. 관리자 API로 `SYSTEM_`으로 시작하는 이름의 고객 계좌를 만들 수 있기 때문입니다.
+- 점검 결과는 회차별로 남기고, 90일이 지나면 매일 점검 직후 지웁니다.
+- 지표 Gauge는 재시작해도 **직전 회차 값으로** 시작합니다. 0으로 시작하면 다음 점검(최대 하루 뒤)까지 남은 불일치가 알림에서 사라집니다.
+
+스케줄러는 [LedgerIntegrityCheckScheduler.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/infrastructure/scheduler/LedgerIntegrityCheckScheduler.java), 수동 실행·조회는 [LedgerIntegrityCheckController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/presentation/LedgerIntegrityCheckController.java)입니다.
+
+**10-2. [migration/V202610060004__create_opening_balance_entries.sql](../src/main/resources/db/migration/V202610060004__create_opening_balance_entries.sql)**
+
+기초 잔고 분개. 입출금 API가 생기기 전에 DB에 직접 넣은 잔고에는 분개가 없어서, 그대로 점검하면 모든 계좌가 불일치로 나옵니다. 차이만큼 `OPENING_BALANCE` 분개(고객 ↔ `SYSTEM_OPENING_BALANCE`)를 한 번 만듭니다.
+
+- **건너뛰는 계좌**가 중요합니다: 발행되지 않은 아웃박스(처리 중이거나 데드레터)나 미해결 원장 DLT가 있는 계좌. 기초 잔고로 덮으면 **실제로 빠진 분개를 가리게** 됩니다.
+- 차이가 0인 쌍은 만들지 않으므로 다시 실행해도 분개가 늘지 않습니다.
+
+**10-3. 원장 DLT 재처리 — [LedgerDeadLetterRecoveryService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerDeadLetterRecoveryService.java)** + **[LedgerDeadLetterAdminController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/presentation/LedgerDeadLetterAdminController.java)**
+
+- 재처리는 Kafka 컨슈머와 **같은 길**(`LedgerService.recordDoubleEntry`)을 갑니다. 4-6의 거래 ID 멱등성 덕분에 이미 분개된 건은 다시 기록되지 않습니다.
+- `BUY`/`SELL` 데드레터는 "잔고는 바뀌었고 분개만 없음"이지만, `FEE_ADJUSTMENT`는 잔고 보정과 분개가 같은 트랜잭션이라 "둘 다 없음"입니다. 재처리하면 둘 다 반영됩니다.
+- 두 운영자가 동시에 처리하면 나중 커밋이 충돌하도록 `LedgerDeadLetter`에 `@Version`이 있습니다.
+- [LedgerDeadLetterMetrics.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerDeadLetterMetrics.java)와 [OutboxDeadLetterMetrics.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxDeadLetterMetrics.java)가 미해결 건수를 Gauge로 노출합니다.
+
+**10-4. 아웃박스 재발행 — [common/outbox/OutboxAdminController.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxAdminController.java)**
+
+데드레터를 `requeue()`(3-2)로 되돌리면 다음 릴레이 주기에 다시 발행됩니다.
+
+**10-5. 모니터링 — [deploy/monitoring/alerts.yml](../deploy/monitoring/alerts.yml)**
+
+위 Gauge들이 알림 규칙으로 이어집니다. 규칙마다 **확인할 관리자 API**가 설명에 적혀 있습니다. 규칙은 [alerts.test.yml](../deploy/monitoring/alerts.test.yml)로 단위 테스트되고 CI가 `promtool`로 실행합니다. Prometheus는 관리 포트(`app:9091`)로 수집합니다(세션 8).
+
+**10-6. 확인용 테스트**: [LedgerIntegrityCheckServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerIntegrityCheckServiceTest.java), [OpeningBalanceMigrationTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/OpeningBalanceMigrationTest.java), [LedgerDeadLetterRecoveryServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerDeadLetterRecoveryServiceTest.java)
+
+### 스스로에게 던질 질문
+
+1. 거래 직후 정합성 점검을 돌리면 왜 불일치로 나오지 않고 "건너뜀"으로 나오는가? 건너뜀이 영원히 이어질 수 있는 경우는?
+2. 아웃박스 데드레터가 있는 계좌에 기초 잔고 분개를 만들면 무엇이 가려지는가?
+3. `LedgerIntegrityMismatch` 알림을 받았다. 원인을 찾고 복구하고 확인하기까지 어떤 API를 어떤 순서로 부르는가?
+4. 원장 DLT의 `FEE_ADJUSTMENT` 건을 재처리하면 고객 잔고는 바뀌는가? `BUY` 건은?
+
+---
+
+## 마지막 점검 — 이 10개에 답할 수 있으면 완주입니다
 
 1. 매수 요청 하나가 들어와서 `transaction_entries`에 두 행이 생기기까지, 거치는 컴포넌트를 순서대로 나열하고 각 단계의 트랜잭션 경계를 표시해 보십시오.
 2. Kafka 브로커가 30분 다운되었다가 복구되면 그동안의 거래는 어떻게 되는가?
@@ -678,6 +814,8 @@ Testcontainers로 PostgreSQL + Redis + Kafka를 실제로 띄웁니다. 통합 �
 6. 시세 API, Redis, Kafka, PG API가 각각 죽었을 때 서비스는 어떻게 되는가? (4개 다)
 7. 대사 배치가 발견한 수수료 차액이 고객 잔고에 반영되기까지의 전체 경로는?
 8. 이 시스템에서 **at-least-once**를 **effectively-once**로 만드는 장치는 각 단계에 무엇이 있는가?
+9. 같은 계좌에 해지와 입금이 동시에 들어오면 무엇이 둘의 순서를 정하는가? 그 장치가 없으면 어떤 상태가 생기는가?
+10. 분개가 DLT로 빠진 거래가 있다. 이 사실이 알림으로 드러나 복구되기까지의 경로를 설명해 보십시오.
 
 ---
 
@@ -691,9 +829,15 @@ Testcontainers로 PostgreSQL + Redis + Kafka를 실제로 띄웁니다. 통합 �
 | 분개가 어디서 만들어지나 | `transaction/application/LedgerService.java` |
 | 대차평균 검증은 어디에 | `transaction/domain/Transaction.java#verifyDoubleEntry` |
 | 메시지가 어떻게 전달되나 | `common/outbox/OutboxRelayWorker.java` |
+| 아웃박스 보존 기간 정리 | `common/outbox/OutboxRetentionWorker.java` |
 | 포트폴리오 조회 로직 | `portfolio/application/PortfolioQueryService.java` |
 | 시세를 어디서 가져오나 | `common/infrastructure/adapter/MarketDataRouter.java` |
 | 대사 매칭 규칙 | `reconciliation/application/rule/` |
 | 권한 검사 | `common/security/SecurityConfig.java` + `AccountOwnershipGuard.java` |
 | 에러 응답 규약 | `common/exception/GlobalExceptionHandler.java` |
+| 입출금·계좌 상태 API | `account/presentation/AccountAdminController.java` |
+| 거래 내역·시산표 조회 | `transaction/application/LedgerQueryService.java` |
+| 잔고·분개 정합성 점검 | `transaction/application/LedgerIntegrityCheckService.java` |
+| 원장 DLT 재처리 | `transaction/application/LedgerDeadLetterRecoveryService.java` |
+| 알림 규칙·대시보드 | `deploy/monitoring/` |
 | 모든 튜닝 값 | `src/main/resources/application.yaml` |
