@@ -190,4 +190,22 @@ class TransactionalProxyGuardTest extends IntegrationTestSupport {
                     .contains(org.springframework.dao.OptimisticLockingFailureException.class);
         });
     }
+
+    @Test
+    @DisplayName("낙관적 락 재시도는 지터가 있는 지수 백오프를 쓴다")
+    void optimistic_lock_retry_uses_jittered_exponential_backoff() {
+        // 같은 계좌에 동시에 들어온 요청들은 같은 순간에 충돌해 실패한다. 백오프가 고정이면 모두 같은 시각에
+        // 다시 깨어나 또 부딪힌다(부하 테스트: 동시 20개에서 11.6% 가 재시도를 다 쓰고 409). 지연에 무작위성을
+        // 넣어 재시도 시각을 흩뜨린다.
+        var executeMethods = java.util.Arrays.stream(AccountTradeService.class.getDeclaredMethods())
+                .filter(m -> m.getName().startsWith("execute"))
+                .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers()))
+                .toList();
+
+        assertThat(executeMethods).isNotEmpty().allSatisfy(m -> {
+            var backoff = m.getAnnotation(org.springframework.retry.annotation.Retryable.class).backoff();
+            assertThat(backoff.random()).as("%s 의 백오프에 지터가 있어야 한다", m.getName()).isTrue();
+            assertThat(backoff.multiplier()).as("%s 의 백오프는 지수적으로 늘어야 한다", m.getName()).isGreaterThan(1.0);
+        });
+    }
 }
