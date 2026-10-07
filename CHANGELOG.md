@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.10.0...v1.11.0) (2026-10-07)
+
+
+### Features
+
+* 외화가 나갈 때 평균 단가 대비 실현 환차손익을 원장에 기록 ([#116](https://github.com/RaonJena99/multi-currency-ledger-service/issues/116)) ([3f3cdf6](https://github.com/RaonJena99/multi-currency-ledger-service/commit/3f3cdf6e759a845d1b9a95f3afd55ee398503f0d))
+
 ## [1.10.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.9.0...v1.10.0) (2026-10-06)
 
 
