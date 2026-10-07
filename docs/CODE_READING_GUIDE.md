@@ -27,7 +27,7 @@ HTTP POST /trades/buy
   → AccountOutboxAcl → outbox_events 테이블에 INSERT
 
 [비동기 전파]
-  → OutboxRelayWorker (5초마다 폴링, SKIP LOCKED)
+  → OutboxRelayWorker (1초마다 폴링, 배치가 꽉 차면 이어서 가져옴, SKIP LOCKED)
   → Kafka 토픽 "LedgerRecordingCommand"
 
 [원장 경로 — 비동기]
@@ -268,7 +268,7 @@ GET /accounts/{id}/transactions, /admin/ledger/trial-balance
 
 **3-5. [common/outbox/OutboxRelayWorker.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/common/outbox/OutboxRelayWorker.java)**
 
-5초마다 도는 스케줄러. `@SchedulerLock`이 **일부러 없다**는 주석을 보십시오 — DB의 SKIP LOCKED가 이미 중복을 막으므로, 모든 노드가 동시에 처리하는 편이 처리량에 유리합니다.
+기본 1초마다 도는 스케줄러. `@SchedulerLock`이 **일부러 없다**는 주석을 보십시오 — DB의 SKIP LOCKED가 이미 중복을 막으므로, 모든 노드가 동시에 처리하는 편이 처리량에 유리합니다. 한 번 실행에서 배치(기본 500건)가 꽉 차고 실패가 없으면 다음 배치를 바로 가져옵니다(실행당 최대 20배치). 예전처럼 5초마다 100건만 가져오면 처리량이 초당 약 20건에 묶였습니다(`docs/LOAD_TEST.md`).
 
 - `try/finally` 구조에 주목: 동기 예외가 `finally`를 건너뛰면 성공한 이벤트가 버려지고 중복 발행됩니다.
 

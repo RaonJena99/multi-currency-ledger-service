@@ -18,7 +18,7 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
     /**
      * 아직 처리되지 않았고 Dead Letter가 아니며 백오프 대기가 끝난 이벤트들을 생성 시간 순으로 가져옵니다.
      *
-     * <p>{@code next_attempt_at} 필터가 없으면 실패한 이벤트가 폴링 주기(5초)마다 즉시 재시도되어,
+     * <p>{@code next_attempt_at} 필터가 없으면 실패한 이벤트가 폴링 주기(기본 1초)마다 즉시 재시도되어,
      * 브로커가 몇 분만 다운되어도 재시도 예산이 소진됩니다.
      *
      * @param limit 한 번에 가져올 미처리 이벤트의 최대 청크 크기
