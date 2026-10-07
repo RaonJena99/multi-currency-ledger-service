@@ -72,6 +72,7 @@ public class InternalTransactionQueryDao {
               AND es.id IS NULL
               AND t.transaction_type NOT IN ('FEE_DEDUCTION', 'FEE_ADJUSTMENT', 'DEPOSIT', 'WITHDRAWAL', 'OPENING_BALANCE')
               AND te.asset_code NOT LIKE 'SYSTEM\\_%'
+              AND te.asset_code NOT LIKE 'REALIZED\\_PNL\\_%'
             GROUP BY t.id, t.transacted_at, t.description
             HAVING COUNT(DISTINCT te.amount_currency) = 1
             ORDER BY t.transacted_at ASC, t.id ASC

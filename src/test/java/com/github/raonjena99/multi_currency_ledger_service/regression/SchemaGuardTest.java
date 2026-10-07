@@ -70,8 +70,10 @@ class SchemaGuardTest extends IntegrationTestSupport {
 
         transactionRepository.saveAndFlush(tx);
 
+        // 실현 손익 분개는 기준 통화 금액이라 환율이 1 이다. 환율 정밀도는 나머지 분개로 확인한다.
         List<BigDecimal> rates = jdbcTemplate.queryForList(
-                "SELECT exchange_rate FROM transaction_entries WHERE transaction_id = ?",
+                "SELECT exchange_rate FROM transaction_entries "
+                        + "WHERE transaction_id = ? AND asset_code NOT LIKE 'REALIZED\\_PNL\\_%'",
                 BigDecimal.class, tx.getId());
 
         assertThat(rates)

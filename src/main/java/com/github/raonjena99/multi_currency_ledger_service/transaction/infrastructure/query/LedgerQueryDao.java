@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.RealizedPnlKind;
+
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -110,13 +112,18 @@ public class LedgerQueryDao {
      *
      * <p>{@code amount} 는 계좌의 기준 통화로 환산한 금액이라 통화별로 더할 수 있습니다.
      * {@code quantity} 는 자산마다 단위가 달라 합산하지 않습니다.
+     *
+     * <p>실현 손익은 고객 계정의 별도 분개({@link RealizedPnlKind})라 차변·대변 합계에 이미 들어 있습니다.
+     * {@code realizedPnlTotal} 은 그 분개의 순합(이익 − 손실)으로, 대차에는 쓰지 않는 참고값입니다.
      */
     public List<CurrencyTotalsView> sumByCurrency(OffsetDateTime start, OffsetDateTime end) {
         String sql = """
                 SELECT te.amount_currency AS currency,
                        SUM(CASE WHEN te.entry_type = 'DEBIT' THEN te.amount ELSE 0 END) AS debit_total,
                        SUM(CASE WHEN te.entry_type = 'CREDIT' THEN te.amount ELSE 0 END) AS credit_total,
-                       SUM(COALESCE(te.realized_pnl, 0)) AS realized_pnl_total
+                       SUM(CASE WHEN te.asset_code IN (:pnlAssetCodes)
+                                THEN CASE WHEN te.entry_type = 'CREDIT' THEN te.amount ELSE -te.amount END
+                                ELSE 0 END) AS realized_pnl_total
                 FROM transaction_entries te
                 JOIN transactions t ON t.id = te.transaction_id
                 WHERE t.transacted_at >= :start AND t.transacted_at < :end
@@ -124,7 +131,8 @@ public class LedgerQueryDao {
                 ORDER BY te.amount_currency
                 """;
         return jdbcTemplate.query(sql,
-                new MapSqlParameterSource("start", start).addValue("end", end),
+                new MapSqlParameterSource("start", start).addValue("end", end)
+                        .addValue("pnlAssetCodes", RealizedPnlKind.assetCodes()),
                 (rs, rowNum) -> new CurrencyTotalsView(
                         rs.getString("currency"),
                         rs.getBigDecimal("debit_total"),

@@ -323,13 +323,15 @@ DEBIT(차변) / CREDIT(대변). 회계를 몰라도 됩니다. **"한 거래는 
   - `sellPrice`는 **결제 통화** 단위
   - `averageCostInBaseCurrency`는 **기준 통화** 단위
   - 이 둘을 그냥 빼면 손익이 환율 배수만큼 틀리는데, **대차는 대수적으로 상쇄되어 정확히 맞습니다.** 즉 검증으로 절대 못 잡습니다. 이런 종류의 버그가 왜 무서운지 보여주는 좋은 예입니다.
+- `createRealizedPnlEntry()` — 매도 분개가 만든 실현 손익을 **같은 고객 계정의 별도 분개**로 만듭니다. 손익은 고객의 손익이지 회사 수익이 아니므로 회사 시스템 계정이 아니라 고객 계정에 기록합니다. 이익은 대변, 손실은 차변이고, 종류는 나가는 쪽 자산이 법정화폐면 `REALIZED_PNL_FX`, 아니면 `REALIZED_PNL_TRADING` 입니다([`RealizedPnlKind`](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/domain/RealizedPnlKind.java)). `realized_pnl` 컬럼은 그 분개가 만든 손익을 보여 주는 참고값으로 남고 대차에는 쓰지 않습니다.
 - `toDbScale()` — 자바 계산과 DB `numeric(36,18)`을 미리 맞춥니다.
 
 **4-3. [transaction/domain/Transaction.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/domain/Transaction.java)**
 
 분개들의 묶음(Aggregate Root).
 
-- `verifyDoubleEntry()` — **통화별로** 차변 합계와 대변 합계를 비교합니다. 실현손익은 대변에 가산됩니다.
+- `addSellEntry()` — 대변 분개를 추가하면서 실현 손익이 있으면 **손익 분개도 곧바로 함께** 추가합니다. 호출하는 쪽이 빠뜨릴 수 없으므로 손익이 있는 대변 분개는 항상 짝 분개와 함께 있습니다.
+- `verifyDoubleEntry()` — **통화별로** 차변 합계와 대변 합계를 비교합니다. 실현 손익은 별도 분개라 합계에 이미 들어 있고, `realized_pnl` 컬럼을 또 더하면 이중으로 세어집니다.
 - `@PrePersist`/`@PreUpdate`로도 호출하지만, 주석에 있듯 **콜백만 믿으면 안 됩니다**(부모 행이 dirty하지 않으면 `@PreUpdate`가 안 뜀). 그래서 `LedgerService`가 저장 직전에 **명시적으로** 한 번 더 부릅니다.
 - `record(id, type, desc, transactedAt)` — 시각을 주입받는 오버로드가 있는 이유: 원장 기록은 Kafka 소비 시점(비동기)이라, 주입하지 않으면 **소비 시각**이 기록되어 월차 원장의 귀속월과 어긋납니다.
 
@@ -351,7 +353,7 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
 - 맨 위 `transactionRepository.existsById(cmd.referenceTradeId())` — **이것이 세션 3 질문 4의 답입니다.** 거래 ID로 중복 소비를 흡수합니다.
 - 거래 유형별 분개 조립:
   - `BUY`: 차변=자산 증가, 대변=법정화폐 감소(+외화로 결제하면 실현 환차손익)
-  - `SELL`: 차변=법정화폐 증가, 대변=자산 감소(+실현손익)
+  - `SELL`: 차변=법정화폐 증가, 대변=자산 감소(+ 실현 손익이 있으면 고객 계정의 손익 분개)
   - `FEE_DEDUCTION`: 고객 → 시스템 수수료 계정
   - `FEE_ADJUSTMENT`: 대사에서 발견된 차액 보정. **여기서 `accountApi.applyFiatBalanceAdjustment()`를 호출해 잔고에도 반영합니다.** 세션 7과 이어지는 지점입니다.
   - `DEPOSIT`/`WITHDRAWAL`: 입금은 고객 현금 차변 / **외부 입출금 청산 계정**(`SYSTEM_CASH_CLEARING`) 대변, 출금은 그 반대입니다. 청산 계정은 고객 돈이 플랫폼 밖에서 들어오고 나가는 통로를 나타냅니다.
@@ -373,7 +375,7 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
 
 - **계좌 거래 내역** 쿼리는 계좌 분개(`transaction_entries.account_id` 인덱스)에서 **출발**해 거래를 찾습니다. 거래 테이블을 시간순으로 훑으며 거래마다 계좌 분개가 있는지 보면, 거래가 드문 계좌일수록 전체를 읽게 됩니다.
 - **거래 상세**는 그 계좌의 분개만 보여줍니다. 시스템 계정(반올림 잔차·수수료·청산) 분개는 숨깁니다. 다른 계좌의 거래와 **아직 기록되지 않은 거래**를 같은 404로 응답하는 이유를 `LedgerQueryService` 주석에서 확인하십시오.
-- **시산표**는 `amount_currency`(기준 통화)별로 `차변 = 대변 + 실현 손익`을 확인합니다. `quantity`는 자산마다 단위가 달라 합산하지 않습니다. 월은 `transacted_at`을 UTC로 바꿔 나눕니다(2-4와 같은 기준).
+- **시산표**는 `amount_currency`(기준 통화)별로 `차변 = 대변`을 확인합니다. 실현 손익은 고객 계정의 별도 분개(`REALIZED_PNL_*`)라 합계에 이미 들어 있고, 응답의 `realizedPnlTotal`은 그 분개의 순합(이익 − 손실)을 보여 주는 참고값입니다. 정합성 점검(잔고 대 분개 누계)과 대사 후보 조회는 손익 분개를 **빼고** 봅니다. 잔고가 있는 자산이 아니고 거래의 원 금액도 아니기 때문입니다. `quantity`는 자산마다 단위가 달라 합산하지 않습니다. 월은 `transacted_at`을 UTC로 바꿔 나눕니다(2-4와 같은 기준).
 
 **4-9. 확인용 테스트**: [LedgerServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerServiceTest.java), [e2e/TradeToLedgerE2ETest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/e2e/TradeToLedgerE2ETest.java) ← **이 E2E 테스트를 꼭 읽으십시오.** 세션 2~4를 한 줄기로 꿰어 줍니다. 계좌 개설부터 출금까지 API 만으로 도는 [CashFlowE2ETest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/e2e/CashFlowE2ETest.java)도 함께 보십시오.
 
@@ -381,7 +383,7 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
 
 1. `1 BTC`를 `50,000 USD`에 매수하고 계좌 기준 통화가 `KRW`일 때, 분개 두 줄의 `amount`는 각각 무엇이고 어떤 통화인가?
 2. `verifyDoubleEntry()`가 통화별로 나눠서 검증하는 이유는?
-3. 실현손익을 잘못 계산해도 대차가 맞을 수 있다. 그럼 그 버그는 무엇으로 잡는가?
+3. 실현손익을 잘못 계산해도 대차가 맞을 수 있다(손익 분개가 같은 값을 따라가므로). 그럼 그 버그는 무엇으로 잡는가?
 4. 같은 Kafka 메시지가 3번 소비되면 `transactions` 테이블에 몇 행이 생기는가?
 5. 입금 1,000,000원 분개 두 줄은 각각 어느 계정의 어느 쪽에 기록되는가? 시산표에서 이 두 줄은 어떻게 상쇄되는가? ([LedgerQueryApiTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/presentation/LedgerQueryApiTest.java))
 
@@ -700,6 +702,7 @@ Spring Modulith의 모듈 선언이 여기 있습니다. `package-info.java`가 
 7. `V202608240003__seed_system_accounts.sql` — `LedgerService`의 `SYSTEM_FEE_ACCOUNT_ID`, `SYSTEM_ACCOUNT_ID`가 여기서 만들어집니다.
 8. `V202608240004__outbox_backoff_missing_indexes_currency_backfill.sql`, `V202608250001__migrate_idempotency_keys.sql`
 9. `V202610060001` ~ `V202610060006` — 원장 데드레터 낙관적 락(`version`), 외부 입출금 청산 계정 시딩, 정합성 점검 결과 테이블, **기초 잔고 분개**(세션 10), 계좌 상태 이력, 아웃박스 발행 시각(`processed_at`, 3-7).
+10. `V202610070001__create_realized_pnl_entries.sql` — `realized_pnl` 컬럼에만 있던 실현 손익을 고객 계정의 별도 분개(`REALIZED_PNL_*`)로 채웁니다. 기존 행은 건드리지 않고 분개만 더하며, 이미 손익 분개가 있는 거래는 건너뜁니다(4-2, 4-3).
 
 **9-2. [test/.../IntegrationTestSupport.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/IntegrationTestSupport.java)**
 
@@ -722,6 +725,8 @@ Testcontainers로 PostgreSQL + Redis + Kafka를 실제로 띄웁니다. 통합 �
 | `LedgerConsistencyTest` | 잔고 합계와 분개 합계가 일치한다 | 2, 4 |
 | `ForeignCurrencyLedgerTest` | 외화 거래의 환산이 정확하다 | 4 |
 | `RealizedPnlUnitTest` | 실현손익 단위 규약 | 4 |
+| `RealizedPnlEntryTest` | 손익 분개가 시산표·정합성 점검·대사 후보를 왜곡하지 않는다 | 4, 7, 10 |
+| `RealizedPnlBackfillMigrationTest` | 기존 분개에 손익 분개를 채우는 마이그레이션이 대차를 맞춘다 | 4, 9 |
 | `OutboxRelayResilienceTest` | 릴레이 실패가 메시지를 잃지 않는다 | 3 |
 | `SettlementMatchIntegrityTest` | 1:1 매칭이 깨지지 않는다 | 7 |
 | `AccountAccessControlTest` | 남의 계좌를 만질 수 없다 | 8 |

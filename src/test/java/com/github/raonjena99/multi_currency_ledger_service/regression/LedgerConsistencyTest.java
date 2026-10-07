@@ -100,8 +100,10 @@ class LedgerConsistencyTest extends IntegrationTestSupport {
                 assertThat(jdbcTemplate.queryForObject(
                         "SELECT count(*) FROM transactions WHERE id = ?", Integer.class, tradeId)).isEqualTo(1));
 
+        // 실현 손익 분개는 이미 기준 통화로 환산한 금액이라 환율이 1 이다. 거래 시점 환율은 나머지 분개로 확인한다.
         List<Map<String, Object>> entries = jdbcTemplate.queryForList(
-                "SELECT exchange_rate, amount, amount_currency FROM transaction_entries WHERE transaction_id = ?", tradeId);
+                "SELECT exchange_rate, amount, amount_currency FROM transaction_entries "
+                        + "WHERE transaction_id = ? AND asset_code NOT LIKE 'REALIZED\\_PNL\\_%'", tradeId);
 
         assertThat(entries).isNotEmpty();
         assertThat(entries)

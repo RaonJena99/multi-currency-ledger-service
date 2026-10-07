@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.RealizedPnlKind;
+
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -38,6 +40,9 @@ public class LedgerIntegrityDao {
      *
      * <p>잔고는 최신 월 행만 씁니다. 이전 월 행은 이월된 사본이라 더하면 안 됩니다.
      * 분개 누계는 차변 수량을 더하고 대변 수량을 뺀 값입니다. 잔고나 분개 중 한쪽만 있는 쌍도 포함합니다.
+     *
+     * <p>실현 손익 분개({@link RealizedPnlKind})는 뺍니다. 고객이 쓸 수 있는 자산이 아니라 손익을 기록한 것이라
+     * 잔고 행이 없고, 넣으면 손익이 생긴 모든 계좌가 불일치로 보고됩니다.
      */
     private static final String PAIRS = """
             WITH latest AS (
@@ -49,6 +54,7 @@ public class LedgerIntegrityDao {
                        SUM(CASE WHEN entry_type = 'DEBIT' THEN quantity ELSE -quantity END) AS net
                 FROM transaction_entries
                 WHERE account_id NOT IN (:systemAccountIds)
+                  AND asset_code NOT IN (:realizedPnlAssetCodes)
                 GROUP BY account_id, asset_code
             ), pairs AS (
                 SELECT COALESCE(l.account_id, j.account_id) AS account_id,
@@ -182,6 +188,7 @@ public class LedgerIntegrityDao {
     }
 
     private static MapSqlParameterSource systemAccountParams() {
-        return new MapSqlParameterSource("systemAccountIds", SYSTEM_ACCOUNT_IDS);
+        return new MapSqlParameterSource("systemAccountIds", SYSTEM_ACCOUNT_IDS)
+                .addValue("realizedPnlAssetCodes", RealizedPnlKind.assetCodes());
     }
 }

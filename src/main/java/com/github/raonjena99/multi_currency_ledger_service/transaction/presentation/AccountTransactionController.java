@@ -57,8 +57,13 @@ public class AccountTransactionController {
 
     /**
      * 거래 하나에서 이 계좌의 분개만 조회합니다.
+     *
+     * <p>실현 손익이 생긴 거래에는 고객 계정의 손익 분개({@code REALIZED_PNL_FX}, {@code REALIZED_PNL_TRADING})가
+     * 함께 나옵니다. 이익은 대변, 손실은 차변이고 금액은 기준 통화입니다.
      */
-    @Operation(summary = "거래 분개 상세 (이 계좌의 분개만)")
+    @Operation(summary = "거래 분개 상세 (이 계좌의 분개만)",
+            description = "실현 손익이 생긴 거래에는 손익 분개(assetCode 가 REALIZED_PNL_FX 또는 REALIZED_PNL_TRADING)가 "
+                    + "함께 나옵니다. 이익은 CREDIT, 손실은 DEBIT 이고 금액은 기준 통화입니다.")
     @ApiResponse(responseCode = "200", description = "성공")
     @ApiResponse(responseCode = "404", description = "다른 계좌의 거래이거나 아직 기록되지 않은 거래 (TRANSACTION_NOT_FOUND)")
     @GetMapping("/{transactionId}")

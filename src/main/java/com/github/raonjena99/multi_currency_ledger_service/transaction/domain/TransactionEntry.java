@@ -1,6 +1,7 @@
 package com.github.raonjena99.multi_currency_ledger_service.transaction.domain;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
@@ -209,5 +210,35 @@ public class TransactionEntry {
                 pnl,
                 baseCurrencyCode
         );
+    }
+
+    /**
+     * 매도(대변) 엔트리가 만든 실현 손익을 <b>같은 계정의 별도 분개</b>로 만듭니다.
+     *
+     * <p>손익은 고객의 손익이므로 회사 시스템 계정이 아니라 매도 분개와 같은 고객 계정에 기록합니다. 이익은 대변
+     * (고객의 몫이 늘어남), 손실은 차변이며 금액은 늘 양수입니다. 종류는 나가는 쪽 자산의 유형으로 정합니다
+     * ({@link RealizedPnlKind#of}).
+     *
+     * <p>수량과 금액은 손익의 절댓값(기준 통화)이고 단가와 환율은 1 입니다. 손익이 없으면 만들지 않습니다.
+     *
+     * @param transaction 부모 Transaction(트랜잭션)
+     * @param sold        실현 손익을 만든 매도(대변) 엔트리
+     * @return 손익 분개. 손익이 0 이면 비어 있다
+     */
+    public static Optional<TransactionEntry> createRealizedPnlEntry(Transaction transaction, TransactionEntry sold) {
+        Money pnl = sold.getRealizedPnl();
+        if (pnl == null || pnl.isZero()) {
+            return Optional.empty();
+        }
+        String baseCurrencyCode = pnl.getCurrencyCode();
+        EntryType side = pnl.isNegative() ? EntryType.DEBIT : EntryType.CREDIT;
+        Money size = Money.of(pnl.getAmount().abs(), AssetType.FIAT, baseCurrencyCode);
+
+        return Optional.of(new TransactionEntry(
+                transaction, sold.getAccountId(), side,
+                RealizedPnlKind.of(sold.getQuantity().getAssetType()).assetCode(),
+                size, BigDecimal.ONE, BigDecimal.ONE,
+                Money.zero(AssetType.FIAT, baseCurrencyCode),
+                baseCurrencyCode));
     }
 }

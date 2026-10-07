@@ -149,10 +149,11 @@ public class LedgerIntegrityCheckService {
     }
 
     /**
-     * 지금까지의 모든 분개가 기준 통화별로 {@code 차변 = 대변 + 실현 손익} 을 만족하는지 확인합니다.
+     * 지금까지의 모든 분개가 기준 통화별로 {@code 차변 = 대변} 을 만족하는지 확인합니다.
+     * 실현 손익은 고객 계정의 별도 분개라 합계에 이미 들어 있습니다.
      */
     private boolean isTrialBalanceBalanced(OffsetDateTime now) {
         return queryDao.sumByCurrency(BEGINNING, now.plusDays(1)).stream()
-                .allMatch(t -> t.debitTotal().compareTo(t.creditTotal().add(t.realizedPnlTotal())) == 0);
+                .allMatch(t -> t.debitTotal().compareTo(t.creditTotal()) == 0);
     }
 }

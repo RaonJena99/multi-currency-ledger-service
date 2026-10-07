@@ -197,20 +197,29 @@ class LedgerQueryApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("매도 상세에는 실현 손익이 함께 나온다")
+    @DisplayName("매도 상세에는 실현 손익이 매도 분개의 참고값과 별도 손익 분개로 함께 나온다")
     void sellDetailShowsRealizedPnl() throws Exception {
         JsonNode detail = getJson(asOwnerOf(accountA, get("/api/v1/accounts/{id}/transactions/{tx}", accountA, sellA)));
 
         JsonNode credit = null;
+        JsonNode pnlEntry = null;
         for (JsonNode e : detail.get("entries")) {
-            if ("CREDIT".equals(e.get("entryType").asString())) {
+            if ("BTC".equals(e.get("assetCode").asString())) {
                 credit = e;
+            } else if ("REALIZED_PNL_TRADING".equals(e.get("assetCode").asString())) {
+                pnlEntry = e;
             }
         }
         assertThat(credit).isNotNull();
-        assertThat(credit.get("assetCode").asString()).isEqualTo("BTC");
+        assertThat(credit.get("entryType").asString()).isEqualTo("CREDIT");
         assertThat(credit.get("amount").decimalValue()).isEqualByComparingTo("100");
         assertThat(credit.get("realizedPnl").decimalValue()).isEqualByComparingTo("50");
+
+        // 이익 50 은 고객 계정의 대변 분개로도 기록된다.
+        assertThat(pnlEntry).isNotNull();
+        assertThat(pnlEntry.get("entryType").asString()).isEqualTo("CREDIT");
+        assertThat(pnlEntry.get("amount").decimalValue()).isEqualByComparingTo("50");
+        assertThat(pnlEntry.get("amountCurrency").asString()).isEqualTo("KRW");
     }
 
     @Test
@@ -232,15 +241,16 @@ class LedgerQueryApiTest extends IntegrationTestSupport {
     // ── 시산표 ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("시산표는 기준 통화별로 차변 = 대변 + 실현 손익 이 성립함을 보여준다")
+    @DisplayName("시산표는 기준 통화별로 차변 = 대변 이 성립함을 보여준다")
     void trialBalanceByCurrency() throws Exception {
         JsonNode trial = getJson(asAdmin(get("/api/v1/admin/ledger/trial-balance").param("month", "2026-09")));
 
-        // KRW: 차변 1,000,000 + 200 + 150 + 5,000 / 대변 1,000,000 + 200 + 100 + 5,000 / 실현손익 50
+        // KRW: 차변 1,000,000 + 200 + 150 + 5,000 / 대변 1,000,000 + 200 + 100 + 5,000 + 실현 이익 50(손익 분개)
         JsonNode krw = currency(trial, "KRW");
         assertThat(krw.get("debitTotal").decimalValue()).isEqualByComparingTo("1005350");
-        assertThat(krw.get("creditTotal").decimalValue()).isEqualByComparingTo("1005300");
-        assertThat(krw.get("realizedPnlTotal").decimalValue()).isEqualByComparingTo("50");
+        assertThat(krw.get("creditTotal").decimalValue()).isEqualByComparingTo("1005350");
+        assertThat(krw.get("realizedPnlTotal").decimalValue()).as("참고값: 이익 분개 − 손실 분개")
+                .isEqualByComparingTo("50");
         assertThat(krw.get("balanced").asBoolean()).isTrue();
 
         JsonNode usd = currency(trial, "USD");

@@ -154,12 +154,11 @@ class CashFlowE2ETest extends IntegrationTestSupport {
                     "SELECT entry_type, amount, realized_pnl FROM transaction_entries WHERE transaction_id = ?", id);
             BigDecimal debit = entries.stream().filter(e -> "DEBIT".equals(e.get("entry_type")))
                     .map(e -> (BigDecimal) e.get("amount")).reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal creditWithPnl = entries.stream().filter(e -> "CREDIT".equals(e.get("entry_type")))
-                    .map(e -> ((BigDecimal) e.get("amount")).add(
-                            e.get("realized_pnl") == null ? BigDecimal.ZERO : (BigDecimal) e.get("realized_pnl")))
+            BigDecimal credit = entries.stream().filter(e -> "CREDIT".equals(e.get("entry_type")))
+                    .map(e -> (BigDecimal) e.get("amount"))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            assertThat(debit).as("거래 %s 의 차변과 대변(실현손익 포함)이 일치해야 한다", id)
-                    .isEqualByComparingTo(creditWithPnl);
+            assertThat(debit).as("거래 %s 의 차변과 대변이 일치해야 한다", id)
+                    .isEqualByComparingTo(credit);
         }
 
         // 입출금의 상대 계정은 외부 입출금 청산 계정이다
@@ -197,16 +196,25 @@ class CashFlowE2ETest extends IntegrationTestSupport {
                         "SELECT count(*) FROM transactions WHERE id IN (?, ?)", Integer.class,
                         deposit, withdrawal)).isEqualTo(2));
 
-        // 고객 USD 는 원가(40 × 1,300)로 나가고, 청산 계정은 시가(40 × 1,400)로 받으며, 차액이 실현 환차익이다.
+        // 고객 USD 는 원가(40 × 1,300)로 나가고, 청산 계정은 시가(40 × 1,400)로 받으며, 차액은 고객의 환차익이다.
         Map<String, Object> customerCredit = jdbcTemplate.queryForMap(
                 "SELECT amount, realized_pnl FROM transaction_entries "
-                        + "WHERE transaction_id = ? AND account_id = ? AND entry_type = 'CREDIT'", withdrawal, accountId);
+                        + "WHERE transaction_id = ? AND account_id = ? AND asset_code = 'USD'", withdrawal, accountId);
         assertThat((BigDecimal) customerCredit.get("amount")).isEqualByComparingTo("52000");
-        assertThat((BigDecimal) customerCredit.get("realized_pnl")).isEqualByComparingTo("4000");
+        assertThat((BigDecimal) customerCredit.get("realized_pnl")).as("참고값").isEqualByComparingTo("4000");
         assertThat(sum(CASH_CLEARING_ACCOUNT_ID, "DEBIT")).isEqualByComparingTo("56000");
+
+        // 환차익 4,000 은 고객 계정의 대변 분개(REALIZED_PNL_FX)로 따로 기록된다.
+        Map<String, Object> pnlEntry = jdbcTemplate.queryForMap(
+                "SELECT entry_type, amount FROM transaction_entries "
+                        + "WHERE transaction_id = ? AND account_id = ? AND asset_code = 'REALIZED_PNL_FX'",
+                withdrawal, accountId);
+        assertThat(pnlEntry.get("entry_type")).isEqualTo("CREDIT");
+        assertThat((BigDecimal) pnlEntry.get("amount")).isEqualByComparingTo("4000");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM transaction_entries WHERE transaction_id = ?", Integer.class, withdrawal))
-                .as("실현 손익으로 대차가 맞으므로 시스템 플러그 분개가 없어야 한다").isEqualTo(2);
+                .as("청산 차변, 고객 USD 대변, 고객 환차익 대변. 손익 분개로 대차가 맞으므로 시스템 플러그는 없다")
+                .isEqualTo(3);
 
         String month = java.time.YearMonth.now(java.time.ZoneOffset.UTC).toString();
         String trial = mockMvc.perform(asAdmin(get("/api/v1/admin/ledger/trial-balance").param("month", month)))

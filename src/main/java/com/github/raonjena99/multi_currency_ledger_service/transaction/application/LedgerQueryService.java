@@ -76,7 +76,8 @@ public class LedgerQueryService {
     /**
      * 한 달 동안의 분개를 기준 통화별로 집계해 차대가 맞는지 보여줍니다.
      *
-     * <p>매도의 실현 손익은 대변 쪽에 더해 맞춥니다({@code 차변 = 대변 + 실현 손익}).
+     * <p>실현 손익은 고객 계정의 별도 분개라 합계에 이미 들어 있으므로 차대는 {@code 차변 = 대변} 입니다.
+     * {@code realizedPnlTotal} 은 그 손익 분개의 순합(이익 − 손실)으로 대차 판정에는 쓰지 않습니다.
      * 월은 {@code transacted_at} 을 UTC 로 바꿔 정합니다. 월차 원장 귀속월과 같은 기준입니다.
      */
     @Transactional(readOnly = true)
@@ -92,7 +93,7 @@ public class LedgerQueryService {
     }
 
     private static CurrencyTrialBalance toTrialBalance(CurrencyTotalsView totals) {
-        boolean balanced = totals.debitTotal().compareTo(totals.creditTotal().add(totals.realizedPnlTotal())) == 0;
+        boolean balanced = totals.debitTotal().compareTo(totals.creditTotal()) == 0;
         return new CurrencyTrialBalance(totals.currency(), totals.debitTotal(), totals.creditTotal(),
                 totals.realizedPnlTotal(), balanced);
     }

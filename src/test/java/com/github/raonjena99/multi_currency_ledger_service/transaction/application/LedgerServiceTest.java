@@ -70,16 +70,20 @@ class LedgerServiceTest {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal creditTotalWithPnl(Transaction tx) {
-        BigDecimal credit = tx.getEntries().stream()
+    /**
+     * 대변 합계. 실현 손익은 고객 계정의 별도 분개(REALIZED_PNL_*)로 기록되므로 컬럼 값을 따로 더하지 않는다.
+     */
+    private BigDecimal creditTotal(Transaction tx) {
+        return tx.getEntries().stream()
                 .filter(e -> e.getEntryType() == EntryType.CREDIT)
                 .map(e -> e.getAmount().getAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal pnl = tx.getEntries().stream()
-                .filter(e -> e.getRealizedPnl() != null && !e.getRealizedPnl().isZero())
-                .map(e -> e.getRealizedPnl().getAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return credit.add(pnl);
+    }
+
+    /** 실현 손익 분개(고객 계정). 손익이 없으면 비어 있다. */
+    private java.util.List<com.github.raonjena99.multi_currency_ledger_service.transaction.domain.TransactionEntry>
+            pnlEntries(Transaction tx) {
+        return tx.getEntries().stream().filter(e -> e.getAssetCode().startsWith("REALIZED_PNL_")).toList();
     }
 
     @Test
@@ -115,7 +119,7 @@ class LedgerServiceTest {
 
         // 차변: 2 BTC × 10 USD × 1300 = 26000 KRW
         assertThat(debitTotal(tx)).isEqualByComparingTo("26000");
-        assertThat(creditTotalWithPnl(tx)).isEqualByComparingTo(debitTotal(tx));
+        assertThat(creditTotal(tx)).isEqualByComparingTo(debitTotal(tx));
     }
 
     @Test
@@ -141,7 +145,7 @@ class LedgerServiceTest {
 
         Transaction tx = capture();
         assertThat(debitTotal(tx)).isEqualByComparingTo("3000");
-        assertThat(creditTotalWithPnl(tx)).isEqualByComparingTo("3000");
+        assertThat(creditTotal(tx)).isEqualByComparingTo("3000");
     }
 
     @Test
@@ -156,13 +160,40 @@ class LedgerServiceTest {
 
         Transaction tx = capture();
         assertThat(debitTotal(tx)).isEqualByComparingTo("2000");
-        assertThat(creditTotalWithPnl(tx)).isEqualByComparingTo("2000");
+        assertThat(creditTotal(tx)).isEqualByComparingTo("2000");
 
         BigDecimal pnl = tx.getEntries().stream()
                 .filter(e -> e.getRealizedPnl() != null)
                 .map(e -> e.getRealizedPnl().getAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        assertThat(pnl).isEqualByComparingTo("400");
+        assertThat(pnl).as("realized_pnl 컬럼은 참고값으로 그대로 남는다").isEqualByComparingTo("400");
+
+        // 이익 400 은 고객 계정의 대변 분개(REALIZED_PNL_TRADING)로도 기록되어, 대변 = 원가 1600 + 이익 400 이다.
+        assertThat(pnlEntries(tx)).singleElement().satisfies(e -> {
+            assertThat(e.getEntryType()).isEqualTo(EntryType.CREDIT);
+            assertThat(e.getAssetCode()).isEqualTo("REALIZED_PNL_TRADING");
+            assertThat(e.getAmount().getAmount()).isEqualByComparingTo("400");
+        });
+    }
+
+    @Test
+    @DisplayName("매도 손실은 고객 계정의 차변 손익 분개로 기록하고 균형을 맞춘다")
+    void sell_with_loss_records_a_debit_pnl_entry() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        // 평균 단가 1200 에 사서 1000 에 2개 매도 → 실현 손실 400
+        ledgerService.recordDoubleEntry(cmd(tradeId, "SELL", "KRW", "KRW",
+                Money.of("2", AssetType.CRYPTO, "BTC"), new BigDecimal("1000"), BigDecimal.ONE, new BigDecimal("1200")));
+
+        Transaction tx = capture();
+        assertThat(pnlEntries(tx)).singleElement().satisfies(e -> {
+            assertThat(e.getEntryType()).isEqualTo(EntryType.DEBIT);
+            assertThat(e.getAmount().getAmount()).isEqualByComparingTo("400");
+        });
+        // 차변 = 수취 2000 + 손실 400, 대변 = 원가 2400
+        assertThat(debitTotal(tx)).isEqualByComparingTo("2400");
+        assertThat(creditTotal(tx)).isEqualByComparingTo("2400");
     }
 
     @Test
@@ -188,7 +219,7 @@ class LedgerServiceTest {
                 Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("500"), BigDecimal.ONE, new BigDecimal("400")));
 
         Transaction tx = capture();
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
     }
 
     @Test
@@ -203,7 +234,7 @@ class LedgerServiceTest {
         ledgerService.recordDoubleEntry(command);
 
         Transaction tx = capture();
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
 
         // 차변(입금)은 반드시 커맨드의 고객 계좌로 귀속되어야 한다.
         assertThat(tx.getEntries().stream()
@@ -222,7 +253,7 @@ class LedgerServiceTest {
                 Money.of("-50", AssetType.FIAT, "KRW"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO));
 
         Transaction tx = capture();
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
     }
 
     @Test
@@ -264,7 +295,7 @@ class LedgerServiceTest {
         Transaction tx = capture();
         assertThat(debitTotal(tx))
                 .as("플러그 엔트리 추가 후 대차가 정확히 일치해야 한다")
-                .isEqualByComparingTo(creditTotalWithPnl(tx));
+                .isEqualByComparingTo(creditTotal(tx));
         // 검증이 통과했다는 것 자체가 불변식이 지켜졌다는 뜻이다.
         tx.verifyDoubleEntry();
     }
@@ -317,6 +348,15 @@ class LedgerServiceTest {
                 BigDecimal.ZERO, false, TRADED_AT);
     }
 
+    /** 한 자산 분개의 금액. 같은 계정의 손익 분개(REALIZED_PNL_*)와 섞이지 않게 자산 코드로 거른다. */
+    private BigDecimal amountOf(Transaction tx, UUID accountId, EntryType entryType, String assetCode) {
+        return tx.getEntries().stream()
+                .filter(e -> e.getAccountId().equals(accountId) && e.getEntryType() == entryType
+                        && e.getAssetCode().equals(assetCode))
+                .map(e -> e.getAmount().getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private BigDecimal amountOf(Transaction tx, UUID accountId, EntryType entryType) {
         return tx.getEntries().stream()
                 .filter(e -> e.getAccountId().equals(accountId) && e.getEntryType() == entryType)
@@ -336,7 +376,7 @@ class LedgerServiceTest {
         Transaction tx = capture();
         assertThat(amountOf(tx, command.accountId(), EntryType.DEBIT)).isEqualByComparingTo("10000");
         assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.CREDIT)).isEqualByComparingTo("10000");
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
     }
 
     @Test
@@ -351,7 +391,7 @@ class LedgerServiceTest {
         Transaction tx = capture();
         assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.DEBIT)).isEqualByComparingTo("3000");
         assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("3000");
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
     }
 
     @Test
@@ -367,7 +407,7 @@ class LedgerServiceTest {
         // 100 USD × 1300 = 130000 KRW
         assertThat(amountOf(tx, command.accountId(), EntryType.DEBIT)).isEqualByComparingTo("130000");
         assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.CREDIT)).isEqualByComparingTo("130000");
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
     }
 
     /** 외화 출금 커맨드. 평균 단가는 출금 직전 외화 원장의 기준 통화 환산 단가다. */
@@ -398,10 +438,17 @@ class LedgerServiceTest {
         Transaction tx = capture();
         // 청산 계정은 시가(100 × 1,400), 고객 외화는 원가(100 × 1,300)로 나가고 차액이 실현 손익이다.
         assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.DEBIT)).isEqualByComparingTo("140000");
-        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("130000");
+        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT, "USD")).isEqualByComparingTo("130000");
         assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("10000");
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
-        assertThat(tx.getEntries()).as("실현 손익으로 대차가 맞으므로 시스템 플러그가 없어야 한다").hasSize(2);
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
+        // 청산 차변, 고객 USD 대변, 고객 환차익 대변. 손익 분개로 대차가 맞으므로 시스템 플러그는 없다.
+        assertThat(tx.getEntries()).hasSize(3);
+        assertThat(pnlEntries(tx)).singleElement().satisfies(e -> {
+            assertThat(e.getAccountId()).isEqualTo(command.accountId());
+            assertThat(e.getEntryType()).isEqualTo(EntryType.CREDIT);
+            assertThat(e.getAssetCode()).isEqualTo("REALIZED_PNL_FX");
+            assertThat(e.getAmount().getAmount()).isEqualByComparingTo("10000");
+        });
     }
 
     @Test
@@ -415,8 +462,13 @@ class LedgerServiceTest {
 
         Transaction tx = capture();
         assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("-10000");
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
-        assertThat(tx.getEntries()).hasSize(2);
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
+        assertThat(tx.getEntries()).hasSize(3);
+        assertThat(pnlEntries(tx)).singleElement().satisfies(e -> {
+            assertThat(e.getEntryType()).isEqualTo(EntryType.DEBIT);
+            assertThat(e.getAssetCode()).isEqualTo("REALIZED_PNL_FX");
+            assertThat(e.getAmount().getAmount()).isEqualByComparingTo("10000");
+        });
     }
 
     @Test
@@ -432,7 +484,8 @@ class LedgerServiceTest {
         Transaction tx = capture();
         assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("140000");
         assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("0");
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(pnlEntries(tx)).as("손익이 없으면 손익 분개도 만들지 않는다").isEmpty();
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
     }
 
     @Test
@@ -450,9 +503,27 @@ class LedgerServiceTest {
         Transaction tx = capture();
         // 자산은 시가(100 USD × 1,400)로 들어오고, USD 는 원가(100 × 1,300)로 나가며 차액이 실현 손익이다.
         assertThat(amountOf(tx, command.accountId(), EntryType.DEBIT)).isEqualByComparingTo("140000");
-        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("130000");
+        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT, "USD")).isEqualByComparingTo("130000");
         assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("10000");
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
-        assertThat(tx.getEntries()).hasSize(2);
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
+        assertThat(tx.getEntries()).hasSize(3);
+        // 나가는 쪽이 외화이므로 자산 매매 손익이 아니라 환차손익이다.
+        assertThat(pnlEntries(tx)).singleElement().satisfies(e -> {
+            assertThat(e.getAssetCode()).isEqualTo("REALIZED_PNL_FX");
+            assertThat(e.getEntryType()).isEqualTo(EntryType.CREDIT);
+            assertThat(e.getAmount().getAmount()).isEqualByComparingTo("10000");
+        });
+    }
+
+    @Test
+    @DisplayName("기준 통화로 거래하면 손익 분개가 생기지 않는다")
+    void base_currency_trade_has_no_pnl_entry() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+
+        ledgerService.recordDoubleEntry(cmd(tradeId, "BUY", "KRW", "KRW",
+                Money.of("3", AssetType.CRYPTO, "BTC"), new BigDecimal("1000"), BigDecimal.ONE, BigDecimal.ONE));
+
+        assertThat(pnlEntries(capture())).isEmpty();
     }
 }
