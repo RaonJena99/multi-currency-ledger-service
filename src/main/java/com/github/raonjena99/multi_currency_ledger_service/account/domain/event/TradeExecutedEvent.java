@@ -29,7 +29,9 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeTyp
  * @param fiatToBaseRate 결제 통화 → 기준 통화 환율. 거래 시점에 <b>실제로 적용된</b> 값이며,
  *                       원장 기록 단계에서 환율을 다시 조회하지 않고 이 값을 그대로 사용해야
  *                       잔고와 분개가 같은 환율로 기록됩니다.
- * @param averageCost 평균 매입 단가
+ * @param averageCost 계좌에서 <b>나가는 쪽</b> 원장의 차감 직전 평균 단가(기준 통화). 매도는 자산,
+ *                    매수는 결제 통화, 출금은 출금 통화의 평균 단가이며 원장이 이 값으로 실현 손익을 계산합니다.
+ *                    입금처럼 나가는 쪽이 없으면 0 입니다.
  * @param isStaleRate 적용된 환율의 지연(stale) 여부
  * @param occurredAt 이벤트 발생 시간
  */

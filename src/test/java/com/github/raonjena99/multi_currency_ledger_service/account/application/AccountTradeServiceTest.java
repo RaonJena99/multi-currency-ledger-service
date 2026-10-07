@@ -128,6 +128,29 @@ class AccountTradeServiceTest {
     }
 
     @Test
+    void executeBuyAsset_should_publish_payment_currency_average_cost() {
+        // 원장이 결제 통화 대변에 실현 환차손익을 기록하려면, 차감 직전 결제 통화 원장의 평균 단가가 필요하다.
+        UUID accountId = UUID.randomUUID();
+        stubActiveAccount(accountId);
+        MonthlyAccountLedger targetLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
+        MonthlyAccountLedger fiatLedger = org.mockito.Mockito.mock(MonthlyAccountLedger.class);
+        when(targetLedger.getBaseCurrency()).thenReturn("KRW");
+        when(fiatLedger.subtractBalance(any())).thenReturn(new BigDecimal("1300"));
+        stubIdempotencyRegistration();
+        stubLedger(accountId, "BTC", targetLedger);
+        stubLedger(accountId, "USD", fiatLedger);
+
+        tradeService.executeBuyAsset(
+            "idemp-key", accountId, "BTC", AssetType.CRYPTO, "USD",
+            Money.of("0.001", AssetType.CRYPTO, "BTC"), new BigDecimal("100000"), OffsetDateTime.now(), MONTH,
+            new BigDecimal("100000"), false, new BigDecimal("1400"));
+
+        org.mockito.ArgumentCaptor<TradeExecutedEvent> captor = org.mockito.ArgumentCaptor.forClass(TradeExecutedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().averageCost()).isEqualByComparingTo("1300");
+    }
+
+    @Test
     void executeSellAsset_should_throw_on_duplicate_request() {
         when(idempotencyRepository.saveAndFlush(any(IdempotencyRecord.class)))
             .thenThrow(new DataIntegrityViolationException("Duplicate"));
