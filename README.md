@@ -158,6 +158,12 @@ docker compose -p ledger-local down -v   # 정리
 
 PowerShell 에서는 `export` 대신 `$env:DB_PASSWORD="local"` 처럼 변수마다 지정합니다.
 
+### 부하 테스트
+
+k6 시나리오(처리량, 락 경합, 포트폴리오 캐시, 분개 기록 지연)는 [`loadtest/`](loadtest)에 있습니다. 실행 방법과
+측정 결과, 발견한 병목은 [부하 테스트 결과](docs/LOAD_TEST.md)에 정리했습니다. 요약하면 거래 API 는 초당 약
+1,250 건을 p95 23ms 로 처리하지만, 분개는 아웃박스 릴레이가 초당 약 19 건씩만 기록합니다.
+
 ---
 
 ## API
