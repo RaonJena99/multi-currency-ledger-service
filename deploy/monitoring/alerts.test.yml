@@ -125,3 +125,24 @@ tests:
             exp_annotations:
               summary: "외부 API 서킷 브레이커가 열려 있습니다"
               description: "exchangeRateApi 호출이 5분 넘게 차단되었습니다. 시세가 5분 넘게 갱신되지 않으면 거래가 503 으로 거부됩니다."
+
+  # 아웃박스 대기 이벤트가 잠깐 5분을 넘었다 풀리면 울리지 않고, 계속 5분을 넘으면 울린다.
+  - interval: 1m
+    input_series:
+      - series: 'outbox_oldest_pending_age_seconds{job="ledger",instance="app:9091"}'
+        values: '30 400 20 400 460 520 580 640 700 760'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: OutboxBacklogStalled
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: OutboxBacklogStalled
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: OutboxBacklogStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "아웃박스 이벤트가 5분 넘게 발행되지 못하고 있습니다"
+              description: "가장 오래된 발행 대기 이벤트가 5분을 넘었습니다. 그동안 거래 내역 조회가 404 이고 정합성 점검이 해당 계좌를 건너뜁니다. outbox_backlog 추이와 Kafka 상태를 확인하고, 계속 늘면 ledger.outbox.relay.batch-size 나 앱 노드 수를 늘리십시오."

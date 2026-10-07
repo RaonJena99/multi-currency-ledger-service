@@ -103,6 +103,13 @@ ledger:
     retention-days: 7
     retention-batch-size: 1000
     retention-cron: "0 15 3 * * *"
+    relay:
+      # 한 번에 선점해 발행하는 이벤트 수.
+      batch-size: 500
+      # 배치가 꽉 차면 다음 주기를 기다리지 않고 이어서 가져온다. 한 번 실행에서 가져오는 배치 수의 상한이다.
+      max-batches-per-run: 20
+      # 이전 실행이 끝난 뒤 다음 실행까지 쉬는 시간(밀리초). 거래 직후 분개가 보이기까지의 지연을 좌우한다.
+      poll-interval-ms: 1000
   security:
     # 게이트웨이 공유 시크릿. 설정하면 X-Gateway-Secret 헤더가 이 값과 일치하는 요청만
     # X-Auth-* 인증 헤더를 신뢰한다. 미설정(기본)이면 게이트웨이가 클라이언트의 X-Auth-* 헤더를

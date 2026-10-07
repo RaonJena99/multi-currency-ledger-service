@@ -52,7 +52,7 @@ class OutboxRelayResilienceTest {
         doAnswer(invocation -> { throw new IllegalStateException("producer buffer full"); })
                 .when(dispatcher).dispatch(boom);
 
-        OutboxRelayWorker worker = new OutboxRelayWorker(manager, dispatcher);
+        OutboxRelayWorker worker = new OutboxRelayWorker(manager, dispatcher, 100, 1);
         worker.relayOutboxEvents();
 
         @SuppressWarnings("unchecked")
@@ -84,7 +84,7 @@ class OutboxRelayResilienceTest {
         when(dispatcher.dispatch(failing))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("broker down")));
 
-        new OutboxRelayWorker(manager, dispatcher).relayOutboxEvents();
+        new OutboxRelayWorker(manager, dispatcher, 100, 1).relayOutboxEvents();
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<OutboxEvent>> failedCaptor = ArgumentCaptor.forClass(List.class);
@@ -100,7 +100,7 @@ class OutboxRelayResilienceTest {
         OutboxMessageDispatcher dispatcher = mock(OutboxMessageDispatcher.class);
         when(manager.claimUnprocessedEvents(100)).thenReturn(List.of());
 
-        new OutboxRelayWorker(manager, dispatcher).relayOutboxEvents();
+        new OutboxRelayWorker(manager, dispatcher, 100, 1).relayOutboxEvents();
 
         org.mockito.Mockito.verify(manager, org.mockito.Mockito.never()).updateResults(any(), any());
     }

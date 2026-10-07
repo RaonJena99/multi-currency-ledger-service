@@ -55,6 +55,17 @@ groups:
           summary: "5xx 응답 비율이 5% 를 넘었습니다"
           description: "최근 5분간 요청의 5% 넘게 서버 오류로 끝났습니다. 애플리케이션 로그를 확인하십시오."
 
+      # 거래는 즉시 잔고에 반영되지만 분개는 아웃박스 릴레이를 거쳐 기록된다. 대기 이벤트가 5분 넘게 남아 있으면
+      # 릴레이가 거래 속도를 따라가지 못하거나 브로커에 발행하지 못하는 것이다. 잠깐 몰린 것은 무시하도록 5분 지켜본다.
+      - alert: OutboxBacklogStalled
+        expr: max(outbox_oldest_pending_age_seconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "아웃박스 이벤트가 5분 넘게 발행되지 못하고 있습니다"
+          description: "가장 오래된 발행 대기 이벤트가 5분을 넘었습니다. 그동안 거래 내역 조회가 404 이고 정합성 점검이 해당 계좌를 건너뜁니다. outbox_backlog 추이와 Kafka 상태를 확인하고, 계속 늘면 ledger.outbox.relay.batch-size 나 앱 노드 수를 늘리십시오."
+
       # 시세 공급자가 막혀도 캐시로 버티지만, 5분이 지난 시세로는 거래하지 않는다(503).
       - alert: CircuitBreakerOpen
         expr: max by (name) (resilience4j_circuitbreaker_state{state="open"}) == 1

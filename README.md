@@ -32,7 +32,7 @@
 
 - **`Money` 값 객체**: `BigDecimal` 기반으로 자산별 소수 자릿수를 적용하고 통화가 다른 금액끼리의 연산을 막습니다. 고객이 내는 금액은 올림, 받는 금액은 내림합니다.
 - **동시성 제어**: 원장 갱신은 낙관적 락(`@Version`)과 재시도로, 아웃박스 폴링은 `FOR UPDATE SKIP LOCKED`로 처리합니다.
-- **Transactional Outbox**: 잔고 변경과 이벤트 저장을 한 트랜잭션에서 커밋하고, 릴레이가 5초마다 Kafka로 발행합니다.
+- **Transactional Outbox**: 잔고 변경과 이벤트 저장을 한 트랜잭션에서 커밋하고, 릴레이가 1초마다(배치가 꽉 차면 이어서) Kafka로 발행합니다.
   - 전달 보장은 **at-least-once**이며, 중복은 컨슈머가 거래 ID로 걸러냅니다.
   - 발행 실패 시 30초~10분 지수 백오프로 최대 10회 재시도한 뒤 데드레터로 격리합니다.
   - 발행이 끝난 이벤트는 발행 후 7일이 지나면 매일 정리합니다. 미처리·데드레터 이벤트는 기간과 관계없이 남깁니다.
@@ -139,6 +139,7 @@ ssh -L 9090:localhost:9090 -L 3000:localhost:3000 <서버>   # Prometheus :9090,
 | `OutboxDeadLetters` | critical | 아웃박스 데드레터가 2분 넘게 남음 |
 | `LedgerServiceDown` | critical | 앱 지표를 2분 넘게 수집하지 못함 |
 | `HighServerErrorRate` | warning | 5xx 비율이 5분 넘게 5%를 넘음 |
+| `OutboxBacklogStalled` | warning | 가장 오래된 발행 대기 아웃박스 이벤트의 나이가 5분을 넘은 채로 5분 지속 |
 | `CircuitBreakerOpen` | warning | 외부 API 서킷 브레이커가 5분 넘게 열림 |
 
 규칙을 바꾸면 `deploy/monitoring/alerts.test.yml`도 함께 고칩니다. CI가 `promtool`로 규칙 단위 테스트를 실행합니다.
@@ -162,7 +163,7 @@ PowerShell 에서는 `export` 대신 `$env:DB_PASSWORD="local"` 처럼 변수마
 
 k6 시나리오(처리량, 락 경합, 포트폴리오 캐시, 분개 기록 지연)는 [`loadtest/`](loadtest)에 있습니다. 실행 방법과
 측정 결과, 발견한 병목은 [부하 테스트 결과](docs/LOAD_TEST.md)에 정리했습니다. 요약하면 거래 API 는 초당 약
-1,250 건을 p95 23ms 로 처리하지만, 분개는 아웃박스 릴레이가 초당 약 19 건씩만 기록합니다.
+1,000~1,250 건을 p95 30ms 안팎으로 처리하고, 분개는 거래 후 1초 안팎(p95 1.03s)에 기록됩니다.
 
 ---
 
