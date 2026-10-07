@@ -36,7 +36,11 @@ import lombok.extern.slf4j.Slf4j;
 public class PortfolioQueryService {
 
     private static final long LOCK_WAIT_MILLIS = 3000L;
-    private static final long LOCK_POLL_MILLIS = 50L;
+    // 락을 기다리는 간격. 짧게 시작해 두 배씩 늘린다. 거래 직후에는 비동기 갱신이 락을 잡고 몇 ms 만에 캐시를
+    // 채우므로, 처음부터 50ms 를 자면 조회가 늘 50ms 늦어진다(docs/LOAD_TEST.md). 오래 걸리는 재구성에는
+    // 상한(50ms)까지 늘어나 Redis 를 과하게 두드리지 않는다.
+    private static final long LOCK_POLL_INITIAL_MILLIS = 5L;
+    private static final long LOCK_POLL_MAX_MILLIS = 50L;
     private static final long LOCK_TTL_SECONDS = 10L;
 
     private final ExchangeRateProvider exchangeRateProvider;
@@ -132,9 +136,13 @@ public class PortfolioQueryService {
         }
 
         String lockKey = "lock:portfolio:" + accountId;
-        boolean locked = tryAcquireLockQuietly(lockKey);
+        LockWait wait = acquireLockOrFilledCache(accountId, lockKey);
+        if (wait.filledCache() != null) {
+            // 락을 쥔 쪽(대개 거래 직후의 비동기 갱신)이 그사이 캐시를 채웠다. 락 없이 그대로 쓴다.
+            return wait.filledCache();
+        }
 
-        if (!locked) {
+        if (!wait.locked()) {
             // 캐시 스탬피드 방어에 실패했더라도 조회 자체는 성공시킨다.
             log.warn("포트폴리오 캐시 갱신 락 획득 실패. DB 에서 직접 조회합니다. account={}", accountId);
             return readFromDatabase(accountId, baseCurrency);
@@ -203,24 +211,46 @@ public class PortfolioQueryService {
         }
     }
 
-    private boolean tryAcquireLockQuietly(String lockKey) {
+    /**
+     * 락 대기 결과. 락을 얻었거나({@code locked}), 기다리는 동안 다른 쪽이 캐시를 채웠거나({@code filledCache}),
+     * 둘 다 아니면(대기 시간 초과·인프라 오류·인터럽트) DB 로 폴백합니다.
+     */
+    private record LockWait(boolean locked, PortfolioCacheDto filledCache) {
+        static final LockWait ACQUIRED = new LockWait(true, null);
+        static final LockWait FAILED = new LockWait(false, null);
+    }
+
+    /**
+     * 캐시 재구성 락을 얻을 때까지 기다리되, 잠들었다 깰 때마다 캐시가 채워졌는지 먼저 확인합니다.
+     *
+     * <p>락을 쥔 쪽이 캐시를 채우면 이 조회는 락이 필요 없습니다. 락을 얻을 때까지만 기다리면, 재구성이 몇 ms
+     * 만에 끝나도 다음 락 시도까지 대기 간격만큼 늦어집니다.
+     */
+    private LockWait acquireLockOrFilledCache(UUID accountId, String lockKey) {
         long deadline = System.currentTimeMillis() + LOCK_WAIT_MILLIS;
+        long pollMillis = LOCK_POLL_INITIAL_MILLIS;
         while (System.currentTimeMillis() < deadline) {
             try {
                 if (portfolioCachePort.tryAcquireLock(lockKey, LOCK_TTL_SECONDS)) {
-                    return true;
+                    return LockWait.ACQUIRED;
                 }
             } catch (Exception e) {
                 log.warn("포트폴리오 캐시 락 획득 실패(인프라 오류): {}", e.getMessage());
-                return false;
+                return LockWait.FAILED;
             }
             try {
-                Thread.sleep(LOCK_POLL_MILLIS);
+                Thread.sleep(pollMillis);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return false;
+                return LockWait.FAILED;
+            }
+            pollMillis = Math.min(pollMillis * 2, LOCK_POLL_MAX_MILLIS);
+
+            Optional<PortfolioCacheDto> filled = readCacheQuietly(accountId);
+            if (filled.isPresent() && filled.get().getBalances() != null) {
+                return new LockWait(false, filled.get());
             }
         }
-        return false;
+        return LockWait.FAILED;
     }
 }

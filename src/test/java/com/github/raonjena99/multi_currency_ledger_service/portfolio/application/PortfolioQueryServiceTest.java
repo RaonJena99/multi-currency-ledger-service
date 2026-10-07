@@ -177,6 +177,35 @@ class PortfolioQueryServiceTest {
     }
 
     @Test
+    void getPortfolioSummary_should_return_cache_filled_by_lock_holder_without_taking_the_lock() {
+        // 거래 직후에는 비동기 갱신(PortfolioViewRefresher)이 락을 잡고 캐시를 채운다. 조회는 락을 기다리는 동안
+        // 캐시가 채워졌는지 먼저 확인해야 한다. 락을 얻을 때까지 기다리면 재구성이 몇 ms 면 끝나도 조회는 폴링
+        // 간격(예전 50ms)만큼 늦어진다.
+        UUID accountId = UUID.randomUUID();
+        when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
+        PortfolioCacheDto.AssetBalance balance = new PortfolioCacheDto.AssetBalance("BTC", new BigDecimal("1"), new BigDecimal("10000"), "KRW");
+        PortfolioCacheDto cacheDto = new PortfolioCacheDto(accountId, "KRW", List.of(balance));
+        when(portfolioCachePort.getPortfolioCache(accountId))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(cacheDto));
+        // 락은 갱신 쪽이 쥐고 있다. 조회가 다시 시도하면 풀려 있을 수 있지만, 그 전에 캐시가 이미 채워졌다.
+        org.mockito.Mockito.lenient().when(portfolioCachePort.tryAcquireLock("lock:portfolio:" + accountId, 10))
+            .thenReturn(false, true);
+        when(exchangeRateProvider.getExchangeRates(List.of("BTC", "KRW"), "KRW"))
+            .thenReturn(Map.of(
+                "BTC", new ExchangeRateProvider.ExchangeRate(new BigDecimal("15000"), false),
+                "KRW", new ExchangeRateProvider.ExchangeRate(BigDecimal.ONE, false)
+            ));
+
+        PortfolioSummaryResponse response = service.getPortfolioSummary(accountId);
+
+        assertThat(response.assets()).hasSize(1);
+        verify(portfolioCachePort, org.mockito.Mockito.times(1)).tryAcquireLock(anyString(), anyLong());
+        verify(portfolioCachePort, never()).releaseLock(anyString());
+        verify(accountApi, never()).getBalances(any());
+    }
+
+    @Test
     void getPortfolioSummary_should_use_cache_on_double_check() {
         UUID accountId = UUID.randomUUID();
         when(accountApi.getBaseCurrency(accountId)).thenReturn("KRW");
