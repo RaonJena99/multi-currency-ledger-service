@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.0...v1.11.1) (2026-10-07)
+
+
+### Performance Improvements
+
+* 아웃박스 릴레이를 배치 연속 처리로 바꾸고 백로그 지표·경보 추가 ([#119](https://github.com/RaonJena99/multi-currency-ledger-service/issues/119)) ([58f5603](https://github.com/RaonJena99/multi-currency-ledger-service/commit/58f560336f3244041eaf01bb5b623379bc244a9c))
+
 ## [1.11.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.10.0...v1.11.0) (2026-10-07)
 
 
