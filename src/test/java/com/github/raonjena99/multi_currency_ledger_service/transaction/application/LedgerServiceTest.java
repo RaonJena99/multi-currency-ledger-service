@@ -369,4 +369,90 @@ class LedgerServiceTest {
         assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.CREDIT)).isEqualByComparingTo("130000");
         assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
     }
+
+    /** 외화 출금 커맨드. 평균 단가는 출금 직전 외화 원장의 기준 통화 환산 단가다. */
+    private LedgerRecordingCommand foreignWithdrawalCmd(UUID tradeId, String amount, String rate, String averageCost) {
+        return new LedgerRecordingCommand(
+                tradeId, UUID.randomUUID(), "USD", AssetType.FIAT, "USD", "KRW", "WITHDRAWAL",
+                Money.of(amount, AssetType.FIAT, "USD"), BigDecimal.ONE, BigDecimal.ONE, new BigDecimal(rate),
+                new BigDecimal(averageCost), false, TRADED_AT);
+    }
+
+    private BigDecimal realizedPnlOf(Transaction tx, UUID accountId) {
+        return tx.getEntries().stream()
+                .filter(e -> e.getAccountId().equals(accountId) && e.getRealizedPnl() != null)
+                .map(e -> e.getRealizedPnl().getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Test
+    @DisplayName("외화를 평균 단가보다 높은 환율에 출금하면 실현 환차익을 기록한다")
+    void foreign_withdrawal_realizes_fx_gain_against_average_cost() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        // 1,300 원에 들어온 100 USD 를 1,400 원일 때 출금한다.
+        LedgerRecordingCommand command = foreignWithdrawalCmd(tradeId, "100", "1400", "1300");
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        // 청산 계정은 시가(100 × 1,400), 고객 외화는 원가(100 × 1,300)로 나가고 차액이 실현 손익이다.
+        assertThat(amountOf(tx, CASH_CLEARING_ACCOUNT_ID, EntryType.DEBIT)).isEqualByComparingTo("140000");
+        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("130000");
+        assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("10000");
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(tx.getEntries()).as("실현 손익으로 대차가 맞으므로 시스템 플러그가 없어야 한다").hasSize(2);
+    }
+
+    @Test
+    @DisplayName("외화를 평균 단가보다 낮은 환율에 출금하면 실현 환차손을 기록한다")
+    void foreign_withdrawal_realizes_fx_loss_against_average_cost() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        LedgerRecordingCommand command = foreignWithdrawalCmd(tradeId, "100", "1300", "1400");
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("-10000");
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(tx.getEntries()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("평균 단가가 없는 출금 이벤트(배포 전 적재분)는 손익 없이 거래 시점 환율로 기록한다")
+    void legacy_withdrawal_without_average_cost_keeps_rate_based_credit() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        // 배포 전 아웃박스에 쌓인 출금 이벤트는 평균 단가 자리에 0 이 들어 있다.
+        LedgerRecordingCommand command = foreignWithdrawalCmd(tradeId, "100", "1400", "0");
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("140000");
+        assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("0");
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+    }
+
+    @Test
+    @DisplayName("외화로 결제한 매수는 결제 통화의 평균 단가로 실현 환차손익을 기록한다")
+    void buy_paid_in_foreign_currency_realizes_fx_pnl_on_payment_leg() {
+        UUID tradeId = UUID.randomUUID();
+        when(transactionRepository.existsById(tradeId)).thenReturn(false);
+        // 0.001 BTC × 100,000 USD = 100 USD 를 결제. USD 는 1,300 원에 들어왔고 지금은 1,400 원이다.
+        LedgerRecordingCommand command = cmd(tradeId, "BUY", "USD", "KRW",
+                Money.of("0.001", AssetType.CRYPTO, "BTC"), new BigDecimal("100000"),
+                new BigDecimal("1400"), new BigDecimal("1300"));
+
+        ledgerService.recordDoubleEntry(command);
+
+        Transaction tx = capture();
+        // 자산은 시가(100 USD × 1,400)로 들어오고, USD 는 원가(100 × 1,300)로 나가며 차액이 실현 손익이다.
+        assertThat(amountOf(tx, command.accountId(), EntryType.DEBIT)).isEqualByComparingTo("140000");
+        assertThat(amountOf(tx, command.accountId(), EntryType.CREDIT)).isEqualByComparingTo("130000");
+        assertThat(realizedPnlOf(tx, command.accountId())).isEqualByComparingTo("10000");
+        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotalWithPnl(tx));
+        assertThat(tx.getEntries()).hasSize(2);
+    }
 }

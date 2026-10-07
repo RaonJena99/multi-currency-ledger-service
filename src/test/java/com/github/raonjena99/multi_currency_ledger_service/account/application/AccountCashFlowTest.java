@@ -205,4 +205,21 @@ class AccountCashFlowTest extends IntegrationTestSupport {
                 .contains("\"tradeType\":\"DEPOSIT\"")
                 .contains("\"fiatToBaseRate\":1300"));
     }
+
+    @Test
+    @DisplayName("외화를 출금하면 출금 직전 평균 단가가 원장 이벤트에 실려 실현 환차손익의 근거가 된다")
+    void foreignCurrencyWithdrawalCarriesAverageCost() {
+        UUID accountId = openKrwAccount();
+        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate("USD", "KRW"))
+                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("1300"), false))
+                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("1400"), false));
+        tradeFacade.deposit("dep-1", accountId, "USD", new BigDecimal("100"));
+
+        UUID transactionId = tradeFacade.withdraw("wd-1", accountId, "USD", new BigDecimal("40"));
+
+        assertThat(outboxPayloads()).anySatisfy(payload -> assertThat(payload)
+                .contains("\"tradeId\":\"" + transactionId + "\"")
+                .contains("\"fiatToBaseRate\":1400")
+                .containsPattern("\"averageCost\":1300(\\.0+)?[,}]"));
+    }
 }

@@ -111,7 +111,8 @@ public class AccountTradeService {
         Money requiredFiatAmount = Money.of(requiredFiatRaw, AssetType.FIAT, paymentCurrency, RoundingMode.UP);
 
         // Version 필드를 활용한 낙관적 락(Optimistic Lock) 작동으로 동시성 제어
-        fiatLedger.subtractBalance(requiredFiatAmount);
+        // 결제 통화의 평균 단가는 원장이 결제 대변의 실현 환차손익을 계산하는 근거다.
+        BigDecimal paymentAverageCost = fiatLedger.subtractBalance(requiredFiatAmount);
         targetAssetLedger.addBalance(buyQuantity, unitPriceInBaseCurrency);
 
         monthlyAccountLedgerRepository.save(fiatLedger);
@@ -124,7 +125,7 @@ public class AccountTradeService {
             tradeId, accountId, targetAssetCode, targetAssetType, paymentCurrency,
             targetAssetLedger.getBaseCurrency(),
             TradeType.BUY,
-            buyQuantity.getAmount(), unitPrice, exchangeRate, appliedFiatToBaseRate, BigDecimal.ZERO,
+            buyQuantity.getAmount(), unitPrice, exchangeRate, appliedFiatToBaseRate, paymentAverageCost,
             isStaleRate, transactedAt
         );
         eventPublisher.publishEvent(event);
@@ -291,22 +292,24 @@ public class AccountTradeService {
 
         // 법정화폐 원장의 평균 단가는 기준 통화 환산 단가다. 매도 대금을 받을 때와 같이 거래 시점 환율을 쓴다.
         BigDecimal appliedFiatToBaseRate = fiatToBaseRate != null ? fiatToBaseRate : BigDecimal.ONE;
+        // 출금은 차감 직전 평균 단가를 함께 보내 원장이 실현 환차손익을 기록하게 한다. 입금은 나가는 쪽이 없다.
+        BigDecimal averageCost = BigDecimal.ZERO;
         if (type == TradeType.DEPOSIT) {
             fiatLedger.addBalance(amount, appliedFiatToBaseRate);
         } else {
-            fiatLedger.subtractBalance(amount);
+            averageCost = fiatLedger.subtractBalance(amount);
         }
         monthlyAccountLedgerRepository.save(fiatLedger);
 
         UUID transactionId = UUID.randomUUID();
 
         // 매수·매도와 같은 이벤트로 발행해 아웃박스 적재와 포트폴리오 캐시 갱신 경로를 그대로 탄다.
-        // 입출금은 단가·환율 개념이 없으므로 1 을, 원가 개념이 없으므로 평균 단가에 0 을 넣는다.
+        // 입출금은 단가·환율 개념이 없으므로 1 을 넣는다.
         eventPublisher.publishEvent(new TradeExecutedEvent(
             transactionId, accountId, currency, AssetType.FIAT, currency,
             fiatLedger.getBaseCurrency(),
             type,
-            amount.getAmount(), BigDecimal.ONE, BigDecimal.ONE, appliedFiatToBaseRate, BigDecimal.ZERO,
+            amount.getAmount(), BigDecimal.ONE, BigDecimal.ONE, appliedFiatToBaseRate, averageCost,
             false, transactedAt
         ));
 

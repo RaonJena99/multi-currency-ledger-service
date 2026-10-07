@@ -174,6 +174,53 @@ class CashFlowE2ETest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("외화를 입금 때보다 높은 환율에 출금하면 실현 환차익이 원장에 기록되고 시산표가 맞는다")
+    void foreignCurrencyWithdrawalRealizesFxGain() throws Exception {
+        mockMvc.perform(asAdmin(post("/api/v1/admin/accounts"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accountId\":\"" + accountId + "\",\"ownerName\":\"E2E_USER\",\"baseCurrency\":\"KRW\"}"))
+                .andExpect(status().isCreated());
+        // 1,300 원일 때 100 USD 를 입금하고, 1,400 원일 때 40 USD 를 출금한다.
+        org.mockito.Mockito.when(exchangeRateProvider.getExchangeRate("USD", "KRW"))
+                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("1300"), false))
+                .thenReturn(new ExchangeRateProvider.ExchangeRate(new BigDecimal("1400"), false));
+        String usdDeposit = "{\"idempotencyKey\":\"dep-usd\",\"currency\":\"USD\",\"amount\":100}";
+        String usdWithdrawal = "{\"idempotencyKey\":\"wd-usd\",\"currency\":\"USD\",\"amount\":40}";
+        UUID deposit = postForId(asAdmin(post("/api/v1/admin/accounts/{id}/deposits", accountId)),
+                usdDeposit, "transactionId");
+        UUID withdrawal = postForId(asAdmin(post("/api/v1/admin/accounts/{id}/withdrawals", accountId)),
+                usdWithdrawal, "transactionId");
+
+        relayWorker.relayOutboxEvents();
+        await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(500)).untilAsserted(() ->
+                assertThat(jdbcTemplate.queryForObject(
+                        "SELECT count(*) FROM transactions WHERE id IN (?, ?)", Integer.class,
+                        deposit, withdrawal)).isEqualTo(2));
+
+        // 고객 USD 는 원가(40 × 1,300)로 나가고, 청산 계정은 시가(40 × 1,400)로 받으며, 차액이 실현 환차익이다.
+        Map<String, Object> customerCredit = jdbcTemplate.queryForMap(
+                "SELECT amount, realized_pnl FROM transaction_entries "
+                        + "WHERE transaction_id = ? AND account_id = ? AND entry_type = 'CREDIT'", withdrawal, accountId);
+        assertThat((BigDecimal) customerCredit.get("amount")).isEqualByComparingTo("52000");
+        assertThat((BigDecimal) customerCredit.get("realized_pnl")).isEqualByComparingTo("4000");
+        assertThat(sum(CASH_CLEARING_ACCOUNT_ID, "DEBIT")).isEqualByComparingTo("56000");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM transaction_entries WHERE transaction_id = ?", Integer.class, withdrawal))
+                .as("실현 손익으로 대차가 맞으므로 시스템 플러그 분개가 없어야 한다").isEqualTo(2);
+
+        String month = java.time.YearMonth.now(java.time.ZoneOffset.UTC).toString();
+        String trial = mockMvc.perform(asAdmin(get("/api/v1/admin/ledger/trial-balance").param("month", month)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var root = jsonMapper.readTree(trial);
+        assertThat(root.get("balanced").asBoolean()).isTrue();
+        assertThat(root.get("currencies")).anySatisfy(currency -> {
+            assertThat(currency.get("currency").asString()).isEqualTo("KRW");
+            assertThat(currency.get("realizedPnlTotal").decimalValue()).isEqualByComparingTo("4000");
+        });
+    }
+
+    @Test
     @DisplayName("일반 사용자는 자기 계좌라도 입금할 수 없다")
     void customerCannotDeposit() throws Exception {
         mockMvc.perform(asOwner(post("/api/v1/admin/accounts/{id}/deposits", accountId))

@@ -144,10 +144,11 @@ public class LedgerService {
             // 차변(Debit): 매수한 자산 증가 기록
             transaction.addBuyEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(), cmd.unitPrice(), fiatToBaseRate, baseCurrency);
             // 대변(Credit): 지불한 법정화폐 감소 기록
-            // averageCost 는 기준 통화 단위여야 한다. 결제 통화 1단위는 기준 통화로 rate 이다.
-            // 여기에 ONE 을 넘기면 (1×rate − 1)×qty 만큼 존재하지 않는 실현손익이 생성된다.
+            // 결제 통화는 평균 단가(기준 통화 단위)로 나가고, 거래 시점 환율과의 차이가 실현 환차손익이 된다.
+            // 기준 통화로 결제하면 평균 단가와 환율이 모두 1 이므로 손익이 생기지 않는다.
             transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), fiatMoney,
-                                    BigDecimal.ONE, fiatToBaseRate, fiatToBaseRate, baseCurrency);
+                                    BigDecimal.ONE, fiatToBaseRate,
+                                    outgoingFiatAverageCost(cmd, fiatToBaseRate), baseCurrency);
         } else if ("SELL".equals(cmd.tradeType())) {
             // 매도(SELL) 거래인 경우: 법정화폐를 매수(수취)하고 자산을 매도합니다.
             BigDecimal earnedFiatAmount = cmd.unitPrice().multiply(cmd.quantity().getAmount());
@@ -206,12 +207,13 @@ public class LedgerService {
             transaction.addSellEntry(SYSTEM_CASH_CLEARING_ACCOUNT_ID, cmd.fiatCode(), cmd.quantity(),
                                     BigDecimal.ONE, fiatToBaseRate, fiatToBaseRate, baseCurrency);
         } else if ("WITHDRAWAL".equals(cmd.tradeType())) {
-            // 출금: 차변(외부 입출금 청산 계정), 대변(고객 현금 감소)
-            // 매수의 결제 통화 대변과 같이 평균 단가 자리에 거래 시점 환율을 넣어 환차손익을 인식하지 않는다.
+            // 출금: 차변(외부 입출금 청산 계정, 거래 시점 환율), 대변(고객 현금 감소, 평균 단가)
+            // 두 금액의 차이가 실현 환차손익이다. 매수의 결제 통화 대변과 같은 규칙이다.
             transaction.addBuyEntry(SYSTEM_CASH_CLEARING_ACCOUNT_ID, cmd.fiatCode(), cmd.quantity(),
                                     BigDecimal.ONE, fiatToBaseRate, baseCurrency);
             transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), cmd.quantity(),
-                                    BigDecimal.ONE, fiatToBaseRate, fiatToBaseRate, baseCurrency);
+                                    BigDecimal.ONE, fiatToBaseRate,
+                                    outgoingFiatAverageCost(cmd, fiatToBaseRate), baseCurrency);
         } else {
             throw new IllegalArgumentException("Unsupported trade type for ledger recording: " + cmd.tradeType());
         }
@@ -229,6 +231,21 @@ public class LedgerService {
         transactionRepository.saveAndFlush(transaction);
 
         log.info("Ledger successfully recorded for TradeID: {}", cmd.referenceTradeId());
+    }
+
+    /**
+     * 계좌에서 나가는 법정화폐의 평균 단가(기준 통화 단위)를 정합니다.
+     *
+     * <p>평균 단가가 없으면(0) 거래 시점 환율을 써서 손익을 인식하지 않습니다. 실현 환차손익을 기록하기
+     * 전에 아웃박스에 쌓인 매수·출금 이벤트는 이 자리에 0 이 들어 있습니다. 잔고가 있는 원장의 평균
+     * 단가는 0 일 수 없으므로 0 은 "모름"으로만 해석됩니다.
+     */
+    private static BigDecimal outgoingFiatAverageCost(LedgerRecordingCommand cmd, BigDecimal fiatToBaseRate) {
+        BigDecimal averageCost = cmd.averageCost();
+        if (averageCost == null || averageCost.signum() <= 0) {
+            return fiatToBaseRate;
+        }
+        return averageCost;
     }
 
     /**

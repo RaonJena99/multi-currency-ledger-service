@@ -350,11 +350,12 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
 
 - 맨 위 `transactionRepository.existsById(cmd.referenceTradeId())` — **이것이 세션 3 질문 4의 답입니다.** 거래 ID로 중복 소비를 흡수합니다.
 - 거래 유형별 분개 조립:
-  - `BUY`: 차변=자산 증가, 대변=법정화폐 감소
+  - `BUY`: 차변=자산 증가, 대변=법정화폐 감소(+외화로 결제하면 실현 환차손익)
   - `SELL`: 차변=법정화폐 증가, 대변=자산 감소(+실현손익)
   - `FEE_DEDUCTION`: 고객 → 시스템 수수료 계정
   - `FEE_ADJUSTMENT`: 대사에서 발견된 차액 보정. **여기서 `accountApi.applyFiatBalanceAdjustment()`를 호출해 잔고에도 반영합니다.** 세션 7과 이어지는 지점입니다.
   - `DEPOSIT`/`WITHDRAWAL`: 입금은 고객 현금 차변 / **외부 입출금 청산 계정**(`SYSTEM_CASH_CLEARING`) 대변, 출금은 그 반대입니다. 청산 계정은 고객 돈이 플랫폼 밖에서 들어오고 나가는 통로를 나타냅니다.
+  - 외화가 나가는 대변(외화 결제 매수, 외화 출금)은 **평균 단가**로 나가고, 거래 시점 환율과의 차이가 실현 환차손익이 됩니다. 평균 단가는 이벤트의 `averageCost`(나가는 쪽 원장의 차감 직전 평균 단가)로 옵니다. 0 이면 배포 전 이벤트로 보고 환율을 써서 손익을 인식하지 않습니다(`outgoingFiatAverageCost()`).
 - 반올림 방향이 `AccountTradeService`와 **반드시 같아야** 한다는 주석(BUY=UP, SELL=DOWN)을 확인하십시오.
 - `plugRoundingResidual()` — 이 프로젝트에서 가장 섬세한 부분입니다:
   - 차변−대변 차액이 0이 아니면, `allowedRoundingResidual()`이 계산한 **반올림으로 설명 가능한 한도** 안인지 봅니다.
