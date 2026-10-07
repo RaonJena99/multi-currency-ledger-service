@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.2](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.1...v1.11.2) (2026-10-07)
+
+
+### Performance Improvements
+
+* 쓰기 직후 포트폴리오 조회가 캐시 락을 50ms 씩 기다리지 않게 개선 ([#124](https://github.com/RaonJena99/multi-currency-ledger-service/issues/124)) ([1a6d930](https://github.com/RaonJena99/multi-currency-ledger-service/commit/1a6d9302173e9949031eb1ee40deec012f04f929))
+
 ## [1.11.1](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.0...v1.11.1) (2026-10-07)
 
 
