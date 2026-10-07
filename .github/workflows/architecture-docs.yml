@@ -55,9 +55,28 @@ jobs:
           cp build/spring-modulith-docs/*.puml docs/architecture/modulith/ || true
 
       - name: 6. 문서 업데이트 PR 자동 생성
+        id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "docs: 아키텍처 다이어그램 및 README 문서 자동 동기화"
           branch: "docs/auto-update-architecture"
           title: "docs: 아키텍처 다이어그램 자동 동기화"
           body: "Spring Modulith 구조 변경에 따른 아키텍처 다이어그램 및 README 파일 자동 업데이트 PR입니다."
+
+      # 생성된 다이어그램만 바뀐 PR 은 사람이 검토할 내용이 없으므로 바로 병합한다. GITHUB_TOKEN 으로 만든 PR 에서는
+      # CI 가 돌지 않으므로(GitHub 정책) 기다릴 검사도 없다. 병합 커밋도 GITHUB_TOKEN 이 만들므로 이 워크플로를
+      # 다시 실행시키지 않는다(무한 반복 없음).
+      #
+      # 안전장치: docs/architecture/ 밖의 파일이 섞여 있으면 병합하지 않고 PR 로 남겨 사람이 보게 한다.
+      - name: 7. 문서 PR 자동 병합
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          outside=$(gh pr diff "$PR_NUMBER" --name-only | grep -v '^docs/architecture/' || true)
+          if [ -n "$outside" ]; then
+            echo "::warning::docs/architecture/ 밖의 변경이 있어 자동 병합하지 않습니다: $outside"
+            exit 0
+          fi
+          gh pr merge "$PR_NUMBER" --squash --delete-branch
