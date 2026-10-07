@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.3](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.2...v1.11.3) (2026-10-07)
+
+
+### Performance Improvements
+
+* 낙관적 락 재시도 백오프에 지터를 넣고 409 재시도 지침 문서화 ([#127](https://github.com/RaonJena99/multi-currency-ledger-service/issues/127)) ([40ae4cb](https://github.com/RaonJena99/multi-currency-ledger-service/commit/40ae4cb179298c00bc25d72ece254c5dd9bd84aa))
+
 ## [1.11.2](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.1...v1.11.2) (2026-10-07)
 
 
