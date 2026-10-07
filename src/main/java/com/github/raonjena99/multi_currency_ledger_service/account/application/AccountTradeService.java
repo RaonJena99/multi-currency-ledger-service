@@ -70,10 +70,13 @@ public class AccountTradeService {
      * @param fiatToBaseRate 결제 통화 → 기준 통화 환율. 두 통화가 같으면 null
      * @return 생성된 거래의 고유 식별자
      */
+    // 같은 계좌에 동시에 들어온 요청들은 같은 순간에 충돌하므로, 고정 백오프면 모두 같은 시각에 깨어나 또 부딪힌다.
+    // random = true 로 매 재시도 지연을 [delay, delay × multiplier) 사이에서 고른다(100~200ms, 200~400ms).
+    // 나머지 실행 메서드도 같은 설정을 쓴다.
     @Retryable(
         retryFor = OptimisticLockingFailureException.class,
         maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
+        backoff = @Backoff(delay = 100, multiplier = 2.0, random = true)
     )
     @Transactional
     public UUID executeBuyAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType,
@@ -159,7 +162,7 @@ public class AccountTradeService {
     @Retryable(
         retryFor = OptimisticLockingFailureException.class,
         maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
+        backoff = @Backoff(delay = 100, multiplier = 2.0, random = true)
     )
     @Transactional
     public UUID executeSellAsset(String idempotencyKey, UUID accountId, String targetAssetCode, AssetType targetAssetType,
@@ -237,7 +240,7 @@ public class AccountTradeService {
     @Retryable(
         retryFor = OptimisticLockingFailureException.class,
         maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
+        backoff = @Backoff(delay = 100, multiplier = 2.0, random = true)
     )
     @Transactional
     public UUID executeDeposit(String idempotencyKey, UUID accountId, Money amount, OffsetDateTime transactedAt,
@@ -261,7 +264,7 @@ public class AccountTradeService {
     @Retryable(
         retryFor = OptimisticLockingFailureException.class,
         maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2.0)
+        backoff = @Backoff(delay = 100, multiplier = 2.0, random = true)
     )
     @Transactional
     public UUID executeWithdrawal(String idempotencyKey, UUID accountId, Money amount, OffsetDateTime transactedAt,
