@@ -125,7 +125,7 @@ class TradeToLedgerE2ETest extends IntegrationTestSupport {
                     .isEqualTo(1);
         });
 
-        // then 4 : 기준 통화 기준으로 차변 == 대변 (실현손익 포함)
+        // then 4 : 기준 통화 기준으로 차변 == 대변 (실현 손익은 별도 분개로 대변·차변에 들어 있다)
         List<java.util.Map<String, Object>> entries = jdbcTemplate.queryForList(
                 "SELECT entry_type, amount, realized_pnl, amount_currency, asset_code "
                         + "FROM transaction_entries WHERE transaction_id = ?", tradeId);
@@ -134,9 +134,9 @@ class TradeToLedgerE2ETest extends IntegrationTestSupport {
                 assertThat(e.get("amount_currency")).isEqualTo("KRW"));
 
         BigDecimal debit = sum(entries, "DEBIT");
-        BigDecimal credit = sum(entries, "CREDIT").add(pnl(entries));
+        BigDecimal credit = sum(entries, "CREDIT");
         assertThat(debit)
-                .as("기준 통화 KRW 기준 차변 합계와 대변 합계(실현손익 포함)가 일치해야 한다")
+                .as("기준 통화 KRW 기준 차변 합계와 대변 합계가 일치해야 한다")
                 .isEqualByComparingTo(credit);
 
         // then 5 : 이 거래의 아웃박스 행이 처리 완료로 마킹된다
@@ -155,10 +155,4 @@ class TradeToLedgerE2ETest extends IntegrationTestSupport {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal pnl(List<java.util.Map<String, Object>> rows) {
-        return rows.stream()
-                .map(r -> (BigDecimal) r.get("realized_pnl"))
-                .filter(java.util.Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
 }

@@ -15,6 +15,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.exception.Doub
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
+import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.RealizedPnlKind;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.TransactionRepository;
 
@@ -84,6 +85,11 @@ public class LedgerService {
         BigDecimal allowed = BigDecimal.ZERO;
 
         for (var entry : transaction.getEntries()) {
+            // 손익 분개는 매도 분개의 반올림된 손익을 그대로 옮긴 것이라 자체 반올림이 없다. 한도에 더하면
+            // 손익이 있는 거래만 허용 한도가 넓어져 그 안에 계산 오류가 숨을 수 있다.
+            if (RealizedPnlKind.isRealizedPnl(entry.getAssetCode())) {
+                continue;
+            }
             BigDecimal rate = entry.getExchangeRate() != null
                     ? entry.getExchangeRate().abs() : BigDecimal.ONE;
 
@@ -266,13 +272,8 @@ public class LedgerService {
             .map(e -> e.getAmount().getAmount())
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // (매도 시) 대변에 함께 기록된 실현 손익(Realized PnL)도 대변 합계에 합산
-        BigDecimal totalRealizedPnl = transaction.getEntries().stream()
-            .filter(e -> e.getRealizedPnl() != null && !e.getRealizedPnl().isZero())
-            .map(e -> e.getRealizedPnl().getAmount())
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal difference = totalDebit.subtract(totalCredit.add(totalRealizedPnl));
+        // 실현 손익은 고객 계정의 별도 분개(REALIZED_PNL_*)로 이미 차변 또는 대변 합계에 들어 있다.
+        BigDecimal difference = totalDebit.subtract(totalCredit);
         if (difference.compareTo(BigDecimal.ZERO) == 0) {
             return;
         }
@@ -282,9 +283,9 @@ public class LedgerService {
         if (difference.abs().compareTo(allowedResidual) > 0) {
             throw new DoubleEntryImbalanceException(String.format(
                 "Imbalance %s %s exceeds the rounding allowance %s. This is a calculation error, not a rounding residual. "
-                    + "(Debit: %s, Credit incl. PnL: %s)",
+                    + "(Debit: %s, Credit: %s)",
                 difference.toPlainString(), baseCurrency, allowedResidual.toPlainString(),
-                totalDebit.toPlainString(), totalCredit.add(totalRealizedPnl).toPlainString()));
+                totalDebit.toPlainString(), totalCredit.toPlainString()));
         }
 
         // 플러그 금액을 지표로 노출한다. 허용 한도를 넓히면 그 안에 실제 계산 버그가 숨을 수 있으므로,

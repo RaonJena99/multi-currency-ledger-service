@@ -175,23 +175,34 @@ class LedgerMatrixTest extends IntegrationTestSupport {
         BigDecimal debit = BigDecimal.ZERO;
         BigDecimal credit = BigDecimal.ZERO;
         BigDecimal pnlTotal = BigDecimal.ZERO;
+        BigDecimal pnlEntryNet = BigDecimal.ZERO;
         BigDecimal plug = BigDecimal.ZERO;
 
         for (var e : entries) {
             BigDecimal amount = (BigDecimal) e.get("amount");
             BigDecimal pnl = (BigDecimal) e.get("realized_pnl");
             String code = String.valueOf(e.get("asset_code"));
+            boolean credited = !"DEBIT".equals(e.get("entry_type"));
 
-            if ("DEBIT".equals(e.get("entry_type"))) debit = debit.add(amount);
-            else credit = credit.add(amount);
+            if (credited) credit = credit.add(amount);
+            else debit = debit.add(amount);
+            // realized_pnl 컬럼은 손익을 만든 분개의 참고값이다. 대차에는 쓰지 않는다.
             if (pnl != null) pnlTotal = pnlTotal.add(pnl);
+            if (code.startsWith("REALIZED_PNL_")) {
+                pnlEntryNet = pnlEntryNet.add(credited ? amount : amount.negate());
+            }
             if (code.startsWith("SYSTEM_FX")) plug = plug.add(amount.abs());
         }
 
-        // 2) 대차 불변식 (필요조건이지만 충분조건이 아니다)
+        // 2) 대차 불변식 (필요조건이지만 충분조건이 아니다). 실현 손익은 별도 분개라 대차에 이미 들어 있다.
         assertThat(debit)
-                .as("차변 == 대변 + 실현손익: %s", c)
-                .isEqualByComparingTo(credit.add(pnlTotal));
+                .as("차변 == 대변: %s", c)
+                .isEqualByComparingTo(credit);
+
+        // 2-1) 손익 분개(이익은 대변, 손실은 차변)의 순합은 realized_pnl 컬럼의 합과 같아야 한다.
+        assertThat(pnlEntryNet)
+                .as("손익 분개의 순합 == 매도 분개의 realized_pnl 합: %s", c)
+                .isEqualByComparingTo(pnlTotal);
 
         // 3) 실현 손익은 매도에서만 발생한다.
         if (!"SELL".equals(c.tradeType())) {

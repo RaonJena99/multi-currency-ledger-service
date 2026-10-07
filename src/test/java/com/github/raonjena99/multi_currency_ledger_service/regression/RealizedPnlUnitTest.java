@@ -71,10 +71,9 @@ class RealizedPnlUnitTest extends IntegrationTestSupport {
         BigDecimal credit = BigDecimal.ZERO;
         for (var r : entries(tradeId)) {
             BigDecimal amount = (BigDecimal) r.get("amount");
-            BigDecimal pnl = (BigDecimal) r.get("realized_pnl");
+            // 실현 손익은 고객 계정의 별도 분개(REALIZED_PNL_*)라 amount 에 이미 들어 있다.
             if ("DEBIT".equals(r.get("entry_type"))) debit = debit.add(amount);
             else credit = credit.add(amount);
-            if (pnl != null) credit = credit.add(pnl);
         }
         assertThat(debit).isEqualByComparingTo(credit);
     }

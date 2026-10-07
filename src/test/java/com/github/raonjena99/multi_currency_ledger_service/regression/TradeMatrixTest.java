@@ -235,10 +235,11 @@ class TradeMatrixTest extends IntegrationTestSupport {
                 .as("원장 기록 금액이 잔고 이동 금액과 달라서는 안 된다: %s", t)
                 .isEqualByComparingTo(expectedFiatDelta.abs());
 
-        // 3b) 모든 엔트리가 거래 시점 환율을 사용해야 한다 (플러그 엔트리는 환율 1)
+        // 3b) 모든 엔트리가 거래 시점 환율을 사용해야 한다 (플러그·손익 분개는 이미 기준 통화라 환율 1)
         List<BigDecimal> rates = jdbc.queryForList(
                 "SELECT exchange_rate FROM transaction_entries "
-                        + "WHERE transaction_id = ? AND asset_code NOT LIKE 'SYSTEM\\_%'",
+                        + "WHERE transaction_id = ? AND asset_code NOT LIKE 'SYSTEM\\_%' "
+                        + "AND asset_code NOT LIKE 'REALIZED\\_PNL\\_%'",
                 BigDecimal.class, tradeId);
         assertThat(rates)
                 .as("원장 환율이 거래 시점 환율과 같아야 한다: %s", t)
@@ -262,13 +263,11 @@ class TradeMatrixTest extends IntegrationTestSupport {
                 "SELECT COALESCE(SUM(amount),0) FROM transaction_entries "
                         + "WHERE transaction_id = ? AND entry_type = 'DEBIT'", BigDecimal.class, tradeId);
         BigDecimal credit = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(amount),0) + COALESCE(SUM(realized_pnl),0) FROM transaction_entries "
+                "SELECT COALESCE(SUM(amount),0) FROM transaction_entries "
                         + "WHERE transaction_id = ? AND entry_type = 'CREDIT'", BigDecimal.class, tradeId);
-        BigDecimal creditPnlOnDebit = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(realized_pnl),0) FROM transaction_entries "
-                        + "WHERE transaction_id = ? AND entry_type = 'DEBIT'", BigDecimal.class, tradeId);
+        // 실현 손익은 고객 계정의 별도 분개(이익은 대변, 손실은 차변)라 대차에 이미 들어 있다.
         assertThat(debit)
-                .as("차변 == 대변 + 실현손익: %s", t)
-                .isEqualByComparingTo(credit.add(creditPnlOnDebit));
+                .as("차변 == 대변: %s", t)
+                .isEqualByComparingTo(credit);
     }
 }

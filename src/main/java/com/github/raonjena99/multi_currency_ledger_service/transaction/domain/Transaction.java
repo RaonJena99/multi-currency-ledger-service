@@ -107,6 +107,9 @@ public class Transaction implements Persistable<UUID> {
 
     /**
      * 트랜잭션에 대변(매도) 엔트리를 추가합니다.
+     *
+     * <p>이 엔트리가 실현 손익을 만들면(평균 단가와 다르게 나가면) 같은 계정의 손익 분개
+     * ({@link RealizedPnlKind})도 함께 추가됩니다. 이익은 대변, 손실은 차변입니다.
      * @param accountId 계좌 ID
      * @param assetCode 자산 코드
      * @param quantity 수량
@@ -120,6 +123,9 @@ public class Transaction implements Persistable<UUID> {
         TransactionEntry entry = TransactionEntry.createSellEntry(this, accountId, assetCode, quantity,
                 unitPrice, exchangeRate, averageCostInBaseCurrency, baseCurrencyCode);
         this.entries.add(entry);
+        // 실현 손익이 있으면 같은 고객 계정의 별도 분개를 곧바로 함께 만든다. 호출하는 쪽이 빠뜨릴 수 없으므로
+        // 손익이 있는 대변 분개는 항상 짝 분개와 함께 있고, 대차가 구조적으로 맞는다.
+        TransactionEntry.createRealizedPnlEntry(this, entry).ifPresent(this.entries::add);
     }
 
     /**
@@ -145,12 +151,8 @@ public class Transaction implements Persistable<UUID> {
                 creditBalances.merge(currency, baseFiatValue, BigDecimal::add);
             }
 
-            // 대변에 가산하여 대차를 맞춤 (실현 손익이 존재하는 경우)
-            if (entry.getRealizedPnl() != null && !entry.getRealizedPnl().isZero()) {
-                String pnlCurrency = entry.getRealizedPnl().getCurrencyCode();
-                BigDecimal pnlValue = entry.getRealizedPnl().getAmount();
-                creditBalances.merge(pnlCurrency, pnlValue, BigDecimal::add);
-            }
+            // realized_pnl 컬럼은 더하지 않는다. 실현 손익은 별도 분개(REALIZED_PNL_*)로 기록되어 이미 위에서
+            // 차변 또는 대변으로 합산되었다. 컬럼까지 더하면 이중으로 세어진다.
         }
 
         // 모든 통화에 대해 차변 == 대변 검증

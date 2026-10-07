@@ -84,13 +84,6 @@ class ForeignCurrencyLedgerTest extends IntegrationTestSupport {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal pnl(List<Map<String, Object>> rows) {
-        return rows.stream()
-                .map(r -> (BigDecimal) r.get("realized_pnl"))
-                .filter(java.util.Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
     @Test
     @DisplayName("환율 증폭 반올림 오차가 있는 외화 매수도 원장에 기록된다")
     void foreign_currency_buy_is_recorded_despite_rate_amplified_rounding() {
@@ -105,7 +98,7 @@ class ForeignCurrencyLedgerTest extends IntegrationTestSupport {
         assertThat(entries).as("원장이 기록되어야 한다").hasSizeGreaterThanOrEqualTo(2);
         assertThat(sum(entries, "DEBIT"))
                 .as("플러그 엔트리 추가 후 대차가 정확히 일치해야 한다")
-                .isEqualByComparingTo(sum(entries, "CREDIT").add(pnl(entries)));
+                .isEqualByComparingTo(sum(entries, "CREDIT"));
     }
 
     @Test
@@ -120,7 +113,7 @@ class ForeignCurrencyLedgerTest extends IntegrationTestSupport {
 
         var entries = entriesOf(tradeId);
         assertThat(entries).isNotEmpty();
-        assertThat(sum(entries, "DEBIT")).isEqualByComparingTo(sum(entries, "CREDIT").add(pnl(entries)));
+        assertThat(sum(entries, "DEBIT")).isEqualByComparingTo(sum(entries, "CREDIT"));
     }
 
     @Test
@@ -134,7 +127,7 @@ class ForeignCurrencyLedgerTest extends IntegrationTestSupport {
 
         var entries = entriesOf(tradeId);
         assertThat(entries).isNotEmpty();
-        assertThat(sum(entries, "DEBIT")).isEqualByComparingTo(sum(entries, "CREDIT").add(pnl(entries)));
+        assertThat(sum(entries, "DEBIT")).isEqualByComparingTo(sum(entries, "CREDIT"));
     }
 
     @Test
