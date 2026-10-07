@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.3...v1.12.0) (2026-10-07)
+
+
+### Features
+
+* 실현 손익을 고객 계정의 별도 분개(REALIZED_PNL_*)로 기록하고 시산표를 차변 = 대변으로 단순화 ([#131](https://github.com/RaonJena99/multi-currency-ledger-service/issues/131)) ([e5ef311](https://github.com/RaonJena99/multi-currency-ledger-service/commit/e5ef311f368c94c5a1bd9f131d6a3959f2db85d3))
+
 ## [1.11.3](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.2...v1.11.3) (2026-10-07)
 
 
