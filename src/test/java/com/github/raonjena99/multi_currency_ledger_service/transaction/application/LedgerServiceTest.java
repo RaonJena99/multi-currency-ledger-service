@@ -210,16 +210,17 @@ class LedgerServiceTest {
     }
 
     @Test
-    @DisplayName("수수료 차감은 고객 대변과 시스템 수수료 계정 차변으로 균형을 맞춘다")
-    void fee_deduction_balances() {
+    @DisplayName("수수료 차감(FEE_DEDUCTION)은 만드는 곳이 없어 지원하지 않는다")
+    void fee_deduction_is_no_longer_supported() {
         UUID tradeId = UUID.randomUUID();
         when(transactionRepository.existsById(tradeId)).thenReturn(false);
 
-        ledgerService.recordDoubleEntry(cmd(tradeId, "FEE_DEDUCTION", "KRW", "KRW",
-                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("500"), BigDecimal.ONE, new BigDecimal("400")));
+        assertThatThrownBy(() -> ledgerService.recordDoubleEntry(cmd(tradeId, "FEE_DEDUCTION", "KRW", "KRW",
+                Money.of("1", AssetType.CRYPTO, "BTC"), new BigDecimal("500"), BigDecimal.ONE, new BigDecimal("400"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported trade type");
 
-        Transaction tx = capture();
-        assertThat(debitTotal(tx)).isEqualByComparingTo(creditTotal(tx));
+        verify(transactionRepository, never()).saveAndFlush(any());
     }
 
     @Test

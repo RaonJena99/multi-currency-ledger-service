@@ -223,9 +223,9 @@ GET /accounts/{id}/transactions, /admin/ledger/trial-balance
 - 상태 변경은 **배타 잠금**(`FOR UPDATE`)으로 읽습니다. 해지는 진행 중인 거래가 커밋될 때까지 기다린 뒤 잔고를 읽습니다.
 - 낙관적 락(`@Version`, 월차 원장)과 비관적 잠금(계좌 행)이 **서로 다른 문제**를 푼다는 점을 구분하십시오. 앞의 것은 같은 원장 행의 동시 수정을, 뒤의 것은 "상태 확인 → 잔고 변경" 사이의 끼어들기를 막습니다.
 
-**2-12. 환전 견적 — [FxQuoteService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/FxQuoteService.java)** → **[FxPricing.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/domain/FxPricing.java)**
+**2-12. 환전 (견적 → 체결) — [FxQuoteService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/FxQuoteService.java)** → **[FxPricing.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/domain/FxPricing.java)**
 
-계좌의 기준 통화와 외화 사이의 환전 견적을 냅니다. 잔고를 바꾸지 않고, 환율과 받을 금액을 짧은 시간 동안 고정할 뿐입니다.
+환전은 두 단계입니다. **견적**은 잔고를 바꾸지 않고 환율과 받을 금액을 짧은 시간 동안 고정할 뿐이고, **체결**이 그 견적대로 잔고를 옮기고 원장에 분개를 남깁니다.
 
 - `FxPricing`은 순수 계산입니다. `고객 환율 = 시세 × (1 ± 스프레드 × (1 − 우대율))`이고, **반올림은 모두 회사에 유리한 방향**입니다(환율은 살 때 올림·팔 때 내림, 받을 금액은 내림). 그래서 어떤 입력에서도 고객이 받는 금액의 시세 가치는 낸 금액을 넘지 않고, 그 차이가 스프레드 수익입니다. [FxPricingTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/domain/FxPricingTest.java)의 속성 테스트가 이를 무작위 입력으로 확인합니다.
 - `FxQuoteService`는 트랜잭션을 열지 않습니다(2-6과 같은 이유: 시세 조회는 외부 호출일 수 있습니다). 환전은 **기준 통화가 낀 쌍만** 지원합니다. 한쪽이 기준 통화이므로 시세가 항상 "외화 → 기준 통화" 한 방향이고, 나중에 평균 단가와 실현 손익도 기준 통화로 바로 계산됩니다.
@@ -234,7 +234,17 @@ GET /accounts/{id}/transactions, /admin/ledger/trial-balance
 - 우대율은 계좌별 값입니다(`Account.fxPreferentialRate`, 관리자 API). 지정하지 않으면 기본 우대율이고, 상한을 낮춘 뒤에도 저장된 높은 값이 적용되지 않도록 **쓸 때도 상한으로 자릅니다**.
 - 견적은 [RedisFxQuoteStore](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/infrastructure/RedisFxQuoteStore.java)에 TTL 과 함께 저장됩니다. 시세 캐시와 달리 **Redis 장애를 캐시 미스로 강등하지 않습니다.** 견적은 이 저장소가 유일한 보관처라서, 장애를 "없는 견적"으로 처리하면 고객이 엉뚱한 이유로 거절당합니다. 그래서 전용 예외(503)로 올립니다.
 
-**2-13. 확인용 테스트**: [AccountTradeServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeServiceTest.java), [AccountTradeConcurrencyTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeConcurrencyTest.java), [regression/LedgerPeriodIntegrityTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/LedgerPeriodIntegrityTest.java), [FxQuoteServiceTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/FxQuoteServiceTest.java), [AccountFxQuoteApiTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/presentation/AccountFxQuoteApiTest.java)
+**체결** — [AccountFxConversionFacade](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountFxConversionFacade.java) → [AccountTradeService.executeFxConversion](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeService.java) → [LedgerService](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerService.java)의 `FX_CONVERSION` 분기
+
+- **Facade**가 트랜잭션 밖에서 견적 저장소 조회와 원장 행 초기화를 끝냅니다(2-6과 같은 구조). 같은 멱등성 키의 재전송은 **견적을 보기 전에** 처음 체결을 돌려줍니다. 견적이 30초만 유효해서, 순서가 반대면 이미 성공한 체결이 "만료"로 응답되어 고객이 새 견적으로 다시 환전합니다. 견적이 없거나 만료되었거나 다른 계좌의 것이면 모두 같은 오류입니다.
+- **서비스**는 매수·매도와 같은 순서(멱등성 → 계좌 상태 → 실효 월 → 잔고 → 이벤트)를 따릅니다. 체결가는 견적에 고정이라 환율을 다시 조회하지 않습니다. 외화를 사면 **낸 기준 통화 전부가 외화의 취득 원가**(평균 단가 = 낸 금액 ÷ 받은 수량)이고, 외화를 팔면 **차감 직전 평균 단가를 이벤트에 실어** 원장이 실현 환차손익을 계산하게 합니다.
+- **견적의 단일 사용**은 [fx_conversions](../src/main/resources/db/migration/V202610120002__create_fx_conversions.sql)의 견적 ID 유니크 제약이 보장합니다. 서비스의 사전 조회는 잔고를 바꾸기 전에 빨리 거부하기 위한 것이고, 동시에 들어온 두 요청 중 하나는 이 제약에서 걸려 `FxQuoteAlreadyUsedException` 이 됩니다. Redis 에서 견적을 지우는 것은 그 뒤의 정리일 뿐이라 실패해도 체결은 성공입니다.
+- 환전도 `TradeExecutedEvent`(거래 유형 `FX_CONVERSION`, 환전 상세 `FxConversionDetail`)로 발행해 아웃박스 적재와 포트폴리오 캐시 갱신 경로를 그대로 탑니다. 원장은 환율을 다시 계산하지 않고 이벤트에 실린 금액(기준 통화 금액, 시세 가치)을 그대로 분개합니다.
+- **분개는 한 거래 안에서 두 쪽이 각각 균형**입니다. 고객 쪽은 (낸 통화 대변, 받은 통화 차변), 회사 쪽은 `SYSTEM_FX` 가 반대편 포지션을 시세 가치로 갖고, 고객 금액과 시세 가치의 차이가 스프레드 수익(`SYSTEM_FEE` 의 `SYSTEM_FX_SPREAD` 대변)입니다. 회사 쪽 시세 가치는 회사에 유리하게 반올림하므로(살 때 내림, 팔 때 올림) 스프레드 수익은 음수가 될 수 없고, 음수가 되는 입력은 원장이 거부합니다.
+- 환전은 PG 결제가 아니라서 대사 후보(`InternalTransactionQueryDao`)에서 거래 유형으로 제외합니다. 회사 FX 계정의 분개는 자산 코드가 통화 코드(`USD`)라서 `SYSTEM_` 접두어 필터로는 걸러지지 않기 때문입니다.
+- 예전에 있던 `FEE_DEDUCTION` 분기(만드는 코드가 없는 죽은 경로)는 이 작업에서 지웠습니다.
+
+**2-13. 확인용 테스트**: [AccountTradeServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeServiceTest.java), [AccountTradeConcurrencyTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeConcurrencyTest.java), [regression/LedgerPeriodIntegrityTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/LedgerPeriodIntegrityTest.java), [FxQuoteServiceTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/FxQuoteServiceTest.java), [AccountFxQuoteApiTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/presentation/AccountFxQuoteApiTest.java), [AccountFxConversionFacadeTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountFxConversionFacadeTest.java), [AccountTradeServiceFxConversionTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeServiceFxConversionTest.java), [AccountFxConversionApiTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/presentation/AccountFxConversionApiTest.java), [LedgerServiceFxConversionTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/transaction/application/LedgerServiceFxConversionTest.java), [regression/FxConversionLedgerTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/FxConversionLedgerTest.java), [e2e/FxConversionE2ETest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/e2e/FxConversionE2ETest.java), [regression/TradeArithmeticPropertyTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/TradeArithmeticPropertyTest.java)
 
 ### 스스로에게 던질 질문
 
@@ -365,7 +375,7 @@ JSON 페이로드가 역직렬화되는 대상. 3-1의 `LedgerRecordingPayload`�
 - 거래 유형별 분개 조립:
   - `BUY`: 차변=자산 증가, 대변=법정화폐 감소(+외화로 결제하면 실현 환차손익)
   - `SELL`: 차변=법정화폐 증가, 대변=자산 감소(+ 실현 손익이 있으면 고객 계정의 손익 분개)
-  - `FEE_DEDUCTION`: 고객 → 시스템 수수료 계정
+  - `FX_CONVERSION`: 환전. 고객 쪽(낸 통화 대변·받은 통화 차변)과 회사 쪽(`SYSTEM_FX` 반대편 포지션, 스프레드 수익 `SYSTEM_FEE`)이 각각 균형입니다. 외화를 팔면 고객 계정에 실현 환차손익 분개가 붙습니다(2-12).
   - `FEE_ADJUSTMENT`: 대사에서 발견된 차액 보정. **여기서 `accountApi.applyFiatBalanceAdjustment()`를 호출해 잔고에도 반영합니다.** 세션 7과 이어지는 지점입니다.
   - `DEPOSIT`/`WITHDRAWAL`: 입금은 고객 현금 차변 / **외부 입출금 청산 계정**(`SYSTEM_CASH_CLEARING`) 대변, 출금은 그 반대입니다. 청산 계정은 고객 돈이 플랫폼 밖에서 들어오고 나가는 통로를 나타냅니다.
   - 외화가 나가는 대변(외화 결제 매수, 외화 출금)은 **평균 단가**로 나가고, 거래 시점 환율과의 차이가 실현 환차손익이 됩니다. 평균 단가는 이벤트의 `averageCost`(나가는 쪽 원장의 차감 직전 평균 단가)로 옵니다. 0 이면 배포 전 이벤트로 보고 환율을 써서 손익을 인식하지 않습니다(`outgoingFiatAverageCost()`).

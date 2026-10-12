@@ -103,13 +103,9 @@ class LedgerMatrixTest extends IntegrationTestSupport {
         List<Case> cases = new ArrayList<>();
         for (String[] pair : CURRENCY_PAIRS) {
             for (String[] amt : AMOUNTS) {
-                for (String type : new String[]{"BUY", "SELL", "FEE_DEDUCTION"}) {
-                    // SELL 만 평균 원가를 사용한다. FEE_DEDUCTION 은 null 폴백 경로도 함께 본다.
-                    String cost = switch (type) {
-                        case "SELL" -> amt[2];
-                        case "FEE_DEDUCTION" -> null;
-                        default -> null;
-                    };
+                for (String type : new String[]{"BUY", "SELL"}) {
+                    // SELL 만 평균 원가를 사용한다.
+                    String cost = "SELL".equals(type) ? amt[2] : null;
                     cases.add(new Case(type, pair[0], pair[1], pair[2], amt[0], amt[1], cost));
                 }
             }
@@ -259,12 +255,6 @@ class LedgerMatrixTest extends IntegrationTestSupport {
                 assertThat(pnlTotal)
                         .as("실현손익 = round((price×rate − cost)×qty): %s", c)
                         .isCloseTo(expectedPnl, within(tolerance));
-            }
-            case "FEE_DEDUCTION" -> {
-                BigDecimal expected = roundTo(price.multiply(qty).multiply(rate), c.baseCurrency(), RoundingMode.HALF_EVEN);
-                assertThat(debit)
-                        .as("수수료 차감은 고객 대변 == 시스템 차변: %s", c)
-                        .isCloseTo(expected, within(tolerance));
             }
             case "FEE_ADJUSTMENT" -> {
                 BigDecimal expected = roundTo(qty.abs().multiply(rate), c.baseCurrency(), RoundingMode.HALF_EVEN);

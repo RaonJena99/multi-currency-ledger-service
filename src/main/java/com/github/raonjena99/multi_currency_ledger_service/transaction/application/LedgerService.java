@@ -14,6 +14,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.DoubleEntryImbalanceException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
+import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.FxConversionDetail;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.command.LedgerRecordingCommand;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.RealizedPnlKind;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction;
@@ -167,18 +168,6 @@ public class LedgerService {
             // 대변(Credit): 매도한 자산 감소 기록
             transaction.addSellEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(),
                                     cmd.unitPrice(), fiatToBaseRate, cmd.averageCost(), baseCurrency);
-        } else if ("FEE_DEDUCTION".equals(cmd.tradeType())) {
-            // 수수료 차감: 고객 계좌에서 차감하고 시스템 수수료 계정으로 귀속
-            transaction.addSellEntry(cmd.accountId(), cmd.assetCode(), cmd.quantity(),
-                                    cmd.unitPrice(), fiatToBaseRate,
-                                    cmd.averageCost() != null
-                                            ? cmd.averageCost()
-                                            // 폴백값은 결제 통화 단가이므로 기준 통화로 환산해야 단위가 맞는다.
-                                            : cmd.unitPrice().multiply(fiatToBaseRate),
-                                    baseCurrency);
-
-            transaction.addBuyEntry(SYSTEM_FEE_ACCOUNT_ID, cmd.assetCode(), cmd.quantity(),
-                                    cmd.unitPrice(), fiatToBaseRate, baseCurrency);
         } else if ("FEE_ADJUSTMENT".equals(cmd.tradeType())) {
 
             // 정산 수수료 오차 반영. cmd.accountId() 는 오차가 귀속되는 실제 고객 계좌다.
@@ -220,6 +209,8 @@ public class LedgerService {
             transaction.addSellEntry(cmd.accountId(), cmd.fiatCode(), cmd.quantity(),
                                     BigDecimal.ONE, fiatToBaseRate,
                                     outgoingFiatAverageCost(cmd, fiatToBaseRate), baseCurrency);
+        } else if ("FX_CONVERSION".equals(cmd.tradeType())) {
+            recordFxConversion(transaction, cmd, baseCurrency);
         } else {
             throw new IllegalArgumentException("Unsupported trade type for ledger recording: " + cmd.tradeType());
         }
@@ -237,6 +228,74 @@ public class LedgerService {
         transactionRepository.saveAndFlush(transaction);
 
         log.info("Ledger successfully recorded for TradeID: {}", cmd.referenceTradeId());
+    }
+
+    /** 환전 분개의 스프레드 수익 계정 코드. 시스템 수수료 계정(SYSTEM_FEE)의 대변으로 기록된다. */
+    private static final String FX_SPREAD_ASSET_CODE = "SYSTEM_FX_SPREAD";
+
+    /**
+     * 환전({@code FX_CONVERSION}) 분개를 만듭니다. 한 거래 안에서 고객 쪽과 회사 쪽이 각각 균형을 이룹니다.
+     *
+     * <p>금액은 모두 계좌 모듈이 정해 보낸 값을 그대로 쓰고 여기서 환율을 다시 계산하지 않습니다. 다만 분개의 단가·환율
+     * 칸은 {@code 금액 / 수량} 으로 채웁니다(DB 의 {@code amount ≈ 수량 × 단가 × 환율} 제약을 지키기 위해서입니다).
+     *
+     * <ul>
+     *   <li><b>외화 매수</b>: 고객은 기준 통화 X 를 내고(대변) 외화를 받는다(차변). 외화의 분개 금액은 낸 X 이며 이것이
+     *       취득 원가다. 회사는 기준 통화 X 를 받고(차변) 외화를 시세 가치 V 로 내준다(대변). X − V 가 스프레드 수익이다.</li>
+     *   <li><b>외화 매도</b>: 고객은 외화를 평균 단가(원가)로 내보내고(대변) 기준 통화 X 를 받는다(차변). 매각 대금 X 와
+     *       원가의 차이는 고객 계정의 실현 손익 분개로 남는다. 회사는 외화를 시세 가치 V 로 받고(차변) 기준 통화 X 를
+     *       내준다(대변). V − X 가 스프레드 수익이다.</li>
+     * </ul>
+     */
+    private void recordFxConversion(Transaction transaction, LedgerRecordingCommand cmd, String baseCurrency) {
+        FxConversionDetail fx = cmd.fx();
+        if (fx == null) {
+            throw new IllegalArgumentException("FX_CONVERSION 에는 fx 상세(방향, 기준 통화 금액, 시세 가치)가 필요합니다: "
+                    + cmd.referenceTradeId());
+        }
+        Money foreign = cmd.quantity();
+        BigDecimal foreignAmount = foreign.getAmount();
+        Money base = Money.of(fx.baseAmount(), AssetType.FIAT, baseCurrency);
+        Money marketValue = Money.of(fx.marketValue(), AssetType.FIAT, baseCurrency);
+
+        // 외화 한 단위가 기준 통화로 얼마인지. 고객 쪽은 실제로 오간 금액(반올림 나머지 포함), 회사 쪽은 시세 가치다.
+        BigDecimal customerUnit = base.getAmount().divide(foreignAmount, 18, RoundingMode.HALF_EVEN);
+        BigDecimal marketUnit = marketValue.getAmount().divide(foreignAmount, 18, RoundingMode.HALF_EVEN);
+
+        BigDecimal spread;
+        switch (fx.direction()) {
+            case "BUY_FOREIGN" -> {
+                transaction.addBuyEntry(cmd.accountId(), cmd.assetCode(), foreign, BigDecimal.ONE, customerUnit, baseCurrency);
+                transaction.addSellEntry(cmd.accountId(), baseCurrency, base, BigDecimal.ONE, BigDecimal.ONE,
+                        BigDecimal.ONE, baseCurrency);
+                transaction.addBuyEntry(SYSTEM_ACCOUNT_ID, baseCurrency, base, BigDecimal.ONE, BigDecimal.ONE, baseCurrency);
+                transaction.addSellEntry(SYSTEM_ACCOUNT_ID, cmd.assetCode(), foreign, BigDecimal.ONE, marketUnit,
+                        null, baseCurrency);
+                spread = base.getAmount().subtract(marketValue.getAmount());
+            }
+            case "SELL_FOREIGN" -> {
+                // 평균 단가를 모르면(0) 거래 금액을 원가로 보아 손익을 인식하지 않는다.
+                transaction.addSellEntry(cmd.accountId(), cmd.assetCode(), foreign, customerUnit, BigDecimal.ONE,
+                        outgoingFiatAverageCost(cmd, customerUnit), baseCurrency);
+                transaction.addBuyEntry(cmd.accountId(), baseCurrency, base, BigDecimal.ONE, BigDecimal.ONE, baseCurrency);
+                transaction.addBuyEntry(SYSTEM_ACCOUNT_ID, cmd.assetCode(), foreign, BigDecimal.ONE, marketUnit, baseCurrency);
+                transaction.addSellEntry(SYSTEM_ACCOUNT_ID, baseCurrency, base, BigDecimal.ONE, BigDecimal.ONE,
+                        null, baseCurrency);
+                spread = marketValue.getAmount().subtract(base.getAmount());
+            }
+            default -> throw new IllegalArgumentException("알 수 없는 환전 방향입니다: " + fx.direction());
+        }
+
+        if (spread.signum() < 0) {
+            throw new DoubleEntryImbalanceException(String.format(
+                    "환전 스프레드 수익이 음수입니다(%s %s). 시세 가치가 고객에게 유리하게 정해졌습니다. (방향: %s, 고객 금액: %s, 시세 가치: %s)",
+                    spread.toPlainString(), baseCurrency, fx.direction(),
+                    base.getAmount().toPlainString(), marketValue.getAmount().toPlainString()));
+        }
+        if (spread.signum() > 0) {
+            transaction.addSellEntry(SYSTEM_FEE_ACCOUNT_ID, FX_SPREAD_ASSET_CODE,
+                    Money.of(spread, AssetType.FIAT, baseCurrency), BigDecimal.ONE, BigDecimal.ONE, null, baseCurrency);
+        }
     }
 
     /**

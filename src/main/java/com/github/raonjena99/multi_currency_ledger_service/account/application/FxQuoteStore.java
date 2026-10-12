@@ -33,4 +33,14 @@ public interface FxQuoteStore {
      *         저장소를 쓸 수 없는 경우
      */
     Optional<FxQuote> find(UUID quoteId);
+
+    /**
+     * 견적을 지웁니다. 체결한 견적을 정리하는 용도입니다. 견적의 단일 사용은 체결 기록의 유니크 제약이 보장하므로 이 정리가
+     * 실패해도 같은 견적으로 다시 체결되지는 않습니다.
+     *
+     * @param quoteId 견적 ID. 이미 없어도 오류가 아니다
+     * @throws com.github.raonjena99.multi_currency_ledger_service.common.exception.FxQuoteUnavailableException
+     *         저장소를 쓸 수 없는 경우
+     */
+    void delete(UUID quoteId);
 }

@@ -64,6 +64,15 @@ public class RedisFxQuoteStore implements FxQuoteStore {
         }
     }
 
+    @Override
+    public void delete(UUID quoteId) {
+        try {
+            redisTemplate.delete(key(quoteId));
+        } catch (Exception e) {
+            throw new FxQuoteUnavailableException("환전 견적을 지우지 못했습니다: " + quoteId, e);
+        }
+    }
+
     private static String key(UUID quoteId) {
         return KEY_PREFIX + quoteId;
     }

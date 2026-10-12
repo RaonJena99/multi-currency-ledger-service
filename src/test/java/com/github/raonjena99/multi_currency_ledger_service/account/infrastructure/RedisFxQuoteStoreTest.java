@@ -95,6 +95,23 @@ class RedisFxQuoteStoreTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("견적을 지우면 더는 읽히지 않는다")
+    void deleteRemovesTheQuote() {
+        FxQuote saved = quote();
+        store.save(saved, Duration.ofSeconds(30));
+
+        store.delete(saved.quoteId());
+
+        assertThat(store.find(saved.quoteId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("없는 견적을 지워도 오류가 아니다")
+    void deletingAMissingQuoteIsANoOp() {
+        store.delete(UUID.randomUUID());
+    }
+
+    @Test
     @DisplayName("읽을 수 없는 값은 없는 견적으로 본다 (예외로 요청을 깨뜨리지 않는다)")
     void corruptedValueIsTreatedAsMissing() {
         UUID id = UUID.randomUUID();
@@ -115,11 +132,15 @@ class RedisFxQuoteStoreTest extends IntegrationTestSupport {
                         org.mockito.ArgumentMatchers.any(Duration.class));
         when(operations.get(org.mockito.ArgumentMatchers.anyString()))
                 .thenThrow(new RedisConnectionFailureException("down"));
+        when(broken.delete(org.mockito.ArgumentMatchers.anyString()))
+                .thenThrow(new RedisConnectionFailureException("down"));
         RedisFxQuoteStore failing = new RedisFxQuoteStore(broken, jsonMapper);
 
         assertThatThrownBy(() -> failing.save(quote(), Duration.ofSeconds(30)))
                 .isInstanceOf(FxQuoteUnavailableException.class);
         assertThatThrownBy(() -> failing.find(UUID.randomUUID()))
+                .isInstanceOf(FxQuoteUnavailableException.class);
+        assertThatThrownBy(() -> failing.delete(UUID.randomUUID()))
                 .isInstanceOf(FxQuoteUnavailableException.class);
     }
 }

@@ -199,24 +199,4 @@ class RealizedPnlUnitTest extends IntegrationTestSupport {
                 .allSatisfy(r -> assertThat((BigDecimal) r.get("realized_pnl")).isEqualByComparingTo("0"));
         assertBalanced(tradeId);
     }
-
-    @Test
-    @DisplayName("평균 단가가 없는 수수료 차감에도 실현 손익이 없다")
-    void fee_deduction_without_average_cost_has_no_realized_pnl() {
-        UUID accountId = account("FEE_DED");
-        UUID tradeId = UUID.randomUUID();
-
-        ledgerService.recordDoubleEntry(new LedgerRecordingCommand(
-                tradeId, accountId, "BTC", AssetType.CRYPTO, "USD", "KRW", "FEE_DEDUCTION",
-                Money.of("0.1", AssetType.CRYPTO, "BTC"), new BigDecimal("500"),
-                BigDecimal.ONE, new BigDecimal("1300"), null,
-                false, OffsetDateTime.now()));
-
-        assertThat(entries(tradeId))
-                .isNotEmpty()
-                .allSatisfy(r -> assertThat((BigDecimal) r.get("realized_pnl"))
-                        .as("폴백 평균 단가가 결제 통화면 (unitPrice×rate − unitPrice)×qty 의 가짜 손익이 생긴다")
-                        .isEqualByComparingTo("0"));
-        assertBalanced(tradeId);
-    }
 }

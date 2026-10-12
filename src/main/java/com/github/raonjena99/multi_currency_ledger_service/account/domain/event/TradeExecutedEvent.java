@@ -34,6 +34,8 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeTyp
  *                    입금처럼 나가는 쪽이 없으면 0 입니다.
  * @param isStaleRate 적용된 환율의 지연(stale) 여부
  * @param occurredAt 이벤트 발생 시간
+ * @param fx 환전({@link TradeType#FX_CONVERSION})의 분개 금액. 다른 거래 유형에서는 null 입니다. 환전에서는 자산 코드가
+ *           외화, 결제 통화와 기준 통화가 계좌의 기준 통화이고 수량이 외화 금액입니다
  */
 public record TradeExecutedEvent(
     UUID tradeId,
@@ -49,8 +51,18 @@ public record TradeExecutedEvent(
     BigDecimal fiatToBaseRate,
     BigDecimal averageCost,
     boolean isStaleRate,
-    OffsetDateTime occurredAt
+    OffsetDateTime occurredAt,
+    FxConversionDetail fx
 ) {
+    /** 환전이 아닌 거래용 생성자. 환전 상세({@code fx})가 없다. */
+    public TradeExecutedEvent(UUID tradeId, UUID accountId, String assetCode, AssetType assetType, String fiatCode,
+                              String baseCurrency, TradeType tradeType, BigDecimal quantity, BigDecimal unitPrice,
+                              BigDecimal exchangeRate, BigDecimal fiatToBaseRate, BigDecimal averageCost,
+                              boolean isStaleRate, OffsetDateTime occurredAt) {
+        this(tradeId, accountId, assetCode, assetType, fiatCode, baseCurrency, tradeType, quantity, unitPrice,
+                exchangeRate, fiatToBaseRate, averageCost, isStaleRate, occurredAt, null);
+    }
+
     /**
      * TradeExecutedEvent 생성자.
      * 필수 필드에 대한 null 검증을 수행하고, 발생 시간(occurredAt)이 없을 경우 현재 시간으로 설정합니다.

@@ -70,6 +70,11 @@ class FxQuoteServiceTest {
         public Optional<FxQuote> find(UUID quoteId) {
             return Optional.ofNullable(saved.get(quoteId));
         }
+
+        @Override
+        public void delete(UUID quoteId) {
+            saved.remove(quoteId);
+        }
     }
 
     private static CurrencyTerms terms(String spread, String min, String max) {

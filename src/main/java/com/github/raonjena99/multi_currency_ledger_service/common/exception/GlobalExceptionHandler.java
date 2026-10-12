@@ -320,6 +320,28 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 체결하려는 환전 견적이 없거나 만료됨 (HTTP 422). 새 견적을 받아 다시 시도하면 된다.
+     */
+    @ExceptionHandler(FxQuoteExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleFxQuoteExpired(FxQuoteExpiredException e) {
+        log.warn("FX quote expired or unknown: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .body(new ErrorResponse("FX_QUOTE_EXPIRED", e.getMessage()));
+    }
+
+    /**
+     * 이미 체결된 환전 견적으로 다시 체결하려 함 (HTTP 409)
+     */
+    @ExceptionHandler(FxQuoteAlreadyUsedException.class)
+    public ResponseEntity<ErrorResponse> handleFxQuoteAlreadyUsed(FxQuoteAlreadyUsedException e) {
+        log.warn("FX quote already used: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("FX_QUOTE_ALREADY_USED", e.getMessage()));
+    }
+
+    /**
      * 견적 저장소를 쓸 수 없음 (HTTP 503)
      *
      * <p>의존성 장애라 재시도가 의미 있는 상황입니다. 500 으로 내리면 클라이언트가 재시도해도 소용없는 오류로 오인합니다.
