@@ -30,6 +30,15 @@ repositories {
 }
 
 dependencies {
+    // kafka-clients 4.2.1 이 끌어오는 lz4-java 1.10.1 에는 1.11.4 에서 고쳐진 HIGH 취약점이 남아 있다
+    // (CVE-2026-106451, 임시 파일 처리 결함). Boot 가 관리하는 버전이 아니라 ext 줄 대신 constraints 로 올린다.
+    // 이미지 취약점 스캔을 통과하도록 패치 버전만 올린다. kafka-clients 가 이 이상을 가져오는 버전으로 올라가면 지운다.
+    constraints {
+        runtimeOnly('at.yawk.lz4:lz4-java:1.11.4') {
+            because 'CVE-2026-106451: kafka-clients 4.2.1 이 가져오는 1.10.1 의 취약점'
+        }
+    }
+
     // 인증 및 인가 (Spring Security)
     implementation 'org.springframework.boot:spring-boot-starter-security'
     testImplementation 'org.springframework.security:spring-security-test'
