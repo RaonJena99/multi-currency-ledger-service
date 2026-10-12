@@ -8,6 +8,12 @@ name: CI
 on:
   pull_request:
     branches: ["main"]
+    # 아키텍처 다이어그램 동기화 PR(architecture-docs.yml)은 GITHUB_TOKEN 으로 만들어져, CI 가 돌지 않는 것이 아니라
+    # 승인 대기(action_required)로 시작한다. 그런데 이 PR 은 몇 초 안에 자동 병합되고 브랜치가 지워져 승인 전에 사라지므로,
+    # 매번 실패한 CI 실행 기록만 남았다(문서는 정상적으로 동기화된다). 이 PR 의 변경은 docs/architecture/ 아래뿐이라
+    # 검증할 코드가 없으므로 CI 실행 자체를 만들지 않는다. main 에는 필수 상태 검사가 없어 병합이 막히지 않는다.
+    paths-ignore:
+      - "docs/architecture/**"
   # main 에 직접 푸시된 커밋도 검증한다. PR 트리거만 두면 main 이 검증 없이 깨질 수 있다.
   push:
     branches: ["main"]
