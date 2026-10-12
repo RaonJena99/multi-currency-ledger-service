@@ -45,6 +45,9 @@ class AccountCashFlowTest extends IntegrationTestSupport {
 
     @AfterEach
     void tearDown() {
+        // 입출금이 남긴 아웃박스 이벤트는 릴레이와 Kafka 소비자가 비동기로 원장에 기록한다. 그 사이에 TRUNCATE 가
+        // 끼어들면 소비자 트랜잭션과 서로의 락을 기다리다 deadlock 으로 정리가 실패한다(#140). 끝나기를 기다린 뒤 지운다.
+        awaitLedgerPipelineIdle();
         jdbcTemplate.execute("TRUNCATE TABLE outbox_events, transaction_entries, transactions, "
                 + "monthly_account_ledgers, idempotency_records CASCADE");
         deleteTestAccounts();
@@ -110,6 +113,23 @@ class AccountCashFlowTest extends IntegrationTestSupport {
         assertThat(outboxPayloads()).anySatisfy(payload -> assertThat(payload)
                 .contains("\"tradeId\":\"" + transactionId + "\"")
                 .contains("\"tradeType\":\"DEPOSIT\""));
+    }
+
+    @Test
+    @DisplayName("원장 파이프라인 대기는 릴레이 발행과 소비자 기록이 모두 끝난 뒤에 돌아온다")
+    void awaitingTheLedgerPipelineWaitsForTheConsumerToRecord() {
+        UUID accountId = openKrwAccount();
+        UUID transactionId = tradeFacade.deposit("dep-await", accountId, "KRW", new BigDecimal("10000"));
+
+        awaitLedgerPipelineIdle();
+
+        // 릴레이는 1초 주기이므로 기다리지 않았다면 이 시점에 원장에는 아직 아무것도 없다.
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM transactions WHERE id = ?", Integer.class, transactionId))
+                .as("소비자가 원장에 기록을 끝냈다").isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM outbox_events WHERE processed = false", Integer.class))
+                .as("릴레이가 모두 발행했다").isZero();
     }
 
     @Test
