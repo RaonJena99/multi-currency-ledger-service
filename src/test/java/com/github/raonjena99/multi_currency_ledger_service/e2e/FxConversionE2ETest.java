@@ -2,6 +2,7 @@ package com.github.raonjena99.multi_currency_ledger_service.e2e;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -208,6 +209,38 @@ class FxConversionE2ETest extends IntegrationTestSupport {
 
         // 이익은 고객 계정의 대변 분개다.
         assertThat(amountOf(entries(sell), accountId, "CREDIT", "REALIZED_PNL_FX")).isEqualByComparingTo("52750");
+    }
+
+    // ── 회사 포지션 ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("회사의 합산 손익은 고객 손익의 정확한 반대이고, 달러 포지션은 왕복 뒤 0 이다")
+    void companyPositionMirrorsTheCustomerResult() throws Exception {
+        convert("KRW", "USD", "1322750", "buy-1");    // 시세 1,300
+        marketRate("1400");
+        convert("USD", "KRW", "1000", "sell-1");      // 시세 1,400
+        awaitLedgerPipelineIdle();
+        BigDecimal customerGain = balance("KRW").subtract(new BigDecimal("2000000"));   // +52,750
+
+        String body = admin(get("/api/v1/admin/ledger/fx-positions"), "").andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        tools.jackson.databind.JsonNode book = jsonMapper.readTree(body).get("books").get(0);
+
+        assertThat(book.get("baseCurrency").asString()).isEqualTo("KRW");
+        assertThat(new BigDecimal(book.get("spreadRevenue").asString())).isEqualByComparingTo("47250");
+        BigDecimal usdQuantity = null;
+        BigDecimal marketValueTotal = BigDecimal.ZERO;
+        for (tools.jackson.databind.JsonNode position : book.get("positions")) {
+            marketValueTotal = marketValueTotal.add(new BigDecimal(position.get("marketValue").asString()));
+            if ("USD".equals(position.get("currency").asString())) {
+                usdQuantity = new BigDecimal(position.get("netQuantity").asString());
+            }
+        }
+        assertThat(usdQuantity).as("산 만큼 되팔았으니 달러 포지션은 0").isEqualByComparingTo("0");
+        BigDecimal total = new BigDecimal(book.get("totalResult").asString());
+        assertThat(total).as("회사 합산 손익 = 스프레드 47,250 − 환손실 100,000").isEqualByComparingTo("-52750");
+        assertThat(total).as("회사 손익은 고객 손익의 반대").isEqualByComparingTo(customerGain.negate());
+        assertThat(total).as("합산 손익 = 포지션 시장가치의 합").isEqualByComparingTo(marketValueTotal);
     }
 
     // ── 점검 ────────────────────────────────────────────────────────────────────────────────
