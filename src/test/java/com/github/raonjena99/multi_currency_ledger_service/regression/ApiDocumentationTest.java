@@ -111,6 +111,11 @@ class ApiDocumentationTest extends IntegrationTestSupport {
         assertThat(conversion.get("422").toString()).contains("FX_QUOTE_EXPIRED");
         assertThat(conversion.get("200").toString()).contains("FxConversionResponse");
 
+        // 회사 외화 포지션: 관리자 조회. 성공 응답의 본문 형식이 문서화되어 있어야 한다.
+        JsonNode position = paths.get("/api/v1/admin/ledger/fx-positions").get("get").get("responses");
+        assertThat(position.propertyNames()).contains("200", "401", "403");
+        assertThat(position.get("200").toString()).contains("FxPositionReport");
+
         JsonNode rate = paths.get("/api/v1/admin/accounts/{accountId}/fx-preferential-rate").get("put").get("responses");
         assertThat(rate.propertyNames()).contains("200", "400", "403", "404");
     }
