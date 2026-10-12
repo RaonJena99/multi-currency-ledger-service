@@ -22,6 +22,7 @@
 | :--- | :--- |
 | **매수·매도** | 월차 원장의 잔고와 평균 단가 갱신. 멱등성 키로 중복 요청 차단, 시장가 대비 단가 편차 검증 |
 | **계좌 개설·입출금·상태 관리** | 관리자·내부 시스템이 계좌를 열고 법정화폐를 입출금. 정지·해제·해지(잔고 0 일 때만)와 변경 이력. 입출금도 멱등성 키를 쓰고 원장에 분개 |
+| **환전 견적** | 계좌의 기준 통화와 외화 사이의 환전 견적. 시세에 통화별 스프레드를 붙이고 계좌별 우대율만큼 깎은 환율로 받을 금액을 계산해 30초 동안 고정. 견적은 잔고를 바꾸지 않으며 체결은 아직 지원하지 않음 |
 | **복식부기 분개** | 거래 이벤트를 Kafka로 받아 차변·대변 분개 기록. 매도와 외화 유출(출금·외화 결제) 시 평균 단가 대비 실현 손익을 고객 계정의 별도 분개로 기록, 대차 불일치 시 저장 거부 |
 | **포트폴리오 조회** | 보유 자산을 실시간 시세로 평가해 미실현 손익 계산. Redis 캐시, 시세 장애 시 지연 데이터로 표시 |
 | **원장 조회** | 계좌별 거래 내역과 거래별 분개(시스템 계정 분개 제외), 기준 통화별 월 시산표(차변 = 대변) |
@@ -173,10 +174,12 @@ k6 시나리오(처리량, 락 경합, 포트폴리오 캐시, 분개 기록 지
 | :--- | :--- | :--- |
 | `POST` | `/api/v1/accounts/{accountId}/trades/buy` | 인증 + 계좌 소유자 |
 | `POST` | `/api/v1/accounts/{accountId}/trades/sell` | 인증 + 계좌 소유자 |
+| `POST` | `/api/v1/accounts/{accountId}/fx-quotes` (환전 견적) | 인증 + 계좌 소유자 |
 | `POST` | `/api/v1/admin/accounts` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/accounts/{accountId}/deposits`, `/withdrawals` | `ROLE_ADMIN` |
 | `POST` | `/api/v1/admin/accounts/{accountId}/suspend`, `/activate`, `/close` | `ROLE_ADMIN` |
 | `GET` | `/api/v1/admin/accounts/{accountId}/status-history` | `ROLE_ADMIN` |
+| `GET`, `PUT` | `/api/v1/admin/accounts/{accountId}/fx-preferential-rate` (환전 우대율) | `ROLE_ADMIN` |
 | `GET` | `/api/v1/accounts/{accountId}` | 인증 + 계좌 소유자 |
 | `GET` | `/api/v1/portfolios/{accountId}` | 인증 + 계좌 소유자 |
 | `GET` | `/api/v1/accounts/{accountId}/transactions`, `/{transactionId}` | 인증 + 계좌 소유자 |
@@ -213,6 +216,47 @@ k6 시나리오(처리량, 락 경합, 포트폴리오 캐시, 분개 기록 지
 | `INSUFFICIENT_BALANCE` | 잔고 부족 | 하지 않는다 |
 
 재시도할 때는 **같은 멱등성 키**를 쓰고, 지수 백오프에 무작위 지연(지터)을 더해 여러 클라이언트가 같은 시각에 다시 부딪히지 않게 합니다. 충돌로 실패한 요청은 롤백되어 키가 남지 않으므로, 같은 키로 다시 보내도 중복 처리되지 않습니다. 한 계좌에 동시에 요청을 많이 보내면 충돌이 늘어납니다([부하 테스트](docs/LOAD_TEST.md#2-락-경합--contentionjs)).
+
+### 환전 견적
+
+계좌의 기준 통화와 외화 사이의 환전 견적을 받습니다. 견적은 잔고를 바꾸지 않습니다. 견적으로 체결하는 API 는 아직 없습니다.
+
+```bash
+curl -X POST localhost:8080/api/v1/accounts/$ACC/fx-quotes \
+  -H 'X-Auth-Subject: demo' -H "X-Auth-Account-Id: $ACC" -H 'Content-Type: application/json' \
+  -d '{"fromCurrency":"KRW","toCurrency":"USD","amount":1300000}'
+```
+
+- **환율** = 시세 × (1 ± 스프레드 × (1 − 우대율)). 외화를 살 때 +, 팔 때 −입니다. 시세 1,300, 스프레드 1.75%, 우대 90% 이면 살 때 1,302.275, 팔 때 1,297.725 입니다.
+- **받을 금액**은 받는 통화의 최소 단위로 내림합니다(고객에게 불리한 방향). 위 예시는 1,300,000원으로 998.25달러를 받습니다.
+- **환전할 수 있는 쌍**: 한쪽이 계좌의 기준 통화이고, 다른 쪽이 `ledger.fx.currencies` 에 등록된 외화여야 합니다. 외화끼리(USD → JPY)는 기준 통화를 거쳐 두 번 환전합니다.
+- **설정**(`ledger.fx.*`): 통화별 스프레드와 1회 최소·최대 금액(외화 금액 기준), 견적 유효 시간(기본 30초), 기본·최대 우대율(기본 0, 0.9). 잘못된 값은 요청이 아니라 기동할 때 실패합니다. 기본 정책은 아래와 같습니다.
+- **우대율**은 계좌별로 관리자가 정합니다(`PUT /api/v1/admin/accounts/{accountId}/fx-preferential-rate`, `{"rate":0.9}`). 지정하지 않은 계좌는 기본 우대율을 쓰고, 이미 받은 견적에는 영향이 없습니다.
+- **시세가 지연 데이터**(공급자 장애로 캐시를 쓴 경우)이면 견적을 내지 않습니다(503).
+
+**기본 환전 정책.** 국내 시중은행의 고시 수준을 참고해 통화의 유동성으로 나눈 값입니다. 통화별 숫자는 [`application.yaml`](src/main/resources/application.yaml)에 있고, 운영 정책(수익·위험 한도)에 맞게 조정합니다.
+
+| 군 | 통화 | 정가 스프레드 | 1회 한도(외화 금액 기준) |
+| :--- | :--- | :--- | :--- |
+| 1군 | USD, JPY, KRW | 1.75% | 대략 1달러 ~ 1만 달러 상당 |
+| 1군 | EUR | 2% | 대략 1달러 ~ 1만 달러 상당 |
+| 2군 | GBP, CAD, AUD, CHF, HKD, SGD, NZD, CNY | 3% | 대략 1달러 ~ 1만 달러 상당 |
+| 3군 | THB, VND, PHP, MYR, IDR, TWD | 5% | 대략 1달러 ~ 1만 달러 상당 |
+
+- 스프레드는 우대 전 **정가**입니다. 실제 부담은 계좌의 우대율을 곱한 값입니다(우대 90% 면 정가의 10%).
+- 최대 한도는 건당 1만 달러를 넘지 않게 잡았습니다. 건당 1만 달러를 넘는 대외지급·영수 거래는 국세청·관세청·금융감독원에 통보됩니다. 건당 한도이며 누적 한도는 아닙니다. 달러 상당액은 환율이 크게 움직이면 달라지므로 주기적으로 다시 맞춥니다.
+- 목록에 없는 통화는 환전할 수 없습니다. 통화를 열 때는 스프레드와 한도를 함께 정합니다. KRW 는 기준 통화가 원화가 아닌 계좌가 원화와 환전할 때 필요합니다.
+
+| 상태 | 코드 | 뜻 |
+| :--- | :--- | :--- |
+| 422 | `FX_PAIR_NOT_SUPPORTED` | 기준 통화가 끼지 않았거나 설정에 없는 통화 |
+| 422 | `FX_AMOUNT_OUT_OF_RANGE` | 외화 금액이 통화별 최소·최대 한도를 벗어남 |
+| 422 | `UNSUPPORTED_ASSET` | ISO 4217 통화가 아님 |
+| 503 | `EXCHANGE_RATE_UNAVAILABLE`, `MARKET_DATA_UNAVAILABLE` | 시세가 낡았거나 구할 수 없음. 잠시 뒤 다시 시도 |
+| 503 | `FX_QUOTE_UNAVAILABLE` | 견적 저장소(Redis) 장애. 잠시 뒤 다시 시도 |
+
+`local` 프로파일의 더미 시세는 외화끼리 1:1 이라 환율이 실제와 다릅니다. 현실적인 환율로 확인하려면 환경 변수로 쌍마다 지정합니다
+(`LEDGER_DUMMY_RATES_USD_KRW=1300 ./gradlew bootRun --args='--spring.profiles.active=local'`). 한쪽 방향만 지정하면 반대 방향은 역수로 계산합니다.
 
 ### 인증 방식
 

@@ -97,6 +97,15 @@ class ApiDocumentationTest extends IntegrationTestSupport {
 
         JsonNode close = paths.get("/api/v1/admin/accounts/{accountId}/close").get("post").get("responses");
         assertThat(close.propertyNames()).contains("404", "409", "422");
+
+        // 환전 견적: 환전할 수 없는 조합·한도 초과(422)와 시세·견적 저장소 장애(503)를 문서화한다.
+        JsonNode quote = paths.get("/api/v1/accounts/{accountId}/fx-quotes").get("post").get("responses");
+        assertThat(quote.propertyNames()).contains("200", "400", "403", "404", "422", "503");
+        assertThat(quote.get("422").toString()).contains("ErrorResponse");
+        assertThat(quote.get("200").toString()).contains("FxQuoteResponse");
+
+        JsonNode rate = paths.get("/api/v1/admin/accounts/{accountId}/fx-preferential-rate").get("put").get("responses");
+        assertThat(rate.propertyNames()).contains("200", "400", "403", "404");
     }
 
     @Test

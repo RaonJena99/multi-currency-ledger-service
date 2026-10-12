@@ -296,6 +296,44 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 환전할 수 없는 통화 조합 (HTTP 422)
+     *
+     * <p>기준 통화가 끼지 않았거나 설정에 없는 통화입니다. 재시도해도 같은 결과인 영구 오류이므로 503 과 구분합니다.
+     */
+    @ExceptionHandler(UnsupportedFxPairException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedFxPair(UnsupportedFxPairException e) {
+        log.warn("Unsupported FX pair: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .body(new ErrorResponse("FX_PAIR_NOT_SUPPORTED", e.getMessage()));
+    }
+
+    /**
+     * 환전 금액이 통화별 한도를 벗어남 (HTTP 422)
+     */
+    @ExceptionHandler(FxAmountOutOfRangeException.class)
+    public ResponseEntity<ErrorResponse> handleFxAmountOutOfRange(FxAmountOutOfRangeException e) {
+        log.warn("FX amount out of range: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .body(new ErrorResponse("FX_AMOUNT_OUT_OF_RANGE", e.getMessage()));
+    }
+
+    /**
+     * 견적 저장소를 쓸 수 없음 (HTTP 503)
+     *
+     * <p>의존성 장애라 재시도가 의미 있는 상황입니다. 500 으로 내리면 클라이언트가 재시도해도 소용없는 오류로 오인합니다.
+     */
+    @ExceptionHandler(FxQuoteUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleFxQuoteUnavailable(FxQuoteUnavailableException e) {
+        log.error("FX quote store unavailable: {}", e.getMessage(), e);
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("FX_QUOTE_UNAVAILABLE",
+                        "FX quotes are temporarily unavailable. Please retry shortly."));
+    }
+
+    /**
      * 대차 불일치 (HTTP 500)
      */
     @ExceptionHandler(DoubleEntryImbalanceException.class)

@@ -110,6 +110,101 @@ ledger:
       max-batches-per-run: 20
       # 이전 실행이 끝난 뒤 다음 실행까지 쉬는 시간(밀리초). 거래 직후 분개가 보이기까지의 지연을 좌우한다.
       poll-interval-ms: 1000
+  fx:
+    # 환전 견적 유효 시간. 견적을 받은 뒤 시장이 움직여도 견적 환율로 체결되므로 짧게 둔다(시세 허용 나이 5분 이하).
+    quote-ttl: 30s
+    # 계좌에 우대율을 지정하지 않았을 때 적용하는 우대율(0.9 = 스프레드의 90% 를 깎아 줌).
+    default-preferential-rate: 0
+    # 우대율 상한. 1(100% 우대)이면 스프레드 수익이 사라지므로 1 미만이어야 한다.
+    max-preferential-rate: 0.9
+    # 환전할 수 있는 외화와 조건. 여기에 없는 통화는 환전할 수 없다(스프레드를 정하지 않은 통화를 0% 로 열지 않는다).
+    # 환전은 계좌의 기준 통화와 이 목록의 통화 사이에서만 한다. 목록은 "외화" 쪽 조건이다.
+    #
+    # spread     우대 전 정가 스프레드(0.0175 = 1.75%). 실제 부담은 계좌별 우대율만큼 깎인다(우대 90% 면 정가의 10%).
+    #            국내 시중은행의 고시 수준을 참고한 기본 정책이며, 통화의 유동성에 따라 세 군으로 나눴다.
+    # min-amount 1회 최소 환전 금액(외화 기준). 대략 1달러 상당이다. 반올림 때문에 스프레드 수익이 0 이 되는
+    #            초소액 환전을 막는다.
+    # max-amount 1회 최대 환전 금액(외화 기준). 대략 1만 달러에 못 미치는 값이다. 건당 1만 달러를 넘는 대외지급·영수
+    #            거래는 국세청·관세청·금융감독원에 통보되므로 그 아래로 잡는다. 건당 한도이며 누적 한도가 아니다.
+    #
+    # 이 값은 운영 정책에 맞게 조정한다. 한도의 달러 상당액은 환율이 크게 움직이면 달라지므로 주기적으로 다시 맞춘다.
+    # 통화를 열 때는 세 값을 함께 정한다(한도는 그 통화의 최소 단위로 표현할 수 있어야 한다). 기동 때 검증한다.
+    currencies:
+      # 1군 — 거래가 가장 많고 시세가 안정적인 통화. 시중은행이 고시하는 스프레드(USD·JPY ±1.75%, EUR 약 ±2%)를 따른다.
+      USD:  # 미국 달러
+        spread: 0.0175
+        min-amount: 1
+        max-amount: 10000
+      JPY:  # 일본 엔
+        spread: 0.0175
+        min-amount: 100
+        max-amount: 1500000
+      EUR:  # 유로
+        spread: 0.0200
+        min-amount: 1
+        max-amount: 8000
+      KRW:  # 원화. 기준 통화가 원화가 아닌 계좌가 원화와 환전할 때 "외화" 쪽 조건이다. USD/KRW 쌍의 스프레드와 맞춘다
+        spread: 0.0175
+        min-amount: 1000
+        max-amount: 14000000
+      # 2군 — 유동성이 충분한 주요 통화. 은행들은 1군보다 넓게 고시한다.
+      GBP:  # 영국 파운드
+        spread: 0.0300
+        min-amount: 1
+        max-amount: 7000
+      CAD:  # 캐나다 달러
+        spread: 0.0300
+        min-amount: 1
+        max-amount: 13000
+      AUD:  # 호주 달러
+        spread: 0.0300
+        min-amount: 1
+        max-amount: 14000
+      CHF:  # 스위스 프랑
+        spread: 0.0300
+        min-amount: 1
+        max-amount: 7500
+      HKD:  # 홍콩 달러
+        spread: 0.0300
+        min-amount: 10
+        max-amount: 75000
+      SGD:  # 싱가포르 달러
+        spread: 0.0300
+        min-amount: 1
+        max-amount: 12000
+      NZD:  # 뉴질랜드 달러
+        spread: 0.0300
+        min-amount: 1
+        max-amount: 15000
+      CNY:  # 중국 위안
+        spread: 0.0300
+        min-amount: 10
+        max-amount: 60000
+      # 3군 — 원화와의 직접 거래가 얇아 대체로 달러를 거쳐야 하는 통화. 더 넓게 둔다.
+      THB:  # 태국 바트
+        spread: 0.0500
+        min-amount: 30
+        max-amount: 320000
+      VND:  # 베트남 동
+        spread: 0.0500
+        min-amount: 25000
+        max-amount: 240000000
+      PHP:  # 필리핀 페소
+        spread: 0.0500
+        min-amount: 60
+        max-amount: 550000
+      MYR:  # 말레이시아 링깃
+        spread: 0.0500
+        min-amount: 5
+        max-amount: 44000
+      IDR:  # 인도네시아 루피아
+        spread: 0.0500
+        min-amount: 15000
+        max-amount: 150000000
+      TWD:  # 대만 달러
+        spread: 0.0500
+        min-amount: 30
+        max-amount: 300000
   security:
     # 게이트웨이 공유 시크릿. 설정하면 X-Gateway-Secret 헤더가 이 값과 일치하는 요청만
     # X-Auth-* 인증 헤더를 신뢰한다. 미설정(기본)이면 게이트웨이가 클라이언트의 X-Auth-* 헤더를

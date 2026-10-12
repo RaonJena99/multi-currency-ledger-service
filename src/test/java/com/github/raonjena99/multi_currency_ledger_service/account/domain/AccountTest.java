@@ -121,4 +121,41 @@ class AccountTest {
         ReflectionTestUtils.setField(account, "createdAt", java.time.OffsetDateTime.now());
         assertThat(account.isNew()).isFalse();
     }
+
+    @Test
+    void fxPreferentialRate_is_not_set_for_a_new_account() {
+        Account account = Account.open(UUID.randomUUID(), "User", "KRW");
+
+        // 지정하지 않았으면 null 이다. 이때 기본 우대율(설정)을 쓴다.
+        assertThat(account.getFxPreferentialRate()).isNull();
+    }
+
+    @Test
+    void changeFxPreferentialRate_should_store_the_rate() {
+        Account account = Account.open(UUID.randomUUID(), "User", "KRW");
+
+        account.changeFxPreferentialRate(new java.math.BigDecimal("0.9"));
+        assertThat(account.getFxPreferentialRate()).isEqualByComparingTo("0.9");
+
+        // 0 은 "우대 없음"을 명시한 값이다. null(미지정)과 구분된다.
+        account.changeFxPreferentialRate(java.math.BigDecimal.ZERO);
+        assertThat(account.getFxPreferentialRate()).isNotNull().isEqualByComparingTo("0");
+    }
+
+    @Test
+    void changeFxPreferentialRate_should_reject_out_of_range_or_too_precise_rates() {
+        Account account = Account.open(UUID.randomUUID(), "User", "KRW");
+
+        assertThatThrownBy(() -> account.changeFxPreferentialRate(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> account.changeFxPreferentialRate(new java.math.BigDecimal("-0.01")))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> account.changeFxPreferentialRate(java.math.BigDecimal.ONE))
+                .as("100% 우대는 스프레드 수익이 사라지므로 허용하지 않는다")
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> account.changeFxPreferentialRate(new java.math.BigDecimal("0.12345")))
+                .as("컬럼은 소수 4자리다. 더 정밀한 값을 조용히 반올림하지 않고 거부한다")
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(account.getFxPreferentialRate()).isNull();
+    }
 }
