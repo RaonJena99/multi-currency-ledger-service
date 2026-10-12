@@ -1,8 +1,21 @@
 package com.github.raonjena99.multi_currency_ledger_service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
 
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
+import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -18,6 +31,8 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import com.github.raonjena99.multi_currency_ledger_service.common.config.KafkaTopics;
 
 import jakarta.persistence.EntityManagerFactory;
 
@@ -104,6 +119,57 @@ public abstract class IntegrationTestSupport {
         systemAccountJdbcTemplate.update(
                 "DELETE FROM accounts WHERE id NOT IN (?::uuid, ?::uuid, ?::uuid)",
                 SYSTEM_FX_ACCOUNT_ID, SYSTEM_FEE_ACCOUNT_ID, SYSTEM_CASH_CLEARING_ACCOUNT_ID);
+    }
+
+    private static final String LEDGER_RECORDING_GROUP = "ledger-recording-group";
+
+    /**
+     * 원장 기록 파이프라인(아웃박스 → 릴레이 → Kafka → 원장 소비자)이 비기를 기다립니다.
+     *
+     * <p>거래·입출금은 아웃박스에 이벤트를 남기고 끝나며, 원장 기록은 그 뒤에 비동기로 일어납니다. 테스트가
+     * 이를 기다리지 않고 {@code TRUNCATE} 로 정리하면, 소비자 트랜잭션과 서로의 락을 기다리다 deadlock 으로
+     * 정리가 실패하거나(40P01), 지워진 계좌를 참조하는 원장 항목이 외래키 위반으로 다음 테스트에 새어 나갑니다(#140).
+     * 이벤트를 일으키는 테스트는 정리 쿼리 전에 이 메서드를 부르십시오.
+     *
+     * <p>모든 테스트에 일괄로 걸지 않는 이유: 메트릭·보존·데드레터 테스트는 아웃박스 이벤트를 일부러 미처리 상태로
+     * 두므로 기다리면 시간 초과만 납니다.
+     *
+     * <p>두 조건을 이 순서로 확인합니다. (1) 릴레이가 미발행 이벤트를 모두 발행했다. (2) 원장 소비자 그룹의 랙이 0 이다.
+     * 오프셋은 소비자가 DB 에 기록을 끝낸 뒤(실패하면 데드레터로 보낸 뒤)에 커밋되므로 랙 0 은 처리가 끝났다는 뜻입니다.
+     * 아웃박스가 비어 있으면(이벤트를 일으키지 않은 테스트) 바로 돌아옵니다.
+     */
+    protected void awaitLedgerPipelineIdle() {
+        if (systemAccountJdbcTemplate == null || Boolean.FALSE.equals(systemAccountJdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM outbox_events)", Boolean.class))) {
+            return;
+        }
+        try (AdminClient admin = AdminClient.create(Map.of(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_CONTAINER.getBootstrapServers()))) {
+            Awaitility.await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(50))
+                    .ignoreExceptions()
+                    .untilAsserted(() -> {
+                        assertThat(systemAccountJdbcTemplate.queryForObject(
+                                "SELECT count(*) FROM outbox_events WHERE processed = false AND dead_letter = false",
+                                Long.class)).as("릴레이가 아직 발행하지 않은 이벤트").isZero();
+                        assertThat(ledgerRecordingLag(admin)).as("원장 소비자가 아직 처리하지 않은 메시지").isZero();
+                    });
+        }
+    }
+
+    private static long ledgerRecordingLag(AdminClient admin) throws Exception {
+        String topic = KafkaTopics.LEDGER_RECORDING;
+        Map<TopicPartition, OffsetAndMetadata> committed = admin.listConsumerGroupOffsets(LEDGER_RECORDING_GROUP)
+                .partitionsToOffsetAndMetadata().get();
+        Map<TopicPartition, OffsetSpec> latest = new HashMap<>();
+        admin.describeTopics(List.of(topic)).allTopicNames().get().get(topic).partitions()
+                .forEach(p -> latest.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest()));
+
+        long lag = 0;
+        for (Map.Entry<TopicPartition, ListOffsetsResultInfo> end : admin.listOffsets(latest).all().get().entrySet()) {
+            OffsetAndMetadata offset = committed.get(end.getKey());
+            lag += Math.max(0, end.getValue().offset() - (offset == null ? 0 : offset.offset()));
+        }
+        return lag;
     }
 
     /** 반올림 잔차 플러그가 귀속되는 시스템 계정. 마이그레이션이 시딩합니다. */
