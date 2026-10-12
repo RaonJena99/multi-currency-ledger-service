@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.12.0...v1.13.0) (2026-10-12)
+
+
+### Features
+
+* 환전 견적 API 추가 ([#114](https://github.com/RaonJena99/multi-currency-ledger-service/issues/114) 1/2) ([#134](https://github.com/RaonJena99/multi-currency-ledger-service/issues/134)) ([df75b6c](https://github.com/RaonJena99/multi-currency-ledger-service/commit/df75b6ca42c685315ef4e6a9951bc0b9d93eaa17))
+
+
+### Bug Fixes
+
+* **deps:** 이미지 취약점 스캔에 걸린 lz4-java HIGH 취약점 패치 ([#136](https://github.com/RaonJena99/multi-currency-ledger-service/issues/136)) ([4dd4f7d](https://github.com/RaonJena99/multi-currency-ledger-service/commit/4dd4f7de69f84921943879ef493230549abcb435)), closes [#135](https://github.com/RaonJena99/multi-currency-ledger-service/issues/135)
+
 ## [1.12.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.11.3...v1.12.0) (2026-10-07)
 
 
