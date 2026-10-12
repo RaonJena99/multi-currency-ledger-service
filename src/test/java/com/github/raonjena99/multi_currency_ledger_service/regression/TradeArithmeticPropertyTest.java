@@ -24,9 +24,14 @@ import com.github.raonjena99.multi_currency_ledger_service.account.application.A
 import com.github.raonjena99.multi_currency_ledger_service.account.application.MonthlyLedgerInitializer;
 import com.github.raonjena99.multi_currency_ledger_service.account.application.MonthlyLedgerResolver;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.FxConversion;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.FxDirection;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.FxPricing;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.FxQuote;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.FxConversionRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.IdempotencyRecordRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.acl.AccountOutboxAcl;
@@ -34,10 +39,12 @@ import com.github.raonjena99.multi_currency_ledger_service.common.domain.Currenc
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.BelowMinimumNotionalException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
+import com.github.raonjena99.multi_currency_ledger_service.common.model.EntryType;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxEvent;
 import com.github.raonjena99.multi_currency_ledger_service.common.outbox.OutboxRepository;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.application.LedgerService;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.Transaction;
+import com.github.raonjena99.multi_currency_ledger_service.transaction.domain.TransactionEntry;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.TransactionRepository;
 import com.github.raonjena99.multi_currency_ledger_service.transaction.infrastructure.acl.OrderToLedgerAcl;
 
@@ -142,6 +149,118 @@ class TradeArithmeticPropertyTest {
         assertThat(executed).as("실제로 체결된 왕복 거래 수").isGreaterThan(ROUND_TRIPS_PER_SEED / 2);
     }
 
+    private static final BigDecimal[] FX_SPREADS = {
+            new BigDecimal("0.0175"), new BigDecimal("0.02"), new BigDecimal("0.03"), new BigDecimal("0.05")};
+    private static final int FX_ROUND_TRIPS_PER_SEED = 1_000;
+
+    @ParameterizedTest(name = "seed={0}")
+    @ValueSource(longs = {404L, 505L, 606L})
+    @DisplayName("환전 왕복: 같은 시세에서 고객은 이득을 볼 수 없고, 모든 환전 분개가 예외 없이 대차를 맞추며 잔고와 분개가 일치한다")
+    void fxRoundTripNeverCreatesMoneyAndJournalsBalance(long seed) {
+        Random random = new Random(seed);
+        int executed = 0;
+
+        for (int i = 0; i < FX_ROUND_TRIPS_PER_SEED; i++) {
+            String base = pick(random, BASES);
+            String foreign = pickOtherThan(random, PAYMENTS, base);
+            BigDecimal market = rate(foreign, base);
+            BigDecimal spread = FX_SPREADS[random.nextInt(FX_SPREADS.length)];
+            // 우대율은 0 ~ 0.9 (소수 4자리). 우대가 없는 경우를 자주 섞는다.
+            BigDecimal preferential = random.nextInt(3) == 0
+                    ? BigDecimal.ZERO : BigDecimal.valueOf(random.nextInt(9001), 4);
+            BigDecimal paid = BigDecimal.valueOf(random.nextDouble()).movePointRight(2 + random.nextInt(8))
+                    .setScale(scale(base), RoundingMode.DOWN);
+            if (paid.signum() <= 0) {
+                continue;
+            }
+            String context = String.format("seed=%d i=%d base=%s foreign=%s paid=%s market=%s spread=%s pref=%s",
+                    seed, i, base, foreign, paid.toPlainString(), market.toPlainString(), spread.toPlainString(),
+                    preferential.toPlainString());
+
+            Env env = new Env(base);
+            BigDecimal funding = new BigDecimal("1000000000000");
+            env.fund(base, funding);
+
+            // 1) 기준 통화를 내고 외화를 산다.
+            FxPricing.Priced buy = FxPricing.price(FxDirection.BUY_FOREIGN, paid, market, spread, preferential, scale(foreign));
+            if (buy.receivedAmount().signum() <= 0) {
+                continue;
+            }
+            FxConversion bought = env.service.executeFxConversion(UUID.randomUUID().toString(),
+                    fxQuote(env.accountId, FxDirection.BUY_FOREIGN, base, paid, foreign, buy.receivedAmount(), market,
+                            buy.customerRate(), spread, preferential), OffsetDateTime.now(), MONTH);
+            env.consumeLatestLedgerCommand(context);
+            assertThat(env.balance(foreign)).as("받은 외화: " + context).isEqualByComparingTo(buy.receivedAmount());
+
+            // 2) 받은 외화를 같은 시세로 전부 판다.
+            FxPricing.Priced sell = FxPricing.price(FxDirection.SELL_FOREIGN, buy.receivedAmount(), market, spread,
+                    preferential, scale(base));
+            if (sell.receivedAmount().signum() <= 0) {
+                continue;
+            }
+            FxConversion sold = env.service.executeFxConversion(UUID.randomUUID().toString(),
+                    fxQuote(env.accountId, FxDirection.SELL_FOREIGN, foreign, buy.receivedAmount(), base,
+                            sell.receivedAmount(), market, sell.customerRate(), spread, preferential),
+                    OffsetDateTime.now(), MONTH);
+            env.consumeLatestLedgerCommand(context);
+
+            // 같은 시세로 왕복하면 고객은 돈을 벌 수 없다. 손실은 회사가 스프레드로 번 금액과 같다(회사 쪽 시세 가치는
+            // 사고 팔 때 내림·올림이라 반올림 한 단위까지 더 벌 수 있다).
+            BigDecimal loss = funding.subtract(env.balance(base));
+            BigDecimal revenue = bought.getSpreadRevenue().add(sold.getSpreadRevenue());
+            assertThat(loss.signum()).as("고객이 왕복 환전으로 이득을 보면 안 된다: " + context).isGreaterThanOrEqualTo(0);
+            assertThat(bought.getSpreadRevenue().signum()).as("매수 스프레드 수익: " + context).isGreaterThanOrEqualTo(0);
+            assertThat(sold.getSpreadRevenue().signum()).as("매도 스프레드 수익: " + context).isGreaterThanOrEqualTo(0);
+            assertThat(revenue).as("회사 수익은 고객 손실 이상, 반올림 한 단위 이내: " + context)
+                    .isBetween(loss, loss.add(CurrencyScaleResolver.minimumUnit(AssetType.FIAT, base)));
+            assertThat(env.balance(foreign)).as("외화를 모두 팔았다: " + context).isEqualByComparingTo(BigDecimal.ZERO);
+
+            // 잔고와 분개가 같다: 고객 계정의 (통화별) 분개 순증가가 잔고 변화와 일치한다. 이것이 어긋나면 정합성 점검이 잡는다.
+            assertThat(journalNet(env, base)).as("기준 통화의 분개 순증가: " + context)
+                    .isEqualByComparingTo(env.balance(base).subtract(funding));
+            assertThat(journalNet(env, foreign)).as("외화의 분개 순증가: " + context)
+                    .isEqualByComparingTo(env.balance(foreign));
+
+            // 반올림 잔차 플러그는 기준 통화 한 단위를 넘지 않아야 한다(계산 오류를 숨기면 안 된다).
+            BigDecimal plug = plugTotal(env);
+            assertThat(plug).as("반올림 잔차 플러그: " + context)
+                    .isLessThanOrEqualTo(CurrencyScaleResolver.minimumUnit(AssetType.FIAT, base));
+            executed++;
+        }
+
+        assertThat(executed).as("실제로 체결된 환전 왕복 수").isGreaterThan(FX_ROUND_TRIPS_PER_SEED / 2);
+    }
+
+    private static FxQuote fxQuote(UUID accountId, FxDirection direction, String from, BigDecimal fromAmount, String to,
+                                   BigDecimal toAmount, BigDecimal market, BigDecimal customerRate, BigDecimal spread,
+                                   BigDecimal preferential) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new FxQuote(UUID.randomUUID(), accountId, direction, from, fromAmount, to, toAmount, market, customerRate,
+                spread, preferential, now, now.plusSeconds(30));
+    }
+
+    /** 고객 계정의 통화별 분개 순증가(차변 수량 − 대변 수량). 실현 손익 분개는 잔고가 아니므로 뺀다. */
+    private static BigDecimal journalNet(Env env, String currency) {
+        BigDecimal net = BigDecimal.ZERO;
+        for (Transaction transaction : env.journal) {
+            for (TransactionEntry entry : transaction.getEntries()) {
+                if (!entry.getAccountId().equals(env.accountId) || !entry.getAssetCode().equals(currency)) {
+                    continue;
+                }
+                BigDecimal quantity = entry.getQuantity().getAmount();
+                net = entry.getEntryType() == EntryType.DEBIT ? net.add(quantity) : net.subtract(quantity);
+            }
+        }
+        return net;
+    }
+
+    /** 반올림 잔차를 흘려보낸 시스템 환차익·환차손 분개의 합. */
+    private static BigDecimal plugTotal(Env env) {
+        return env.journal.stream().flatMap(t -> t.getEntries().stream())
+                .filter(e -> e.getAssetCode().equals("SYSTEM_FX_GAIN") || e.getAssetCode().equals("SYSTEM_FX_LOSS"))
+                .map(e -> e.getAmount().getAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private static BigDecimal rate(String from, String to) {
         return USD_VALUE.get(from).divide(USD_VALUE.get(to), 18, RoundingMode.HALF_EVEN);
     }
@@ -224,7 +343,12 @@ class TradeArithmeticPropertyTest {
                 if (event instanceof TradeExecutedEvent trade) {
                     outboxAcl.persistOutboxEvent(trade);
                 }
-            }, accountRepository, idempotencyRepository, ledgerRepository, resolver);
+            }, accountRepository, idempotencyRepository, ledgerRepository, resolver,
+                    fake(FxConversionRepository.class, (name, args) -> switch (name) {
+                        case "findByQuoteId" -> Optional.empty();
+                        case "save", "saveAndFlush" -> args[0];
+                        default -> throw new UnsupportedOperationException(name);
+                    }));
             this.ledgerConsumer = new OrderToLedgerAcl(MAPPER,
                     new LedgerService(transactionRepository, accountApi, new SimpleMeterRegistry()));
         }

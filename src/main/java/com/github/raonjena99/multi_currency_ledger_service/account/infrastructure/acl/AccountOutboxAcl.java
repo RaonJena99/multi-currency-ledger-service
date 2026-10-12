@@ -43,8 +43,12 @@ public class AccountOutboxAcl {
         BigDecimal fiatToBaseRate,
         BigDecimal averageCost,
         boolean isStaleRate,
-        OffsetDateTime transactedAt
+        OffsetDateTime transactedAt,
+        FxPayload fx
     ) {}
+
+    /** 환전 분개 금액. 원장 모듈의 커맨드가 같은 모양으로 읽는다. */
+    record FxPayload(String direction, BigDecimal baseAmount, BigDecimal marketValue) {}
 
     /**
      * TradeExecutedEvent(거래 실행 이벤트)를 수신하여 OutboxEvent(아웃박스 이벤트)로 변환 후 저장합니다.
@@ -79,7 +83,9 @@ public class AccountOutboxAcl {
                 externalEvent.fiatToBaseRate(),
                 externalEvent.averageCost(),
                 externalEvent.isStaleRate(),
-                externalEvent.occurredAt()
+                externalEvent.occurredAt(),
+                externalEvent.fx() == null ? null : new FxPayload(externalEvent.fx().direction().name(),
+                        externalEvent.fx().baseAmount(), externalEvent.fx().marketValue())
             );
 
             // Outbox 테이블에 저장

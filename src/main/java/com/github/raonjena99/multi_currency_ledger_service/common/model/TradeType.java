@@ -11,5 +11,7 @@ public enum TradeType {
     /** 입금 (외부에서 법정화폐가 들어옴) */
     DEPOSIT,
     /** 출금 (법정화폐가 외부로 나감) */
-    WITHDRAWAL
+    WITHDRAWAL,
+    /** 환전 (계좌의 기준 통화와 외화가 서로 바뀜) */
+    FX_CONVERSION
 }

@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
@@ -17,8 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.Account;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.IdempotencyRecord;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.MonthlyAccountLedger;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.FxConversionDetail;
 import com.github.raonjena99.multi_currency_ledger_service.account.domain.event.TradeExecutedEvent;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.FxConversion;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.FxDirection;
+import com.github.raonjena99.multi_currency_ledger_service.account.domain.FxQuote;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.AccountRepository;
+import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.FxConversionRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.IdempotencyRecordRepository;
 import com.github.raonjena99.multi_currency_ledger_service.account.infrastructure.MonthlyAccountLedgerRepository;
 import com.github.raonjena99.multi_currency_ledger_service.common.domain.CurrencyScaleResolver;
@@ -26,6 +32,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.domain.Money;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.AccountNotFoundException;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.BelowMinimumNotionalException;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.DuplicateTradeRequestException;
+import com.github.raonjena99.multi_currency_ledger_service.common.exception.FxQuoteAlreadyUsedException;
 import com.github.raonjena99.multi_currency_ledger_service.common.exception.InvalidAccountStateException;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetType;
 import com.github.raonjena99.multi_currency_ledger_service.common.model.TradeType;
@@ -51,6 +58,7 @@ public class AccountTradeService {
     private final IdempotencyRecordRepository idempotencyRepository;
     private final MonthlyAccountLedgerRepository monthlyAccountLedgerRepository;
     private final MonthlyLedgerResolver monthlyLedgerResolver;
+    private final FxConversionRepository fxConversionRepository;
 
     /**
      * 특정 Account(계좌)에서 자산을 매수(Buy)하는 처리를 수행합니다.
@@ -320,6 +328,126 @@ public class AccountTradeService {
 
         log.info("Monthly Ledger updated for {}. TransactionID: {}", type, transactionId);
         return transactionId;
+    }
+
+    /** 환전 체결의 멱등성 키 연산 이름. 키는 (계좌, 연산) 으로 스코프된다. */
+    static final String FX_CONVERSION_OPERATION = TradeType.FX_CONVERSION.name();
+
+    /** 견적 ID 유니크 제약의 이름(V202610120002). 이 제약에 걸린 위반만 "이미 쓴 견적"으로 번역한다. */
+    private static final String QUOTE_UNIQUE_CONSTRAINT = "uq_fx_conversions_quote_id";
+
+    /**
+     * 견적을 체결합니다. 기준 통화와 외화 잔고를 견적의 금액대로 옮기고, 체결 기록을 남기고, 원장 기록 이벤트를 발행합니다.
+     *
+     * <p>체결가는 견적에 고정되어 있어 환율을 다시 조회하지 않습니다. 견적 하나는 한 번만 쓸 수 있고, 이를 체결 기록의 견적 ID
+     * 유니크 제약이 최종 보장합니다. 앞의 조회는 잔고를 바꾸기 전에 빨리 거부하기 위한 것이고, 동시에 들어온 두 요청 중 하나는
+     * 이 제약에서 걸립니다.
+     *
+     * <p>외화를 사면 기준 통화로 낸 금액이 그대로 외화의 취득 원가가 됩니다(평균 단가 = 낸 금액 ÷ 받은 수량). 외화를 팔면
+     * 차감 직전 평균 단가를 이벤트에 실어, 원장이 매각 대금과의 차이를 고객의 실현 환차손익으로 기록하게 합니다.
+     *
+     * <p>회사 쪽 금액은 반올림을 회사에 유리하게 정합니다. 외화의 시세 가치는 살 때 내림, 팔 때 올림이라 스프레드 수익이
+     * 음수가 되지 않습니다.
+     *
+     * @param idempotencyKey 중복 방지를 위한 키
+     * @param quote          체결할 견적. 호출하는 쪽이 계좌 일치와 만료를 이미 확인했어야 한다
+     * @param transactedAt   거래 기준 시각
+     * @param ledgerMonth    기장 대상 실효 원장 월 (yyyy-MM)
+     * @return 체결 기록. 같은 키로 이미 체결했다면 처음 체결의 기록
+     * @throws FxQuoteAlreadyUsedException 이미 체결된 견적인 경우
+     */
+    @Retryable(
+        retryFor = OptimisticLockingFailureException.class,
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 100, multiplier = 2.0, random = true)
+    )
+    @Transactional
+    public FxConversion executeFxConversion(String idempotencyKey, FxQuote quote, OffsetDateTime transactedAt,
+                                            String ledgerMonth) {
+        UUID accountId = quote.accountId();
+
+        IdempotencyOutcome idempotency = registerIdempotencyKey(
+                accountId, FX_CONVERSION_OPERATION, idempotencyKey, "이미 처리 중인 환전 요청입니다.");
+        if (idempotency.replayedTradeId() != null) {
+            return fxConversionRepository.findById(idempotency.replayedTradeId()).orElseThrow(() ->
+                    new IllegalStateException("멱등성 레코드가 가리키는 환전 체결 기록이 없습니다: " + idempotency.replayedTradeId()));
+        }
+
+        requireActiveAccount(accountId);
+
+        if (fxConversionRepository.findByQuoteId(quote.quoteId()).isPresent()) {
+            throw new FxQuoteAlreadyUsedException("이미 체결된 견적입니다: " + quote.quoteId());
+        }
+
+        String baseCurrency = quote.baseCurrency();
+        String foreignCurrency = quote.foreignCurrency();
+        String effectiveMonth = resolveEffectiveMonth(accountId, ledgerMonth);
+        MonthlyAccountLedger baseLedger = monthlyLedgerResolver
+                .resolveOrInitializeLedger(accountId, baseCurrency, AssetType.FIAT, effectiveMonth);
+        MonthlyAccountLedger foreignLedger = monthlyLedgerResolver
+                .resolveOrInitializeLedger(accountId, foreignCurrency, AssetType.FIAT, effectiveMonth);
+        monthlyLedgerResolver.requireStillLatestMonth(accountId, effectiveMonth);
+
+        boolean buyingForeign = quote.direction() == FxDirection.BUY_FOREIGN;
+        BigDecimal foreignAmount = quote.foreignAmount();
+        BigDecimal baseAmount = buyingForeign ? quote.fromAmount() : quote.toAmount();
+        Money foreignMoney = Money.of(foreignAmount, AssetType.FIAT, foreignCurrency);
+        Money baseMoney = Money.of(baseAmount, AssetType.FIAT, baseCurrency);
+
+        // 외화의 시세 가치(기준 통화). 반올림은 회사에 유리하게: 살 때 내림, 팔 때 올림.
+        // 고객 금액이 같은 시세에서 같은 방향으로 이미 불리하게 정해져 있어 스프레드 수익은 항상 0 이상이다.
+        int baseScale = CurrencyScaleResolver.resolveScale(AssetType.FIAT, baseCurrency);
+        BigDecimal marketValue = foreignAmount.multiply(quote.marketRate())
+                .setScale(baseScale, buyingForeign ? RoundingMode.DOWN : RoundingMode.UP);
+        BigDecimal spreadRevenue = buyingForeign ? baseAmount.subtract(marketValue) : marketValue.subtract(baseAmount);
+
+        // 나가는 쪽 원장의 차감 직전 평균 단가. 원장이 외화를 파는 환전에서 실현 환차손익을 계산하는 근거다.
+        BigDecimal outgoingAverageCost;
+        if (buyingForeign) {
+            outgoingAverageCost = baseLedger.subtractBalance(baseMoney);
+            // 외화의 취득 원가 = 낸 기준 통화 ÷ 받은 수량. 낸 금액 전부(반올림 나머지 포함)가 원가에 들어간다.
+            foreignLedger.addBalance(foreignMoney, baseAmount.divide(foreignAmount, 18, RoundingMode.HALF_EVEN));
+        } else {
+            outgoingAverageCost = foreignLedger.subtractBalance(foreignMoney);
+            baseLedger.addBalance(baseMoney, BigDecimal.ONE);
+        }
+        monthlyAccountLedgerRepository.save(baseLedger);
+        monthlyAccountLedgerRepository.save(foreignLedger);
+
+        UUID conversionId = UUID.randomUUID();
+        FxConversion conversion = FxConversion.of(conversionId, quote, marketValue, spreadRevenue, transactedAt);
+        try {
+            fxConversionRepository.saveAndFlush(conversion);
+        } catch (DataIntegrityViolationException e) {
+            if (isQuoteUniquenessViolation(e)) {
+                throw new FxQuoteAlreadyUsedException("이미 체결된 견적입니다: " + quote.quoteId());
+            }
+            throw e;
+        }
+
+        // 환전도 매수·매도와 같은 이벤트로 발행해 아웃박스 적재와 포트폴리오 캐시 갱신 경로를 그대로 탄다.
+        // 원장은 환율을 다시 계산하지 않고 fx 상세의 금액을 그대로 분개한다.
+        eventPublisher.publishEvent(new TradeExecutedEvent(
+            conversionId, accountId, foreignCurrency, AssetType.FIAT, baseCurrency, baseCurrency,
+            TradeType.FX_CONVERSION,
+            foreignAmount, baseAmount.divide(foreignAmount, 18, RoundingMode.HALF_EVEN), quote.marketRate(),
+            BigDecimal.ONE, outgoingAverageCost,
+            false, transactedAt,
+            new FxConversionDetail(quote.direction(), baseAmount, marketValue)
+        ));
+
+        idempotency.record().complete(conversionId);
+
+        log.info("FX conversion executed. ConversionID: {}, direction: {}, {} {} -> {} {}", conversionId,
+                quote.direction(), quote.fromAmount().toPlainString(), quote.fromCurrency(),
+                quote.toAmount().toPlainString(), quote.toCurrency());
+        return conversion;
+    }
+
+    private static boolean isQuoteUniquenessViolation(DataIntegrityViolationException e) {
+        Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
+        String message = cause.getMessage();
+        return message != null && message.contains(QUOTE_UNIQUE_CONSTRAINT);
     }
 
     private void requireActiveAccount(UUID accountId) {

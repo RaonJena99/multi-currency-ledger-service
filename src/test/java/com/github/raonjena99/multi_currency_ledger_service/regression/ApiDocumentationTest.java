@@ -104,6 +104,13 @@ class ApiDocumentationTest extends IntegrationTestSupport {
         assertThat(quote.get("422").toString()).contains("ErrorResponse");
         assertThat(quote.get("200").toString()).contains("FxQuoteResponse");
 
+        // 환전 체결: 견적 만료(422)와 이미 쓴 견적·잔고 부족(409)을 문서화한다.
+        JsonNode conversion = paths.get("/api/v1/accounts/{accountId}/fx-conversions").get("post").get("responses");
+        assertThat(conversion.propertyNames()).contains("200", "400", "403", "404", "409", "422", "503");
+        assertThat(conversion.get("409").toString()).contains("ErrorResponse").contains("FX_QUOTE_ALREADY_USED");
+        assertThat(conversion.get("422").toString()).contains("FX_QUOTE_EXPIRED");
+        assertThat(conversion.get("200").toString()).contains("FxConversionResponse");
+
         JsonNode rate = paths.get("/api/v1/admin/accounts/{accountId}/fx-preferential-rate").get("put").get("responses");
         assertThat(rate.propertyNames()).contains("200", "400", "403", "404");
     }

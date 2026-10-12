@@ -116,6 +116,8 @@ public abstract class IntegrationTestSupport {
         if (systemAccountJdbcTemplate == null) {
             return;
         }
+        // 환전 체결 기록은 계좌를 외래키로 참조한다. 환전을 하는 테스트가 따로 지우지 않아도 계좌 정리가 막히지 않게 한다.
+        systemAccountJdbcTemplate.update("DELETE FROM fx_conversions");
         systemAccountJdbcTemplate.update(
                 "DELETE FROM accounts WHERE id NOT IN (?::uuid, ?::uuid, ?::uuid)",
                 SYSTEM_FX_ACCOUNT_ID, SYSTEM_FEE_ACCOUNT_ID, SYSTEM_CASH_CLEARING_ACCOUNT_ID);

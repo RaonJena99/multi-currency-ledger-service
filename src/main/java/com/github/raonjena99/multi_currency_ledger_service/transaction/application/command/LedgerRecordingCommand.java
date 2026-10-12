@@ -16,6 +16,7 @@ import com.github.raonjena99.multi_currency_ledger_service.common.model.AssetTyp
  *                       기록되므로 반드시 이 값을 사용해야 합니다.
  * @param transactedAt   거래가 발생한 시각. 원장의 transacted_at 은 소비 시각이 아니라 이 값을
  *                       따라야 월차 원장 귀속월과 어긋나지 않습니다.
+ * @param fx             환전({@code FX_CONVERSION})의 분개 금액. 다른 거래 유형에서는 null 입니다.
  */
 public record LedgerRecordingCommand(
     @JsonAlias({"tradeId", "settlementId"})
@@ -35,5 +36,15 @@ public record LedgerRecordingCommand(
     BigDecimal fiatToBaseRate,
     BigDecimal averageCost,
     boolean isStaleRate,
-    OffsetDateTime transactedAt
-) {}
+    OffsetDateTime transactedAt,
+    FxConversionDetail fx
+) {
+    /** 환전이 아닌 거래용 생성자. 환전 상세({@code fx})가 없다. */
+    public LedgerRecordingCommand(UUID referenceTradeId, UUID accountId, String assetCode, AssetType assetType,
+                                  String fiatCode, String baseCurrency, String tradeType, Money quantity,
+                                  BigDecimal unitPrice, BigDecimal exchangeRate, BigDecimal fiatToBaseRate,
+                                  BigDecimal averageCost, boolean isStaleRate, OffsetDateTime transactedAt) {
+        this(referenceTradeId, accountId, assetCode, assetType, fiatCode, baseCurrency, tradeType, quantity,
+                unitPrice, exchangeRate, fiatToBaseRate, averageCost, isStaleRate, transactedAt, null);
+    }
+}
