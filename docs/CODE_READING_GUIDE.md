@@ -223,7 +223,18 @@ GET /accounts/{id}/transactions, /admin/ledger/trial-balance
 - 상태 변경은 **배타 잠금**(`FOR UPDATE`)으로 읽습니다. 해지는 진행 중인 거래가 커밋될 때까지 기다린 뒤 잔고를 읽습니다.
 - 낙관적 락(`@Version`, 월차 원장)과 비관적 잠금(계좌 행)이 **서로 다른 문제**를 푼다는 점을 구분하십시오. 앞의 것은 같은 원장 행의 동시 수정을, 뒤의 것은 "상태 확인 → 잔고 변경" 사이의 끼어들기를 막습니다.
 
-**2-12. 확인용 테스트**: [AccountTradeServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeServiceTest.java), [AccountTradeConcurrencyTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeConcurrencyTest.java), [regression/LedgerPeriodIntegrityTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/LedgerPeriodIntegrityTest.java)
+**2-12. 환전 견적 — [FxQuoteService.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/FxQuoteService.java)** → **[FxPricing.java](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/domain/FxPricing.java)**
+
+계좌의 기준 통화와 외화 사이의 환전 견적을 냅니다. 잔고를 바꾸지 않고, 환율과 받을 금액을 짧은 시간 동안 고정할 뿐입니다.
+
+- `FxPricing`은 순수 계산입니다. `고객 환율 = 시세 × (1 ± 스프레드 × (1 − 우대율))`이고, **반올림은 모두 회사에 유리한 방향**입니다(환율은 살 때 올림·팔 때 내림, 받을 금액은 내림). 그래서 어떤 입력에서도 고객이 받는 금액의 시세 가치는 낸 금액을 넘지 않고, 그 차이가 스프레드 수익입니다. [FxPricingTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/domain/FxPricingTest.java)의 속성 테스트가 이를 무작위 입력으로 확인합니다.
+- `FxQuoteService`는 트랜잭션을 열지 않습니다(2-6과 같은 이유: 시세 조회는 외부 호출일 수 있습니다). 환전은 **기준 통화가 낀 쌍만** 지원합니다. 한쪽이 기준 통화이므로 시세가 항상 "외화 → 기준 통화" 한 방향이고, 나중에 평균 단가와 실현 손익도 기준 통화로 바로 계산됩니다.
+- **지연 데이터(공급자 장애로 캐시를 쓴 시세)로는 견적을 내지 않습니다.** 회사가 틀린 환율로 외화를 팔아 손해를 보는 일을 막습니다.
+- 설정은 [FxProperties](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/application/FxProperties.java)입니다. 설정에 있는 통화만 환전할 수 있고(허용 목록), 잘못된 설정은 요청이 아니라 **기동 때** 실패합니다. 견적 유효 시간은 시세 허용 나이(5분)를 넘길 수 없습니다.
+- 우대율은 계좌별 값입니다(`Account.fxPreferentialRate`, 관리자 API). 지정하지 않으면 기본 우대율이고, 상한을 낮춘 뒤에도 저장된 높은 값이 적용되지 않도록 **쓸 때도 상한으로 자릅니다**.
+- 견적은 [RedisFxQuoteStore](../src/main/java/com/github/raonjena99/multi_currency_ledger_service/account/infrastructure/RedisFxQuoteStore.java)에 TTL 과 함께 저장됩니다. 시세 캐시와 달리 **Redis 장애를 캐시 미스로 강등하지 않습니다.** 견적은 이 저장소가 유일한 보관처라서, 장애를 "없는 견적"으로 처리하면 고객이 엉뚱한 이유로 거절당합니다. 그래서 전용 예외(503)로 올립니다.
+
+**2-13. 확인용 테스트**: [AccountTradeServiceTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeServiceTest.java), [AccountTradeConcurrencyTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/AccountTradeConcurrencyTest.java), [regression/LedgerPeriodIntegrityTest.java](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/regression/LedgerPeriodIntegrityTest.java), [FxQuoteServiceTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/application/FxQuoteServiceTest.java), [AccountFxQuoteApiTest](../src/test/java/com/github/raonjena99/multi_currency_ledger_service/account/presentation/AccountFxQuoteApiTest.java)
 
 ### 스스로에게 던질 질문
 

@@ -1,5 +1,6 @@
 package com.github.raonjena99.multi_currency_ledger_service.account.domain;
 
+import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -40,6 +41,13 @@ public class Account extends BaseEntity implements Persistable<UUID> {
 
     @Column(name = "base_currency", nullable = false, length = 3)
     private String baseCurrency;
+
+    /**
+     * 환전 우대율(0.9 = 스프레드의 90% 를 깎아 줌). 지정하지 않았으면 null 이고, 이때는 설정의 기본 우대율을 쓴다.
+     * 0 은 "우대 없음"을 명시한 값이다.
+     */
+    @Column(name = "fx_preferential_rate", precision = 5, scale = 4)
+    private BigDecimal fxPreferentialRate;
 
     private Account(UUID id, String ownerName, String baseCurrency) {
         Objects.requireNonNull(id, "Account ID cannot be null");
@@ -118,6 +126,26 @@ public class Account extends BaseEntity implements Persistable<UUID> {
             throw new InvalidAccountStateException("Account is already closed");
         }
         this.status = AccountStatus.CLOSED;
+    }
+
+    /**
+     * 환전 우대율을 지정합니다.
+     *
+     * <p>0 이상 1 미만이고 소수 4자리까지입니다. 100% 우대는 스프레드 수익이 사라지므로 허용하지 않으며,
+     * 컬럼({@code numeric(5,4)})보다 정밀한 값은 조용히 반올림하지 않고 거부합니다. 설정이 정한 상한은
+     * 이 엔티티가 아니라 호출하는 서비스가 확인합니다.
+     *
+     * @param rate 우대율
+     * @throws IllegalArgumentException 범위를 벗어나거나 소수 4자리를 넘는 경우
+     */
+    public void changeFxPreferentialRate(BigDecimal rate) {
+        if (rate == null || rate.signum() < 0 || rate.compareTo(BigDecimal.ONE) >= 0) {
+            throw new IllegalArgumentException("우대율은 0 이상 1 미만이어야 합니다: " + rate);
+        }
+        if (rate.stripTrailingZeros().scale() > 4) {
+            throw new IllegalArgumentException("우대율은 소수 4자리까지만 지정할 수 있습니다: " + rate.toPlainString());
+        }
+        this.fxPreferentialRate = rate;
     }
 
     /**

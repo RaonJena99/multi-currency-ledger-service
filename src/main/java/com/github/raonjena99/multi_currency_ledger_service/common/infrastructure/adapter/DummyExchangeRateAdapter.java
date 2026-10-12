@@ -2,24 +2,41 @@ package com.github.raonjena99.multi_currency_ledger_service.common.infrastructur
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import com.github.raonjena99.multi_currency_ledger_service.common.port.ExchangeRateProvider;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 개발 및 테스트 환경에서 환율 정보를 모의(Mock)로 제공하는 DummyExchangeRateAdapter(더미 환율 어댑터) 클래스입니다.
  * 외부 API 연동 없이 고정된 환율을 반환하여 시스템의 독립적인 테스트를 지원합니다.
+ *
+ * <p>기본 동작은 법정화폐끼리 1:1 입니다. 로컬에서 환전처럼 환율이 중요한 흐름을 확인할 때는 설정
+ * ({@code ledger.dummy.rates.USD.KRW=1300})으로 쌍마다 환율을 지정합니다. 한쪽 방향만 지정해도 반대 방향은
+ * 역수로 계산합니다. 환경 변수로 지정하면 키가 소문자가 되므로({@code LEDGER_DUMMY_RATES_USD_KRW=1300}) 통화 코드는
+ * 대소문자를 가리지 않습니다.
  */
 @Slf4j
 @Component
 // 프로덕션 컨텍스트에 모의 환율 제공자가 올라가 있으면, 한정자 실수 한 번으로 실제 거래에
 // 가짜 환율이 적용될 수 있다. 개발·테스트 프로파일에서만 등록한다.
 @org.springframework.context.annotation.Profile({"local", "test", "dev"})
+@ConfigurationProperties(prefix = "ledger.dummy")
 public class DummyExchangeRateAdapter implements ExchangeRateProvider {
-    
+
+    /** 기준 통화 → (대상 통화 → 환율). 1 기준 = 대상 얼마. 비어 있으면 기본 동작이다. */
+    @Getter
+    @Setter
+    private Map<String, Map<String, BigDecimal>> rates = new HashMap<>();
+
     /**
      * 기준 자산과 대상 자산 간의 모의 환율을 반환합니다.
      * BTC의 경우 고정된 법정화폐 비율(1억)을 사용하고, 그 외에는 1:1 비율을 반환합니다.
@@ -36,6 +53,11 @@ public class DummyExchangeRateAdapter implements ExchangeRateProvider {
             return new ExchangeRate(BigDecimal.ONE, false); 
         }
 
+        BigDecimal configured = configuredRate(baseAssetCode, targetAssetCode);
+        if (configured != null) {
+            return new ExchangeRate(configured, false);
+        }
+
         // BTC와 법정화폐 간의 고정 환율 설정 (1 BTC = 1억)
         BigDecimal btcToFiatRate = new BigDecimal("100000000.00");
 
@@ -48,5 +70,36 @@ public class DummyExchangeRateAdapter implements ExchangeRateProvider {
         }
 
         return new ExchangeRate(BigDecimal.ONE, false);
+    }
+
+    /**
+     * 설정한 환율을 찾습니다. 정방향이 없으면 반대 방향의 역수를 씁니다.
+     *
+     * @return 설정이 없으면 null
+     */
+    private BigDecimal configuredRate(String base, String quote) {
+        BigDecimal direct = lookup(base, quote);
+        if (direct != null) {
+            return direct;
+        }
+        BigDecimal inverse = lookup(quote, base);
+        if (inverse != null && inverse.signum() > 0) {
+            return BigDecimal.ONE.divide(inverse, 18, RoundingMode.HALF_EVEN);
+        }
+        return null;
+    }
+
+    private BigDecimal lookup(String base, String quote) {
+        for (Map.Entry<String, Map<String, BigDecimal>> bases : rates.entrySet()) {
+            if (!bases.getKey().toUpperCase(Locale.ROOT).equals(base)) {
+                continue;
+            }
+            for (Map.Entry<String, BigDecimal> quotes : bases.getValue().entrySet()) {
+                if (quotes.getKey().toUpperCase(Locale.ROOT).equals(quote)) {
+                    return quotes.getValue();
+                }
+            }
+        }
+        return null;
     }
 }
