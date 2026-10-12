@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.14.0...v1.15.0) (2026-10-12)
+
+
+### Features
+
+* 회사 외화 포지션 조회 API 추가 ([#115](https://github.com/RaonJena99/multi-currency-ledger-service/issues/115)) ([#145](https://github.com/RaonJena99/multi-currency-ledger-service/issues/145)) ([651a3dd](https://github.com/RaonJena99/multi-currency-ledger-service/commit/651a3ddee028afcefcbe6955785a8603759b3499))
+
 ## [1.14.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.13.0...v1.14.0) (2026-10-12)
 
 
