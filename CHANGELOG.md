@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.13.0...v1.14.0) (2026-10-12)
+
+
+### Features
+
+* 환전 체결 API 와 FX_CONVERSION 분개 추가 ([#114](https://github.com/RaonJena99/multi-currency-ledger-service/issues/114) 2/2) ([#142](https://github.com/RaonJena99/multi-currency-ledger-service/issues/142)) ([48ec21b](https://github.com/RaonJena99/multi-currency-ledger-service/commit/48ec21bb232b8976911864a315cb1caac44d4d7c))
+
 ## [1.13.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.12.0...v1.13.0) (2026-10-12)
 
 
