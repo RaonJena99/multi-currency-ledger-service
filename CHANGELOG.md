@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.15.0...v1.15.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **deps:** bump the gradle-minor-and-patch group with 2 updates ([#150](https://github.com/RaonJena99/multi-currency-ledger-service/issues/150)) ([89c2e16](https://github.com/RaonJena99/multi-currency-ledger-service/commit/89c2e16830d64973b95023656a117057c5cb6f6c))
+
 ## [1.15.0](https://github.com/RaonJena99/multi-currency-ledger-service/compare/v1.14.0...v1.15.0) (2026-10-12)
 
 
